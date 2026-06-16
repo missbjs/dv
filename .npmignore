@@ -1,0 +1,22 @@
+# Source files (keep dist only)
+src/
+
+# Test files
+test-*.sh
+test-*.ps1
+test-*.png
+test-script.js
+test-complete.sh
+
+# Development docs
+REVIEW.md
+PROJECT_SUMMARY.md
+
+# Session files
+.dv-session.json
+
+# TypeScript config (not needed for consumers)
+tsconfig.json
+
+# Git files
+.gitignore

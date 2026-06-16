@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.dv-session.json
+*.log
+.DS_Store
+profile-qmdj-*/
+*.tgz
+REVIEW.md
+test-*.sh
+test-*.ps1
+test-*.png
+test-script.js
