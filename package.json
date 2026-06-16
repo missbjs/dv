@@ -9,6 +9,10 @@
     "type": "git",
     "url": "https://github.com/missbjs/dv"
   },
+  "homepage": "https://github.com/missbjs/dv#readme",
+  "bugs": {
+    "url": "https://github.com/missbjs/dv/issues"
+  },
   "keywords": [
     "chrome",
     "devtools",
@@ -18,7 +22,13 @@
     "testing",
     "debugging",
     "selenium-alternative",
-    "puppeteer-alternative"
+    "puppeteer-alternative",
+    "playwright-alternative",
+    "chrome-devtools-protocol",
+    "headless-browser",
+    "network-monitoring",
+    "dom-manipulation",
+    "device-emulation"
   ],
   "bin": {
     "dv": "./dist/cli.js"
@@ -41,5 +51,12 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "QUICK-REFERENCE.md",
+    "EXAMPLES.md"
+  ]
 }
