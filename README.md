@@ -126,12 +126,14 @@ Pre-configured profiles for parallel testing:
 
 | Profile | Port | Purpose |
 |---------|------|---------|
-| profile-1 | 9230 | OAuth pinned |
+| profile-1 | 9230 | General use |
 | profile-2 | 9231 | Parallel testing |
 | profile-3 | 9232 | Parallel testing |
 | profile-4 | 9233 | Parallel testing |
 | profile-5 | 9234 | Parallel testing |
 | profile-6 | 9235 | Parallel testing |
+
+All profiles support persistent OAuth sessions and can maintain authentication state.
 
 ```bash
 dv start --profile profile-1

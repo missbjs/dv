@@ -1,7 +1,7 @@
 import { ProfileConfig } from './types.js';
 
 export const PROFILES: ProfileConfig = {
-  'profile-1': { port: 9230, purpose: 'OAuth pinned' },
+  'profile-1': { port: 9230, purpose: 'General use' },
   'profile-2': { port: 9231, purpose: 'Parallel testing' },
   'profile-3': { port: 9232, purpose: 'Parallel testing' },
   'profile-4': { port: 9233, purpose: 'Parallel testing' },
