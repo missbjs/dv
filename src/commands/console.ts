@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface ConsoleOptions {
-  port: number;
+  profile: string;
   type?: 'log' | 'warn' | 'error' | 'info' | 'debug';
   filter?: string;
   json?: boolean;
@@ -10,7 +11,7 @@ export interface ConsoleOptions {
 }
 
 export async function consoleCommand(options: ConsoleOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

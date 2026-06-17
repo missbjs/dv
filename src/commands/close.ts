@@ -1,13 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface CloseOptions {
-  port: number;
+  profile: string;
   pageId?: string;
 }
 
 export async function close(options: CloseOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     if (!options.pageId) {

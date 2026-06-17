@@ -1,13 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface UserAgentOptions {
-  port: number;
+  profile: string;
   ua: string;
 }
 
 export async function userAgent(options: UserAgentOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

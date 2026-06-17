@@ -13,6 +13,7 @@ export class CDPClient {
   private pendingMessages = new Map<number, {
     resolve: (value: any) => void;
     reject: (error: any) => void;
+    timeoutId?: NodeJS.Timeout;
   }>();
   private consoleMessages: Array<{
     type: string;
@@ -31,6 +32,7 @@ export class CDPClient {
     responseBody?: string;
   }> = [];
   private state: SessionState;
+  private requestInterceptedCallback?: (params: any) => void;
 
   constructor(port: number) {
     this.port = port;
@@ -117,6 +119,10 @@ export class CDPClient {
           const pending = this.pendingMessages.get(message.id);
           if (pending) {
             this.pendingMessages.delete(message.id);
+            // Clear timeout when response arrives
+            if (pending.timeoutId) {
+              clearTimeout(pending.timeoutId);
+            }
             if (message.error) {
               pending.reject(message.error);
             } else {
@@ -137,6 +143,11 @@ export class CDPClient {
           if (req) {
             req.status = message.params?.response.status;
             req.responseHeaders = message.params?.response.headers;
+          }
+        } else if (message.method === 'Network.requestIntercepted') {
+          // Handle intercepted requests
+          if (this.requestInterceptedCallback) {
+            this.requestInterceptedCallback(message.params);
           }
         }
       });
@@ -160,12 +171,15 @@ export class CDPClient {
       this.ws!.send(JSON.stringify(message));
 
       // Timeout after 30 seconds
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         if (this.pendingMessages.has(id)) {
           this.pendingMessages.delete(id);
           reject(new Error('Timeout waiting for CDP response'));
         }
       }, 30000);
+
+      // Store both resolve/reject and timeout reference
+      this.pendingMessages.set(id, { resolve, reject, timeoutId });
     });
   }
 
@@ -485,5 +499,10 @@ export class CDPClient {
       storageId: { origin, storageType },
       key,
     });
+  }
+
+  // Request interception callback
+  onRequestIntercepted(callback: (params: any) => void) {
+    this.requestInterceptedCallback = callback;
   }
 }

@@ -1,15 +1,16 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface LocationOptions {
-  port: number;
+  profile: string;
   lat: number;
   lng: number;
   accuracy?: number;
 }
 
 export async function location(options: LocationOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

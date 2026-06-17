@@ -1,15 +1,16 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface ThrottleOptions {
-  port: number;
+  profile: string;
   offline?: boolean;
   slow3g?: boolean;
   fast3g?: boolean;
 }
 
 export async function throttle(options: ThrottleOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

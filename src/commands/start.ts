@@ -4,31 +4,28 @@ import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 
 export interface StartOptions {
-  port?: number;
-  profile?: string;
+  profile: string;
   headed?: boolean;
 }
 
 export async function start(options: StartOptions) {
-  let port = options.port;
-  let profilePath: string | undefined;
-
-  if (options.profile) {
-    const profile = getProfile(options.profile);
-    if (!profile) {
-      console.error(chalk.red(`Profile not found: ${options.profile}`));
-      console.error(chalk.yellow('Available profiles:'));
-      console.error('  profile-qmdj-1 through profile-qmdj-6');
-      process.exit(1);
-    }
-    port = profile.port;
-    profilePath = options.profile;
-  }
-
-  if (!port) {
-    console.error(chalk.red('Port is required. Use --port or --profile'));
+  const profile = getProfile(options.profile);
+  if (!profile) {
+    console.error(chalk.red(`Profile not found: ${options.profile}`));
+    console.error(chalk.yellow('Available profiles:'));
+    console.error('  profile-1 through profile-6');
     process.exit(1);
   }
+
+  // Validate profile name to prevent path traversal
+  const validProfiles = ['profile-1', 'profile-2', 'profile-3', 'profile-4', 'profile-5', 'profile-6'];
+  if (!validProfiles.includes(options.profile)) {
+    console.error(chalk.red('Invalid profile name'));
+    process.exit(1);
+  }
+
+  const port = profile.port;
+  const profilePath = options.profile;
 
   // Check if Chrome is already running on this port
   const client = new CDPClient(port);

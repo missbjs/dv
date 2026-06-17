@@ -17,24 +17,24 @@ npx @missbjs/dv --help
 ## Quick Start
 
 ```bash
-# Start Chrome
-dv start --port 9222 --headed
+# Start Chrome with a profile
+dv start --profile profile-1 --headed
 
 # Navigate to page
-dv navigate --port 9222 --url https://example.com
+dv navigate --profile profile-1 --url https://example.com
 
 # Check status
-dv status --port 9222
+dv status --profile profile-1
 
 # Interact with elements
-dv click --port 9222 --selector "#button"
-dv fill --port 9222 --selector "#email" --value "test@example.com"
+dv click --profile profile-1 --selector "#button"
+dv fill --profile profile-1 --selector "#email" --value "test@example.com"
 
 # Monitor network
-dv network --port 9222
+dv network --profile profile-1
 
 # Take screenshot
-dv screenshot --port 9222 --output screenshot.png
+dv screenshot --profile profile-1 --output screenshot.png
 ```
 
 ## Features
@@ -78,25 +78,25 @@ dv screenshot --port 9222 --output screenshot.png
 ### ✅ Network Monitoring & Interception
 Monitor API calls, view request details, block or mock requests:
 ```bash
-dv network --port 9222 --filter "api" --json
-dv intercept --port 9222 --url "api.example.com" --action block
-dv request --port 9222 --id <request-id> --body
+dv network --profile profile-1 --filter "api" --json
+dv intercept --profile profile-1 --url "api.example.com" --action block
+dv request --profile profile-1 --id <request-id> --body
 ```
 
 ### ✅ Enhanced DOM Manipulation
 Inspect elements, modify content, set attributes:
 ```bash
-dv inspect --port 9222 --selector "#button"
-dv set-attribute --port 9222 --selector "#btn" --attr disabled --value "true"
-dv query-all --port 9222 --selector ".item"
+dv inspect --profile profile-1 --selector "#button"
+dv set-attribute --profile profile-1 --selector "#btn" --attr disabled --value "true"
+dv query-all --profile profile-1 --selector ".item"
 ```
 
 ### ✅ Device Emulation
 Test mobile scenarios with device emulation, geolocation, network throttling:
 ```bash
-dv emulate --port 9222 --device iphone-13
-dv location --port 9222 --lat 37.7749 --lng -122.4194
-dv throttle --port 9222 --slow-3g
+dv emulate --profile profile-1 --device iphone-13
+dv location --profile profile-1 --lat 37.7749 --lng -122.4194
+dv throttle --profile profile-1 --slow-3g
 ```
 
 **Supported Devices:**
@@ -107,17 +107,17 @@ dv throttle --port 9222 --slow-3g
 ### ✅ Storage Management
 View and manage cookies, localStorage, sessionStorage:
 ```bash
-dv cookies --port 9222 --json
-dv storage-clear --port 9222 --type local
-dv local-storage --port 9222 --key "auth-token"
+dv cookies --profile profile-1 --json
+dv storage-clear --profile profile-1 --type local
+dv local-storage --profile profile-1 --key "auth-token"
 ```
 
-### ✅ Mandatory Port Parameter
-All commands require `--port` to prevent AI agent collisions:
+### ✅ Mandatory Profile Parameter
+All commands require `--profile` to prevent AI agent collisions:
 ```bash
-# Each agent uses a different port
-dv start --port 9222 --headed
-dv start --port 9223 --headed
+# Each agent uses a different profile
+dv start --profile profile-1 --headed
+dv start --profile profile-2 --headed
 ```
 
 ## Profile System
@@ -126,53 +126,53 @@ Pre-configured profiles for parallel testing:
 
 | Profile | Port | Purpose |
 |---------|------|---------|
-| profile-qmdj-1 | 9222 | OAuth pinned |
-| profile-qmdj-2 | 9223 | Parallel testing |
-| profile-qmdj-3 | 9224 | Parallel testing |
-| profile-qmdj-4 | 9225 | Parallel testing |
-| profile-qmdj-5 | 9226 | Parallel testing |
-| profile-qmdj-6 | 9227 | Parallel testing |
+| profile-1 | 9230 | OAuth pinned |
+| profile-2 | 9231 | Parallel testing |
+| profile-3 | 9232 | Parallel testing |
+| profile-4 | 9233 | Parallel testing |
+| profile-5 | 9234 | Parallel testing |
+| profile-6 | 9235 | Parallel testing |
 
 ```bash
-dv start --profile profile-qmdj-1
-dv status --port 9222
+dv start --profile profile-1
+dv status --profile profile-1
 ```
 
 ## Example Workflows
 
 ### API Testing
 ```bash
-dv start --port 9222 --headed
-dv navigate --port 9222 --url https://myapp.com
-dv network --port 9222 --filter "/api"
-dv request --port 9222 --id <request-id> --body --json
+dv start --profile profile-1 --headed
+dv navigate --profile profile-1 --url https://myapp.com
+dv network --profile profile-1 --filter "/api"
+dv request --profile profile-1 --id <request-id> --body --json
 ```
 
 ### Mobile Testing
 ```bash
-dv start --port 9222 --headed
-dv emulate --port 9222 --device iphone-13
-dv location --port 9222 --lat 37.7749 --lng -122.4194
-dv throttle --port 9222 --slow-3g
-dv navigate --port 9222 --url https://myapp.com
-dv screenshot --port 9222 --output mobile-test.png
+dv start --profile profile-1 --headed
+dv emulate --profile profile-1 --device iphone-13
+dv location --profile profile-1 --lat 37.7749 --lng -122.4194
+dv throttle --profile profile-1 --slow-3g
+dv navigate --profile profile-1 --url https://myapp.com
+dv screenshot --profile profile-1 --output mobile-test.png
 ```
 
 ### Form Testing
 ```bash
-dv fill --port 9222 --selector "#email" --value "test@example.com"
-dv fill --port 9222 --selector "#password" --value "secret"
-dv click --port 9222 --selector "#submit"
-dv console --port 9222 --type error
+dv fill --profile profile-1 --selector "#email" --value "test@example.com"
+dv fill --profile profile-1 --selector "#password" --value "secret"
+dv click --profile profile-1 --selector "#submit"
+dv console --profile profile-1 --type error
 ```
 
 ### Debugging
 ```bash
-dv status --port 9222
-dv inspect --port 9222 --selector "#button"
-dv get-html --port 9222 --selector "#container"
-dv eval --port 9222 --script "localStorage.getItem('token')"
-dv cookies --port 9222
+dv status --profile profile-1
+dv inspect --profile profile-1 --selector "#button"
+dv get-html --profile profile-1 --selector "#container"
+dv eval --profile profile-1 --script "localStorage.getItem('token')"
+dv cookies --profile profile-1
 ```
 
 ## Architecture

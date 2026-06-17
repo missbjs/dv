@@ -1,12 +1,13 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface ClearCacheOptions {
-  port: number;
+  profile: string;
 }
 
 export async function clearCache(options: ClearCacheOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

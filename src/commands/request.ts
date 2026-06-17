@@ -1,15 +1,16 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface RequestOptions {
-  port: number;
+  profile: string;
   id: string;
   body?: boolean;
   json?: boolean;
 }
 
 export async function request(options: RequestOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

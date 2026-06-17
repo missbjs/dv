@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { start } from './commands/start.js';
+import { stop } from './commands/stop.js';
 import { status } from './commands/status.js';
 import { navigate } from './commands/navigate.js';
 import { evalCommand } from './commands/eval.js';
@@ -57,8 +58,7 @@ program
 program
   .command('start')
   .description('Start Chrome with remote debugging')
-  .option('-p, --port <port>', 'Remote debugging port', parseInt)
-  .option('--profile <profile>', 'Profile name (profile-qmdj-1 through profile-qmdj-6)')
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--headed', 'Run in headed mode (not headless)')
   .action(start);
 
@@ -66,14 +66,21 @@ program
 program
   .command('status')
   .description('Check if Chrome is running and show open pages')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .action(status);
+
+// Stop Chrome
+program
+  .command('stop')
+  .description('Stop Chrome process on specified port')
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .action(stop);
 
 // Navigate
 program
   .command('navigate')
   .description('Navigate to URL')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-u, --url <url>', 'URL to navigate to')
   .option('--headed', 'Run in headed mode')
   .action(navigate);
@@ -82,7 +89,7 @@ program
 program
   .command('eval')
   .description('Evaluate JavaScript in the page')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('-s, --script <script>', 'JavaScript expression to evaluate')
   .option('-f, --file <file>', 'JavaScript file to evaluate')
   .option('--json', 'Output as JSON')
@@ -92,7 +99,7 @@ program
 program
   .command('snapshot')
   .description('Take accessibility tree snapshot')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--json', 'Output as JSON')
   .action(snapshot);
 
@@ -100,7 +107,7 @@ program
 program
   .command('screenshot')
   .description('Take screenshot of the page')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-o, --output <file>', 'Output file path')
   .action(screenshot);
 
@@ -108,7 +115,7 @@ program
 program
   .command('console')
   .description('List console messages')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('-t, --type <type>', 'Filter by message type (log, warn, error, info, debug)')
   .option('-f, --filter <pattern>', 'Filter messages by pattern')
   .option('--json', 'Output as JSON')
@@ -119,7 +126,7 @@ program
 program
   .command('click')
   .description('Click element by selector')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .action(click);
 
@@ -127,7 +134,7 @@ program
 program
   .command('fill')
   .description('Fill input with value (clears existing value)')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-v, --value <value>', 'Value to fill')
   .action(fill);
@@ -136,7 +143,7 @@ program
 program
   .command('type')
   .description('Type text into element (appends to existing)')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-t, --text <text>', 'Text to type')
   .action(type);
@@ -145,7 +152,7 @@ program
 program
   .command('key')
   .description('Press a key')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-k, --key <key>', 'Key to press (e.g., Enter, Escape, Tab)')
   .action(key);
 
@@ -153,7 +160,7 @@ program
 program
   .command('pages')
   .description('List all open pages')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--json', 'Output as JSON')
   .action(pages);
 
@@ -161,7 +168,7 @@ program
 program
   .command('select')
   .description('Select page by URL, ID, or index')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('-u, --url <url>', 'URL pattern to match')
   .option('--page-id <id>', 'Page ID')
   .option('-i, --index <index>', 'Page index (1-based)', parseInt)
@@ -171,7 +178,7 @@ program
 program
   .command('new')
   .description('Open new page')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-u, --url <url>', 'URL to open')
   .option('--json', 'Output as JSON')
   .action(newPage);
@@ -180,7 +187,7 @@ program
 program
   .command('close')
   .description('Close page')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--page-id <id>', 'Page ID (defaults to current page)')
   .action(close);
 
@@ -188,7 +195,7 @@ program
 program
   .command('resize')
   .description('Resize viewport')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-w, --width <width>', 'Viewport width', parseInt)
   .requiredOption('-h, --height <height>', 'Viewport height', parseInt)
   .action(resize);
@@ -197,7 +204,7 @@ program
 program
   .command('monitor')
   .description('Monitor console messages in real-time')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-t, --types <types>', 'Comma-separated message types (error,warn,log)')
   .action(monitor);
 
@@ -220,7 +227,7 @@ program
 program
   .command('network')
   .description('List network requests')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('-f, --filter <pattern>', 'Filter by URL pattern')
   .option('--json', 'Output as JSON')
   .action(network);
@@ -228,7 +235,7 @@ program
 program
   .command('intercept')
   .description('Intercept network requests')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-u, --url <url>', 'URL pattern to intercept')
   .requiredOption('-a, --action <action>', 'Action: block or mock')
   .option('-r, --response <response>', 'Mock response body')
@@ -237,7 +244,7 @@ program
 program
   .command('request')
   .description('Get request details')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-i, --id <id>', 'Request ID')
   .option('--body', 'Include response body')
   .option('--json', 'Output as JSON')
@@ -246,14 +253,14 @@ program
 program
   .command('clear-cache')
   .description('Clear browser cache')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .action(clearCache);
 
 // DOM commands
 program
   .command('inspect')
   .description('Inspect element details')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .option('--json', 'Output as JSON')
   .action(inspect);
@@ -261,7 +268,7 @@ program
 program
   .command('query-all')
   .description('Query all matching elements')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .option('--json', 'Output as JSON')
   .action(queryAll);
@@ -269,21 +276,21 @@ program
 program
   .command('get-text')
   .description('Get element text content')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .action(getText);
 
 program
   .command('get-html')
   .description('Get element HTML')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .action(getHtml);
 
 program
   .command('set-text')
   .description('Set element text content')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-v, --value <value>', 'Text value')
   .action(setText);
@@ -291,7 +298,7 @@ program
 program
   .command('set-html')
   .description('Set element HTML')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-v, --value <value>', 'HTML value')
   .action(setHtml);
@@ -299,7 +306,7 @@ program
 program
   .command('set-attribute')
   .description('Set element attribute')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-a, --attr <attr>', 'Attribute name')
   .requiredOption('-v, --value <value>', 'Attribute value')
@@ -309,14 +316,14 @@ program
 program
   .command('emulate')
   .description('Emulate device')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-d, --device <device>', 'Device name (e.g., iphone-13, pixel-5, ipad-pro)')
   .action(emulate);
 
 program
   .command('location')
   .description('Set geolocation')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('--lat <lat>', 'Latitude', parseFloat)
   .requiredOption('--lng <lng>', 'Longitude', parseFloat)
   .option('--accuracy <accuracy>', 'Accuracy in meters', parseFloat)
@@ -325,21 +332,21 @@ program
 program
   .command('user-agent')
   .description('Set user agent')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('--ua <ua>', 'User agent string')
   .action(userAgent);
 
 program
   .command('timezone')
   .description('Set timezone')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('--tz <tz>', 'Timezone ID (e.g., America/New_York)')
   .action(timezone);
 
 program
   .command('throttle')
   .description('Throttle network')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--offline', 'Go offline')
   .option('--slow-3g', 'Slow 3G')
   .option('--fast-3g', 'Fast 3G')
@@ -349,7 +356,7 @@ program
 program
   .command('cookies')
   .description('List cookies')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--domain <domain>', 'Filter by domain')
   .option('--json', 'Output as JSON')
   .action(cookies);
@@ -357,21 +364,21 @@ program
 program
   .command('cookies-clear')
   .description('Clear cookies')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('--domain <domain>', 'Clear cookies for domain')
   .action(cookiesClear);
 
 program
   .command('storage-clear')
   .description('Clear storage')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .requiredOption('-t, --type <type>', 'Storage type: local, session, or all')
   .action(storageClear);
 
 program
   .command('local-storage')
   .description('List localStorage items')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('-k, --key <key>', 'Filter by key')
   .option('--json', 'Output as JSON')
   .action(localStorage);
@@ -379,7 +386,7 @@ program
 program
   .command('session-storage')
   .description('List sessionStorage items')
-  .requiredOption('-p, --port <port>', 'Remote debugging port', parseInt)
+  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
   .option('-k, --key <key>', 'Filter by key')
   .option('--json', 'Output as JSON')
   .action(sessionStorage);

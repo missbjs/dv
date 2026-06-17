@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 const DEVICES: Record<string, { width: number; height: number; deviceScaleFactor: number; mobile: boolean; userAgent: string }> = {
   'iphone-13': { width: 390, height: 844, deviceScaleFactor: 3, mobile: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1' },
@@ -12,12 +13,12 @@ const DEVICES: Record<string, { width: number; height: number; deviceScaleFactor
 };
 
 export interface EmulateOptions {
-  port: number;
+  profile: string;
   device: string;
 }
 
 export async function emulate(options: EmulateOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

@@ -1,13 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface KeyOptions {
-  port: number;
+  profile: string;
   key: string;
 }
 
 export async function key(options: KeyOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

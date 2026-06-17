@@ -1,14 +1,15 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { getPortFromProfile } from '../utils.js';
 
 export interface NewOptions {
-  port: number;
+  profile: string;
   url: string;
   json?: boolean;
 }
 
 export async function newPage(options: NewOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     console.log(chalk.blue(`Creating new page: ${options.url}...`));

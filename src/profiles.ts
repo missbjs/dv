@@ -1,12 +1,12 @@
 import { ProfileConfig } from './types.js';
 
 export const PROFILES: ProfileConfig = {
-  'profile-qmdj-1': { port: 9222, purpose: 'OAuth pinned' },
-  'profile-qmdj-2': { port: 9223, purpose: 'Parallel testing' },
-  'profile-qmdj-3': { port: 9224, purpose: 'Parallel testing' },
-  'profile-qmdj-4': { port: 9225, purpose: 'Parallel testing' },
-  'profile-qmdj-5': { port: 9226, purpose: 'Parallel testing' },
-  'profile-qmdj-6': { port: 9227, purpose: 'Parallel testing' },
+  'profile-1': { port: 9230, purpose: 'OAuth pinned' },
+  'profile-2': { port: 9231, purpose: 'Parallel testing' },
+  'profile-3': { port: 9232, purpose: 'Parallel testing' },
+  'profile-4': { port: 9233, purpose: 'Parallel testing' },
+  'profile-5': { port: 9234, purpose: 'Parallel testing' },
+  'profile-6': { port: 9235, purpose: 'Parallel testing' },
 };
 
 export function getProfile(name: string) {

@@ -1,14 +1,15 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
+import { getPortFromProfile } from '../utils.js';
 
 export interface ScreenshotOptions {
-  port: number;
+  profile: string;
   output: string;
 }
 
 export async function screenshot(options: ScreenshotOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

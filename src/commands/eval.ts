@@ -1,16 +1,17 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
+import { getPortFromProfile } from '../utils.js';
 
 export interface EvalOptions {
-  port: number;
+  profile: string;
   script?: string;
   file?: string;
   json?: boolean;
 }
 
 export async function evalCommand(options: EvalOptions) {
-  const client = new CDPClient(options.port);
+  const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
     await client.loadState();

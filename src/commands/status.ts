@@ -1,20 +1,22 @@
 import { CDPClient } from '../cdp.js';
+import { getPortFromProfile } from '../utils.js';
 import chalk from 'chalk';
 
 export interface StatusOptions {
-  port: number;
+  profile: string;
 }
 
 export async function status(options: StatusOptions) {
-  const client = new CDPClient(options.port);
+  const port = getPortFromProfile(options.profile);
+  const client = new CDPClient(port);
 
   try {
     const targets = await client.getTargets();
     const pages = targets.filter(t => t.type === 'page');
     const state = await client.loadState();
 
-    console.log(chalk.green.bold('✓ Chrome is running on port ' + options.port));
-    console.log(chalk.gray(`DevTools URL: http://localhost:${options.port}`));
+    console.log(chalk.green.bold('✓ Chrome is running on port ' + port));
+    console.log(chalk.gray(`DevTools URL: http://localhost:${port}`));
     console.log();
 
     if (pages.length > 0) {
@@ -37,10 +39,9 @@ export async function status(options: StatusOptions) {
     }
   } catch (error) {
     if (error instanceof Error && error.message.includes('Chrome is not running')) {
-      console.log(chalk.red.bold('✗ Chrome is not running on port ' + options.port));
+      console.log(chalk.red.bold('✗ Chrome is not running on port ' + port));
       console.log(chalk.yellow('\nTo start Chrome:'));
-      console.log(chalk.gray(`  dv start --port ${options.port} --headed`));
-      console.log(chalk.gray(`  dv start --profile profile-qmdj-1  (uses port 9222)`));
+      console.log(chalk.gray(`  dv start --profile ${options.profile} --headed`));
     } else {
       console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
       process.exit(1);
