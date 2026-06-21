@@ -35,7 +35,11 @@
   },
   "scripts": {
     "build": "tsup src/cli.ts --format esm",
-    "dev": "tsup src/cli.ts --format esm --watch"
+    "dev": "tsup src/cli.ts --format esm --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "axios": "^1.7.0",
@@ -44,10 +48,12 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.20.0",
     "@types/ws": "^8.5.12",
+    "@vitest/ui": "^4.1.9",
     "tsup": "^8.1.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=18.0.0"
