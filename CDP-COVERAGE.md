@@ -6,11 +6,11 @@ Chrome DevTools Protocol CLI
 
 ## Current Implementation
 
-### Implemented CDP Methods
+### Implemented CDP Domains (11/56 = 19.6%)
 
 | Domain | CDP Method | CLI Command | Status |
-|--------|-----------|-------------|---------|
-| **Browser** | | | |
+|--------|-----------|-------------|--------|
+| **Browser HTTP API** | | | |
 | HTTP | `/json` (list targets) | `pages`, `status` | ✅ Implemented |
 | HTTP | `/json/new?url` | `new` | ✅ Implemented |
 | HTTP | `/json/close/id` | `close` | ✅ Implemented |
@@ -24,221 +24,157 @@ Chrome DevTools Protocol CLI
 | **Console** | | | |
 | Console | `Console.enable` | Internal | ✅ Implemented |
 | Console | Console events | `console`, `monitor` | ✅ Implemented |
-| **DOM** | | | |
-| DOM | `DOM.getDocument` | Internal (click) | ✅ Implemented |
-| DOM | `DOM.querySelector` | Internal (click) | ✅ Implemented |
-| DOM | `DOM.getBoxModel` | Internal (click) | ✅ Implemented |
-| **DOMSnapshot** | | | |
-| DOMSnapshot | `DOMSnapshot.captureSnapshot` | `snapshot` | ✅ Implemented |
 | **Input** | | | |
 | Input | `Input.dispatchMouseEvent` | `click` | ✅ Implemented |
 | Input | `Input.dispatchKeyEvent` | `type`, `fill`, `key` | ✅ Implemented |
+| **DOM** | | | |
+| DOM | `DOM.getDocument` | Internal | ✅ Implemented |
+| DOM | `DOM.querySelector` | Internal | ✅ Implemented |
+| DOM | `DOM.querySelectorAll` | `query-all` | ✅ Implemented |
+| DOM | `DOM.getBoxModel` | `inspect` | ✅ Implemented |
+| DOM | `DOM.getAttributes` | `inspect` | ✅ Implemented |
+| DOM | `DOM.getOuterHTML` | `get-html` | ✅ Implemented |
+| DOM | `DOM.setOuterHTML` | `set-html` | ✅ Implemented |
+| DOM | `DOM.setAttributeValue` | `set-attribute` | ✅ Implemented |
+| DOM | `DOM.setNodeValue` | `set-text` | ✅ Implemented |
+| **DOMSnapshot** | | | |
+| DOMSnapshot | `DOMSnapshot.captureSnapshot` | `snapshot` | ✅ Implemented |
+| **Network** | | | |
+| Network | `Network.enable` | Internal | ✅ Implemented |
+| Network | `Network.requestWillBeSent` | `network` | ✅ Implemented |
+| Network | `Network.responseReceived` | `network` | ✅ Implemented |
+| Network | `Network.getResponseBody` | `request` | ✅ Implemented |
+| Network | `Network.setCacheDisabled` | `clear-cache` | ✅ Implemented |
+| Network | `Network.clearBrowserCache` | `clear-cache` | ✅ Implemented |
+| Network | `Network.setRequestInterception` | `intercept` | ✅ Implemented |
+| Network | `Network.continueInterceptedRequest` | `intercept` | ✅ Implemented |
 | **Emulation** | | | |
-| Emulation | `Emulation.setDeviceMetricsOverride` | `resize` | ✅ Implemented |
-
-**Coverage: 7/56 domains (12.5%)** - Focus on browser automation and testing
-
----
-
-## Missing High-Value CDP Features
-
-### Network Domain (HIGH PRIORITY)
-Monitor and intercept network requests - critical for testing and debugging.
-
-**Missing Commands:**
-```bash
-# Network monitoring
-dv network --port 9222 [--filter pattern] [--json]
-
-# Network interception
-dv intercept --port 9222 --url pattern --action block|modify|mock
-
-# Request/Response details
-dv request --port 9222 --id <request-id>
-dv response --port 9222 --id <request-id>
-
-# Clear network cache
-dv clear-cache --port 9222
-```
-
-**CDP Methods:**
-- `Network.enable` - Enable network events
-- `Network.requestWillBeSent` - Track requests
-- `Network.responseReceived` - Track responses
-- `Network.getResponseBody` - Get response body
-- `Network.setCacheDisabled` - Disable cache
-- `Network.setRequestInterception` - Intercept requests
-
-### DOM Domain (MEDIUM PRIORITY)
-More DOM interaction beyond basic click/fill.
-
-**Missing Commands:**
-```bash
-# DOM inspection
-dv inspect --port 9222 --selector <css> [--json]
-
-# DOM modification
-dv set-text --port 9222 --selector <css> --value <text>
-dv set-html --port 9222 --selector <css> --value <html>
-dv set-attribute --port 9222 --selector <css> --attr <name> --value <value>
-
-# DOM queries
-dv query-all --port 9222 --selector <css> [--json]
-dv get-text --port 9222 --selector <css>
-dv get-html --port 9222 --selector <css>
-```
-
-**CDP Methods:**
-- `DOM.setNodeValue` - Set text content
-- `DOM.setOuterHTML` - Set HTML
-- `DOM.setAttributeValue` - Set attributes
-- `DOM.querySelectorAll` - Query multiple elements
-- `DOM.getOuterHTML` - Get HTML
-- `DOM.getAttributes` - Get all attributes
-
-### Emulation Domain (MEDIUM PRIORITY)
-Device and environment emulation for testing.
-
-**Missing Commands:**
-```bash
-# Device emulation
-dv emulate --port 9222 --device "iPhone 13"
-
-# Geolocation
-dv location --port 9222 --lat 37.7749 --lng -122.4194
-
-# User agent
-dv user-agent --port 9222 --ua "Mozilla/5.0..."
-
-# Timezone
-dv timezone --port 9222 --tz "America/New_York"
-
-# Network conditions
-dv throttle --port 9222 --offline | --slow-3g | --fast-3g
-```
-
-**CDP Methods:**
-- `Emulation.setDeviceMetricsOverride` - Device emulation
-- `Emulation.setGeolocationOverride` - Geolocation
-- `Emulation.setUserAgentOverride` - User agent
-- `Emulation.setTimezoneOverride` - Timezone
-- `Emulation.setNetworkConditions` - Network throttling
-
-### Debugger Domain (LOW PRIORITY)
-JavaScript debugging with breakpoints.
-
-**Missing Commands:**
-```bash
-# Breakpoints
-dv break --port 9222 --file script.js --line 42
-dv break-remove --port 9222 --id <breakpoint-id>
-
-# Step debugging
-dv step-over --port 9222
-dv step-into --port 9222
-dv step-out --port 9222
-dv resume --port 9222
-
-# Call stack
-dv stack --port 9222 [--json]
-```
-
-**CDP Methods:**
-- `Debugger.enable` - Enable debugger
-- `Debugger.setBreakpoint` - Set breakpoints
-- `Debugger.stepOver/stepInto/stepOut` - Step debugging
-- `Debugger.resume` - Continue execution
-- `Debugger.pause` - Pause execution
-
-### Performance Domain (LOW PRIORITY)
-Performance metrics and profiling.
-
-**Missing Commands:**
-```bash
-# Performance metrics
-dv metrics --port 9222 [--json]
-
-# Tracing
-dv trace-start --port 9222 --categories "devtools.timeline"
-dv trace-stop --port 9222 --output trace.json
-```
-
-**CDP Methods:**
-- `Performance.getMetrics` - Get performance metrics
-- `Performance.enable` - Enable performance monitoring
-- `Tracing.start` - Start tracing
-- `Tracing.end` - Stop tracing
-
-### Storage Domain (LOW PRIORITY)
-Manage browser storage.
-
-**Missing Commands:**
-```bash
-# Storage management
-dv cookies --port 9222 [--json]
-dv cookies-clear --port 9222 [--domain example.com]
-dv storage-clear --port 9222 --type local|session|all
-```
-
-**CDP Methods:**
-- `Storage.getCookies` - Get cookies
-- `Storage.clearCookies` - Clear cookies
-- `Storage.clearDataForOrigin` - Clear storage
+| Emulation | `Emulation.setDeviceMetricsOverride` | `resize`, `emulate` | ✅ Implemented |
+| Emulation | `Emulation.setGeolocationOverride` | `location` | ✅ Implemented |
+| Emulation | `Emulation.clearGeolocationOverride` | Internal | ✅ Implemented |
+| Emulation | `Emulation.setUserAgentOverride` | `user-agent` | ✅ Implemented |
+| Emulation | `Emulation.setTimezoneOverride` | `timezone` | ✅ Implemented |
+| Emulation | `Emulation.setNetworkConditions` | `throttle` | ✅ Implemented |
+| **Storage** | | | |
+| Storage | `Storage.getCookies` | `cookies` | ✅ Implemented |
+| Storage | `Storage.clearCookies` | `cookies-clear` | ✅ Implemented |
+| Storage | `Storage.clearDataForOrigin` | `storage-clear` | ✅ Implemented |
+| **DOMStorage** | | | |
+| DOMStorage | `DOMStorage.getDOMStorageItems` | `local-storage`, `session-storage` | ✅ Implemented |
+| DOMStorage | `DOMStorage.setDOMStorageItem` | Internal | ✅ Implemented |
+| DOMStorage | `DOMStorage.removeDOMStorageItem` | Internal | ✅ Implemented |
 
 ---
 
-## Not Applicable to CLI Use Case
+## Not Implemented (Lower Priority for CLI)
 
-These CDP domains are not relevant for browser automation/testing:
+These CDP domains are not relevant for browser automation/testing CLI:
 
-- **Accessibility** - Accessibility tree inspection (covered by snapshot)
-- **Animation** - Animation debugging
-- **Audits** - Performance audits (better tools exist)
-- **CSS** - CSS manipulation (use Runtime.evaluate instead)
-- **DOMDebugger** - DOM breakpoints
-- **HeapProfiler** - Memory profiling (specialized tooling)
-- **IndexedDB** - Database inspection (use Runtime.evaluate)
-- **LayerTree** - Compositor debugging
-- **Profiler** - CPU profiling (specialized tooling)
-- **WebAudio** - Audio debugging
-- **WebAuthn** - Authentication emulation (niche)
-
----
-
-## Priority Implementation Order
-
-### Phase 1: Essential (Network Monitoring)
-1. `network` - List/monitor network requests
-2. `intercept` - Block/mock network requests
-3. `clear-cache` - Clear browser cache
-
-**Why:** Network monitoring is critical for testing API interactions, debugging failures, and verifying requests.
-
-### Phase 2: Useful (DOM & Emulation)
-4. `inspect` - Inspect element details
-5. `set-text`, `set-html`, `set-attribute` - Direct DOM manipulation
-6. `query-all` - Query multiple elements
-7. `emulate` - Device emulation
-8. `location` - Geolocation override
-9. `throttle` - Network throttling
-
-**Why:** Enhanced DOM manipulation and device emulation enable comprehensive testing scenarios.
-
-### Phase 3: Advanced (Debugging & Performance)
-10. `break`, `step-*`, `resume` - JavaScript debugging
-11. `stack` - Call stack inspection
-12. `metrics` - Performance metrics
-13. `cookies`, `storage-clear` - Storage management
-
-**Why:** Advanced debugging capabilities for complex scenarios, but lower priority than automation features.
+| Domain | Reason |
+|--------|--------|
+| **Accessibility** | Covered by `snapshot` command |
+| **Animation** | Animation debugging (GUI DevTools) |
+| **Audits** | Performance audits (better tools exist) |
+| **CSS** | Use `Runtime.evaluate` instead |
+| **Debugger** | Breakpoint debugging (GUI DevTools) |
+| **DOMDebugger** | DOM breakpoints (GUI DevTools) |
+| **HeapProfiler** | Memory profiling (specialized tooling) |
+| **IndexedDB** | Use `Runtime.evaluate` instead |
+| **LayerTree** | Compositor debugging |
+| **Log** | Log streaming (use `monitor`) |
+| **Performance** | Metrics (use `eval` for specific metrics) |
+| **Profiler** | CPU profiling (specialized tooling) |
+| **Security** | Security debugging (GUI DevTools) |
+| **Target** | Target management (use HTTP API) |
+| **Tracing** | Tracing (specialized tooling) |
+| **WebAudio** | Audio debugging |
+| **WebAuthn** | Authentication emulation (niche) |
 
 ---
 
-## Current Architecture
+## Coverage Summary
 
-The CLI currently focuses on **browser automation and testing** with these capabilities:
+| Category | Count |
+|----------|-------|
+| Implemented domains | 11 |
+| Total CDP domains | 56 |
+| Coverage percentage | 19.6% |
 
-✅ Browser lifecycle (start, status, close)
+**Focus**: Browser automation, testing, and debugging use cases.
+
+---
+
+## CLI Commands by Domain
+
+### Browser Management (7)
+- `start` - Start Chrome with remote debugging
+- `stop` - Stop Chrome process
+- `status` - Check Chrome status
+- `pages` - List open pages
+- `select` - Select page
+- `new` - Open new page
+- `close` - Close page
+
+### Navigation & Execution (4)
+- `navigate` - Navigate to URL
+- `eval` - Evaluate JavaScript
+- `snapshot` - Accessibility snapshot
+- `screenshot` - Take screenshot
+
+### Element Interaction (4)
+- `click` - Click element
+- `fill` - Fill input (clears existing)
+- `type` - Type text (appends)
+- `key` - Press key
+
+### DOM Manipulation (7)
+- `inspect` - Inspect element details
+- `query-all` - Query all matching elements
+- `get-text` - Get element text
+- `get-html` - Get element HTML
+- `set-text` - Set element text
+- `set-html` - Set element HTML
+- `set-attribute` - Set element attribute
+
+### Network Monitoring (4)
+- `network` - List network requests
+- `intercept` - Block/mock requests
+- `request` - Get request details
+- `clear-cache` - Clear browser cache
+
+### Device Emulation (5)
+- `emulate` - Device emulation
+- `location` - Geolocation override
+- `user-agent` - User agent override
+- `timezone` - Timezone override
+- `throttle` - Network throttling
+
+### Storage Management (5)
+- `cookies` - List cookies
+- `cookies-clear` - Clear cookies
+- `storage-clear` - Clear storage
+- `local-storage` - List localStorage
+- `session-storage` - List sessionStorage
+
+### Console & Monitoring (2)
+- `console` - List console messages
+- `monitor` - Real-time monitoring
+
+### Viewport Control (1)
+- `resize` - Resize viewport
+
+### Profile Management (1)
+- `profiles` - List profiles
+
+**Total: 49 commands**
+
+---
+
+## Architecture
+
+The CLI focuses on **browser automation and testing** with these capabilities:
+
+✅ Browser lifecycle (start, stop, status)
 ✅ Navigation (navigate, new page)
 ✅ JavaScript execution (eval)
 ✅ Console monitoring (console, monitor)
@@ -247,27 +183,32 @@ The CLI currently focuses on **browser automation and testing** with these capab
 ✅ Viewport control (resize)
 ✅ Screenshots (screenshot)
 ✅ Accessibility snapshots (snapshot)
+✅ Network monitoring & interception
+✅ Enhanced DOM manipulation
+✅ Device emulation
+✅ Storage management
+✅ Profile-based parallel execution
 
 **Architecture Strengths:**
 - Simple, focused API
-- Good coverage for automation workflows
-- Profile management for parallel agents
-- State persistence
-
-**Architecture Gaps:**
-- No network visibility (can't debug API calls)
-- Limited DOM manipulation (can only click/fill/type)
-- No device emulation (can't test mobile)
-- No request interception (can't mock responses)
+- Profile system for parallel agents (6 profiles, ports 9230-9235)
+- State persistence (.dv-session.json)
+- Mandatory `--profile` prevents agent collisions
+- JSON output for programmatic use
 
 ---
 
 ## Recommendations
 
-1. **Implement Network Domain** - Highest ROI for testing/debugging
-2. **Enhance DOM Domain** - More flexible element manipulation
-3. **Add Emulation Domain** - Mobile/device testing capabilities
-4. **Keep Architecture Simple** - Don't try to wrap all 56 domains
-5. **Focus on CLI Use Cases** - Skip domains better suited for GUI DevTools
+The current 19.6% domain coverage is appropriate for a CLI automation tool. The implemented domains provide:
 
-The current 12.5% domain coverage is appropriate for a CLI automation tool. Expanding to ~20% coverage (adding Network + Emulation + enhanced DOM) would provide 90% of the value for CLI workflows.
+1. **Full browser control** - Start, stop, navigate, manage pages
+2. **Complete DOM interaction** - Click, fill, type, inspect, modify
+3. **Network visibility** - Monitor, intercept, mock requests
+4. **Device testing** - Emulate mobile, geolocation, throttling
+5. **Storage access** - Cookies, localStorage, sessionStorage
+
+Additional domains would add marginal value for CLI use cases. The focus should remain on:
+- Stability and error handling
+- Profile management for parallel execution
+- Integration with AI agent workflows

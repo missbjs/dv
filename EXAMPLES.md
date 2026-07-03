@@ -7,24 +7,24 @@ This example shows a complete workflow for testing a web application with dv-cli
 ### Step 1: Start Chrome
 
 ```bash
-# Start Chrome with profile-qmdj-1 in headed mode
-dv start --profile profile-qmdj-1 --headed
+# Start Chrome with profile-1 in headed mode
+dv start --profile profile-1 --headed
 ```
 
 Expected output:
 ```
-Starting Chrome on port 9222...
-Profile: profile-qmdj-1
+Starting Chrome on port 9230...
+Profile: profile-1
 Headed: yes
-Chrome started successfully on port 9222
-DevTools URL: http://localhost:9222
+Chrome started successfully on port 9230
+DevTools URL: http://localhost:9230
 ```
 
 ### Step 2: Navigate to the Application
 
 ```bash
 # Navigate to your application
-dv navigate --url http://localhost:5178/visual/components/奇门遁甲宫.html
+dv navigate --profile profile-1 --url http://localhost:5178/visual/components/奇门遁甲宫.html
 ```
 
 Expected output:
@@ -37,7 +37,7 @@ Navigation complete
 
 ```bash
 # List all open pages
-dv pages
+dv pages --profile profile-1
 ```
 
 Expected output:
@@ -53,13 +53,13 @@ Found 1 page(s):
 
 ```bash
 # Get page title
-dv eval --script "document.title"
+dv eval --profile profile-1 --script "document.title"
 
 # Count elements
-dv eval --script "document.querySelectorAll('sy-奇门遁甲宫').length"
+dv eval --profile profile-1 --script "document.querySelectorAll('sy-奇门遁甲宫').length"
 
 # Execute script file
-dv eval --file test-script.js --json
+dv eval --profile profile-1 --file test-script.js --json
 ```
 
 Expected output:
@@ -81,17 +81,17 @@ Expected output:
 
 ```bash
 # Click a button
-dv click --selector "#submit-btn"
+dv click --profile profile-1 --selector "#submit-btn"
 
 # Fill a form
-dv fill --selector "#username" --value "test@example.com"
-dv fill --selector "#password" --value "password123"
+dv fill --profile profile-1 --selector "#username" --value "test@example.com"
+dv fill --profile profile-1 --selector "#password" --value "password123"
 
 # Type text (appends)
-dv type --selector "#search" --text "奇门遁甲"
+dv type --profile profile-1 --selector "#search" --text "奇门遁甲"
 
 # Press Enter
-dv key --key Enter
+dv key --profile profile-1 --key Enter
 ```
 
 Expected output:
@@ -113,13 +113,13 @@ Key press successful
 
 ```bash
 # Check for errors
-dv console --type error
+dv console --profile profile-1 --type error
 
 # Check for warnings
-dv console --type warn
+dv console --profile profile-1 --type warn
 
 # Filter logs by pattern
-dv console --type log --filter "API"
+dv console --profile profile-1 --type log --filter "API"
 ```
 
 Expected output:
@@ -137,7 +137,7 @@ Expected output:
 
 ```bash
 # Take a screenshot
-dv screenshot --output screenshot.png
+dv screenshot --profile profile-1 --output screenshot.png
 ```
 
 Expected output:
@@ -151,7 +151,7 @@ Size: 245678 bytes
 
 ```bash
 # Resize to mobile viewport
-dv resize --width 375 --height 667
+dv resize --profile profile-1 --width 375 --height 667
 ```
 
 Expected output:
@@ -164,7 +164,7 @@ Viewport resized
 
 ```bash
 # Monitor errors and warnings
-dv monitor --types error,warn
+dv monitor --profile profile-1 --types error,warn
 ```
 
 Expected output:
@@ -182,19 +182,19 @@ Press Ctrl+C to stop
 
 ```bash
 # Open a new page
-dv new --url http://localhost:5178/another-page.html
+dv new --profile profile-1 --url http://localhost:5178/another-page.html
 
 # List all pages
-dv pages
+dv pages --profile profile-1
 
 # Select a different page
-dv select --index 2
+dv select --profile profile-1 --index 2
 
 # Or select by URL
-dv select --url "another-page"
+dv select --profile profile-1 --url "another-page"
 
 # Close the current page
-dv close
+dv close --profile profile-1
 ```
 
 Expected output:
@@ -228,19 +228,19 @@ You can run multiple Chrome instances with different profiles for parallel testi
 
 ```bash
 # Terminal 1: Start profile 1
-dv start --profile profile-qmdj-1 --headed
+dv start --profile profile-1 --headed
 
 # Terminal 2: Start profile 2
-dv start --profile profile-qmdj-2 --headed
+dv start --profile profile-2 --headed
 
 # Terminal 3: Start profile 3
-dv start --profile profile-qmdj-3 --headed
+dv start --profile profile-3 --headed
 ```
 
 Each profile runs on a different port:
-- profile-qmdj-1 → port 9222
-- profile-qmdj-2 → port 9223
-- profile-qmdj-3 → port 9224
+- profile-1 → port 9230
+- profile-2 → port 9231
+- profile-3 → port 9232
 
 ## Automated Testing Script
 
@@ -253,16 +253,16 @@ Create a bash script for automated testing:
 echo "Starting automated test..."
 
 # Start Chrome
-dv start --profile profile-qmdj-1
+dv start --profile profile-1
 
 # Wait for Chrome to start
 sleep 2
 
 # Navigate
-dv navigate --url http://localhost:5178
+dv navigate --profile profile-1 --url http://localhost:5178
 
 # Check for errors
-ERRORS=$(dv console --type error --json)
+ERRORS=$(dv console --profile profile-1 --type error --json)
 
 if [ "$ERRORS" != "[]" ]; then
   echo "Console errors found!"
@@ -271,10 +271,10 @@ if [ "$ERRORS" != "[]" ]; then
 fi
 
 # Take screenshot
-dv screenshot --output test-result.png
+dv screenshot --profile profile-1 --output test-result.png
 
 # Evaluate test
-RESULT=$(dv eval --script "window.testResult" --json)
+RESULT=$(dv eval --profile profile-1 --script "window.testResult" --json)
 
 if [ "$RESULT" == "true" ]; then
   echo "Test passed!"

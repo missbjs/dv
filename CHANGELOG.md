@@ -2,84 +2,124 @@
 
 ## @missbjs/dv
 
-### Package renamed from dv-cli to dv (2026-06-16)
+### 1.0.0 (2026-07-03)
 
-### Summary
-Made `--port` parameter mandatory for all CDP commands to prevent AI agents from accidentally interfering with each other's browser instances when using default port 9222.
+#### Profile System Refactor
+Replaced `--port` parameter with mandatory `--profile` system for all commands.
 
-### Problem
-- AI agents tended to use the default port 9222 when port was optional
-- Multiple agents could accidentally close or manipulate each other's browser instances
-- No isolation between different agent workflows
+**Changes:**
+- All commands now require `--profile <profile>` instead of `--port <port>`
+- Profiles renamed from `profile-qmdj-1` to `profile-1` through `profile-6`
+- Port assignments changed: 9230-9235 (instead of 9222-9227)
+- `dv profiles` command lists all available profiles
 
-### Solution
-- Made `--port` a required parameter for all commands that connect to Chrome
-- Forces explicit port specification, preventing accidental collisions
-- Agents must now consciously choose which browser instance to interact with
+**Profile Table:**
+| Profile | Port | Purpose |
+|---------|------|---------|
+| profile-1 | 9230 | General use |
+| profile-2 | 9231 | Parallel testing |
+| profile-3 | 9232 | Parallel testing |
+| profile-4 | 9233 | Parallel testing |
+| profile-5 | 9234 | Parallel testing |
+| profile-6 | 9235 | Parallel testing |
 
-### Commands Updated
-All 15 commands now require `--port`:
-
-1. **navigate** - Navigate to URL
-2. **eval** - Evaluate JavaScript
-3. **snapshot** - Take accessibility snapshot
-4. **screenshot** - Take screenshot
-5. **console** - List console messages
-6. **click** - Click element
-7. **fill** - Fill input
-8. **type** - Type text
-9. **key** - Press key
-10. **pages** - List open pages
-11. **select** - Select page
-12. **new** - Open new page
-13. **close** - Close page
-14. **resize** - Resize viewport
-15. **monitor** - Monitor console
-
-**Note:** `start` command does not require `--port` when using `--profile`, as profile determines the port.
-
-### Example Usage
-
-**Before (risky):**
+**Example:**
 ```bash
-dv start --profile profile-qmdj-1  # Launches on port 9222
-dv close                            # Closes port 9222 by default - collision risk!
+# Old (deprecated)
+dv start --port 9222 --headed
+dv navigate --port 9222 --url https://example.com
+
+# New (current)
+dv start --profile profile-1 --headed
+dv navigate --profile profile-1 --url https://example.com
 ```
 
-**After (safe):**
-```bash
-dv start --profile profile-qmdj-1  # Launches on port 9222
-dv close --port 9223               # Must specify port - no collision!
-```
+---
 
-### Profile System
-The existing profile system (profile-qmdj-1 through profile-qmdj-6) provides port assignments:
-- profile-qmdj-1: port 9222 (OAuth pinned)
-- profile-qmdj-2: port 9223 (Parallel testing)
-- profile-qmdj-3: port 9224 (Parallel testing)
-- profile-qmdj-4: port 9225 (Parallel testing)
-- profile-qmdj-5: port 9226 (Parallel testing)
-- profile-qmdj-6: port 9227 (Parallel testing)
+### 0.9.0 (2026-06-22)
 
-### Files Modified
-- `src/cli.ts` - Added requiredOption for --port to all commands
-- `src/commands/navigate.ts` - Added port parameter
-- `src/commands/eval.ts` - Added port parameter
-- `src/commands/snapshot.ts` - Added port parameter
-- `src/commands/screenshot.ts` - Added port parameter
-- `src/commands/console.ts` - Added port parameter
-- `src/commands/click.ts` - Added port parameter
-- `src/commands/fill.ts` - Added port parameter
-- `src/commands/type.ts` - Added port parameter
-- `src/commands/key.ts` - Added port parameter
-- `src/commands/pages.ts` - Added port parameter
-- `src/commands/select.ts` - Added port parameter
-- `src/commands/new.ts` - Added port parameter
-- `src/commands/close.ts` - Added port parameter
-- `src/commands/resize.ts` - Added port parameter
-- `src/commands/monitor.ts` - Added port parameter
+#### Feature Expansion
+Added 32 new commands across Network, DOM, Emulation, and Storage domains.
 
-### Testing
-- Build: ✅ TypeScript compilation successful
-- CLI: ✅ Commands enforce required port parameter
-- Validation: ✅ Commands fail with error if port not specified
+**New Commands:**
+
+Network (4):
+- `network` - List/monitor network requests
+- `intercept` - Block/mock network requests
+- `request` - Get request/response details
+- `clear-cache` - Clear browser cache
+
+DOM (7):
+- `inspect` - Inspect element details
+- `query-all` - Query all matching elements
+- `get-text` - Get element text content
+- `get-html` - Get element HTML
+- `set-text` - Set element text content
+- `set-html` - Set element HTML
+- `set-attribute` - Set element attribute
+
+Emulation (5):
+- `emulate` - Device emulation (iPhone, Pixel, iPad)
+- `location` - Geolocation override
+- `user-agent` - User agent override
+- `timezone` - Timezone override
+- `throttle` - Network throttling (offline, 3G)
+
+Storage (5):
+- `cookies` - List cookies
+- `cookies-clear` - Clear cookies
+- `storage-clear` - Clear localStorage/sessionStorage
+- `local-storage` - List localStorage items
+- `session-storage` - List sessionStorage items
+
+**CDP Coverage:** Increased from 12.5% (7 domains) to 19.6% (11 domains)
+
+---
+
+### 0.2.0 (2026-06-16)
+
+#### Mandatory Port Parameter
+Made `--port` parameter mandatory for all CDP commands to prevent AI agent collisions.
+
+**Problem:**
+- AI agents used default port 9222 when port was optional
+- Multiple agents could accidentally interfere with each other's browser instances
+
+**Solution:**
+- Made `--port` required for all commands connecting to Chrome
+- Forces explicit port specification
+
+**Commands Updated (15):**
+navigate, eval, snapshot, screenshot, console, click, fill, type, key, pages, select, new, close, resize, monitor
+
+---
+
+### 0.1.0 (2026-06-15)
+
+#### Initial Release
+Core browser automation commands.
+
+**Commands (17):**
+- `start` - Start Chrome with remote debugging
+- `status` - Check Chrome status
+- `navigate` - Navigate to URL
+- `eval` - Evaluate JavaScript
+- `snapshot` - Accessibility snapshot
+- `screenshot` - Take screenshot
+- `console` - List console messages
+- `click` - Click element
+- `fill` - Fill input
+- `type` - Type text
+- `key` - Press key
+- `pages` - List pages
+- `select` - Select page
+- `new` - Open new page
+- `close` - Close page
+- `resize` - Resize viewport
+- `monitor` - Real-time console monitoring
+
+**Architecture:**
+- TypeScript 5.5
+- Node.js ≥18.0.0
+- Chrome DevTools Protocol via WebSocket
+- Dependencies: ws, axios, commander, chalk
