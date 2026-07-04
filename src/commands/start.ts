@@ -1,7 +1,14 @@
 import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { getProfile } from '../profiles.js';
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+
+// Anchor profile data dirs to the dv package root so they live in one fixed
+// place regardless of where `dv` was invoked from. __dirname here points at
+// dist/ at runtime; the package root is one level up.
+const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export interface StartOptions {
   profile: string;
@@ -48,7 +55,7 @@ export async function start(options: StartOptions) {
   ];
 
   if (profilePath) {
-    args.push(`--user-data-dir=./${profilePath}`);
+    args.push(`--user-data-dir=${path.join(PKG_ROOT, profilePath)}`);
   }
 
   if (!options.headed) {

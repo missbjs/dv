@@ -120,6 +120,8 @@ program
   .option('-f, --filter <pattern>', 'Filter messages by pattern')
   .option('--json', 'Output as JSON')
   .option('--clear', 'Clear console after listing')
+  .option('-r, --reload', 'Reload page before reading (captures all messages from fresh load)')
+  .option('-w, --wait <ms>', 'Wait ms after reload (default: 3000)', parseInt)
   .action(consoleCommand);
 
 // Click

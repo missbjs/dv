@@ -8,6 +8,8 @@ export interface ConsoleOptions {
   filter?: string;
   json?: boolean;
   clear?: boolean;
+  reload?: boolean;
+  wait?: number;
 }
 
 export async function consoleCommand(options: ConsoleOptions) {
@@ -17,6 +19,14 @@ export async function consoleCommand(options: ConsoleOptions) {
     await client.loadState();
     await client.connect();
     await client.enableConsole();
+
+    // If --reload flag is set, reload the page and wait for tests to finish
+    if (options.reload) {
+      // Clear any existing buffered messages before reload
+      await client.clearConsoleMessages();
+      // Reload page and wait for dynamic content to render
+      await client.reloadAndWait(options.wait ?? 3000);
+    }
 
     const messages = await client.getConsoleMessages();
 

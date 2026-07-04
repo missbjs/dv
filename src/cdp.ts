@@ -332,6 +332,50 @@ export class CDPClient {
     });
   }
 
+  async reloadAndWait(waitMs: number = 3000): Promise<void> {
+    // Listen for Page.loadEventFired to know when page is done loading
+    let loaded = false;
+    const loadPromise = new Promise<void>((resolve) => {
+      const handler = (data: Buffer) => {
+        const message: CDPMessage = JSON.parse(data.toString());
+        if (message.method === 'Page.loadEventFired') {
+          loaded = true;
+          resolve();
+        }
+      };
+      // We need to temporarily hook into the message stream
+      // Use a one-shot approach: register on ws and clean up
+      const origListeners = this.ws!.listeners('message');
+      this.ws!.removeAllListeners('message');
+
+      // Re-register original message handling
+      this.ws!.on('message', (data: Buffer) => {
+        const message: CDPMessage = JSON.parse(data.toString());
+
+        if (message.method === 'Page.loadEventFired' && !loaded) {
+          handler(data);
+        }
+
+        // Forward to the standard message handler by re-emitting
+        origListeners.forEach((l: any) => {
+          try { l(data); } catch {}
+        });
+      });
+    });
+
+    // Navigate to reload
+    await this.send('Page.enable');
+    await this.send('Page.reload');
+
+    // Wait for load event
+    try {
+      await loadPromise;
+    } catch {}
+
+    // Wait additional time for dynamic content/scripts to execute
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+  }
+
   async close() {
     if (this.ws) {
       this.ws.close();
@@ -340,7 +384,8 @@ export class CDPClient {
   }
 
   async newPage(url: string): Promise<CDPTarget> {
-    const response = await axios.put(`http://localhost:${this.port}/json/new?${url}`);
+    const encodedUrl = encodeURIComponent(url);
+    const response = await axios.put(`http://localhost:${this.port}/json/new?${encodedUrl}`);
     return response.data;
   }
 
