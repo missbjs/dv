@@ -21,7 +21,8 @@ export async function select(options: SelectOptions) {
     if (options.pageId) {
       selectedPage = pages.find(p => p.id === options.pageId);
     } else if (options.url) {
-      selectedPage = pages.find(p => p.url.includes(options.url));
+      const url = options.url;
+      selectedPage = pages.find(p => p.url.includes(url));
     } else if (options.index !== undefined) {
       selectedPage = pages[options.index - 1];
     } else {

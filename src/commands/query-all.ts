@@ -22,7 +22,7 @@ export async function queryAll(options: QueryAllOptions) {
       console.log(JSON.stringify({ count: nodeIds.length, nodeIds }, null, 2));
     } else {
       console.log(chalk.green(`\n✓ Found ${nodeIds.length} element(s)`));
-      nodeIds.forEach((id, index) => {
+      nodeIds.forEach((id: number, index: number) => {
         console.log(chalk.white(`  ${index + 1}. Node ID: ${id}`));
       });
     }

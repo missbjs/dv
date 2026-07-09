@@ -13,7 +13,7 @@ export async function close(options: CloseOptions) {
   try {
     if (!options.pageId) {
       const state = await client.loadState();
-      options.pageId = state?.currentPageId;
+      options.pageId = state?.currentPageId ?? undefined;
 
       if (!options.pageId) {
         console.error(chalk.red('No page selected. Use --page-id or select a page first.'));
