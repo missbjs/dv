@@ -3,16 +3,15 @@ import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
 export interface NetworkOptions {
-  profile: string;
   filter?: string;
   json?: boolean;
+  profile: string;
 }
 
 export async function network(options: NetworkOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
     await client.enableNetwork();
 

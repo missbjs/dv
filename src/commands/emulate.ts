@@ -21,7 +21,6 @@ export async function emulate(options: EmulateOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     const device = DEVICES[options.device.toLowerCase()];

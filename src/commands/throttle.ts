@@ -13,7 +13,6 @@ export async function throttle(options: ThrottleOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     let conditions: { offline: boolean; latency: number; downloadThroughput: number; uploadThroughput: number };

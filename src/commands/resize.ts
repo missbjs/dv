@@ -12,7 +12,6 @@ export async function resize(options: ResizeOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Resizing viewport to ${options.width}x${options.height}...`));

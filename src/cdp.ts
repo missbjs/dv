@@ -1,10 +1,6 @@
 import WebSocket from 'ws';
 import axios from 'axios';
-import { CDPMessage, CDPTarget, SessionState } from './types.js';
-import { promises as fs } from 'fs';
-import { join } from 'path';
-
-const SESSION_FILE = '.dv-session.json';
+import { CDPMessage, CDPTarget } from './types.js';
 
 export class CDPClient {
   private ws: WebSocket | null = null;
@@ -31,26 +27,10 @@ export class CDPClient {
     responseHeaders?: any;
     responseBody?: string;
   }> = [];
-  private state: SessionState;
   private requestInterceptedCallback?: (params: any) => void;
 
   constructor(port: number) {
     this.port = port;
-    this.state = { currentPageId: null, currentProfile: null, port };
-  }
-
-  async loadState() {
-    try {
-      const data = await fs.readFile(SESSION_FILE, 'utf-8');
-      this.state = JSON.parse(data);
-      return this.state;
-    } catch {
-      return null;
-    }
-  }
-
-  async saveState() {
-    await fs.writeFile(SESSION_FILE, JSON.stringify(this.state, null, 2));
   }
 
   async getTargets(): Promise<CDPTarget[]> {
@@ -61,52 +41,42 @@ export class CDPClient {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
-        throw new Error(`Chrome is not running on port ${this.port}. Start it first with: dv start --port ${this.port} --headed`);
+        throw new Error(`Chrome is not running on port ${this.port}. Start it first with: dv1 start`);
       }
       throw error;
     }
   }
 
-  async getCurrentPage(): Promise<CDPTarget | null> {
-    const targets = await this.getTargets();
-    const pages = targets.filter(t => t.type === 'page');
-
-    if (this.state.currentPageId) {
-      const page = pages.find(p => p.id === this.state.currentPageId);
-      if (page) return page;
-    }
-
-    // Return first page if no current page set
-    if (pages.length > 0) {
-      return pages[0];
-    }
-
-    return null;
+  /** Find the first non-DevTools tab from live targets */
+  getCurrentTab(targets: CDPTarget[]): CDPTarget | null {
+    const tabs = targets.filter(t => t.type === 'page' && !t.url.startsWith('devtools://'));
+    return tabs.length > 0 ? tabs[0] : null;
   }
 
-  async connect(pageId?: string): Promise<void> {
+  async connect(tabId?: string): Promise<void> {
     const targets = await this.getTargets();
-    const pages = targets.filter(t => t.type === 'page');
+    const tabs = targets.filter(t => t.type === 'page');
 
-    let targetPage: CDPTarget | undefined;
+    let targetTab: CDPTarget | undefined;
 
-    if (pageId) {
-      targetPage = pages.find(p => p.id === pageId);
-    } else if (this.state.currentPageId) {
-      targetPage = pages.find(p => p.id === this.state.currentPageId);
+    if (tabId) {
+      targetTab = tabs.find(p => p.id === tabId);
     } else {
-      targetPage = pages[0];
+      // Default to first non-DevTools tab
+      const contentTab = tabs.find(t => !t.url.startsWith('devtools://'));
+      if (contentTab) {
+        targetTab = contentTab;
+      } else {
+        targetTab = tabs[0];
+      }
     }
 
-    if (!targetPage) {
-      throw new Error('No page found. Make sure Chrome is running and navigate to a page first.');
+    if (!targetTab) {
+      throw new Error('No tab found. Make sure Chrome is running and a tab is open.');
     }
-
-    this.state.currentPageId = targetPage.id;
-    await this.saveState();
 
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(targetPage!.webSocketDebuggerUrl);
+      this.ws = new WebSocket(targetTab!.webSocketDebuggerUrl);
 
       this.ws.on('open', () => {
         resolve();
@@ -130,7 +100,14 @@ export class CDPClient {
             }
           }
         } else if (message.method === 'Console.messageAdded') {
-          this.consoleMessages.push(message.params?.message);
+          const raw = message.params?.message;
+          this.consoleMessages.push({
+            type: raw.level,      // CDP uses 'level' field (error, warning, log, debug)
+            text: raw.text,
+            url: raw.url,
+            line: raw.line,
+            column: raw.column,
+          });
         } else if (message.method === 'Network.requestWillBeSent') {
           this.networkRequests.push({
             requestId: message.params?.requestId,
@@ -155,6 +132,15 @@ export class CDPClient {
       this.ws.on('error', (error) => {
         reject(new Error(`WebSocket error: ${error.message}`));
       });
+
+      // Persistent error handler for post-connection errors — rejects all pending sends
+      this.ws.on('error', (error) => {
+        for (const [id, pending] of this.pendingMessages) {
+          pending.reject(new Error(`WebSocket error: ${error.message}`));
+          if (pending.timeoutId) clearTimeout(pending.timeoutId);
+        }
+        this.pendingMessages.clear();
+      });
     });
   }
 
@@ -167,9 +153,6 @@ export class CDPClient {
     const message: CDPMessage = { id, method, params };
 
     return new Promise((resolve, reject) => {
-      this.pendingMessages.set(id, { resolve, reject });
-      this.ws!.send(JSON.stringify(message));
-
       // Timeout after 30 seconds
       const timeoutId = setTimeout(() => {
         if (this.pendingMessages.has(id)) {
@@ -178,8 +161,15 @@ export class CDPClient {
         }
       }, 30000);
 
-      // Store both resolve/reject and timeout reference
       this.pendingMessages.set(id, { resolve, reject, timeoutId });
+
+      try {
+        this.ws!.send(JSON.stringify(message));
+      } catch (err) {
+        this.pendingMessages.delete(id);
+        clearTimeout(timeoutId);
+        reject(new Error(`WebSocket send failed: ${err instanceof Error ? err.message : err}`));
+      }
     });
   }
 
@@ -208,6 +198,13 @@ export class CDPClient {
 
   async getConsoleMessages() {
     return this.consoleMessages;
+  }
+
+  /** Atomically swap and return the console messages buffer, replacing with a fresh array */
+  async getAndClearConsoleMessages() {
+    const messages = this.consoleMessages;
+    this.consoleMessages = [];
+    return messages;
   }
 
   async clearConsoleMessages() {
@@ -333,37 +330,18 @@ export class CDPClient {
   }
 
   async reloadAndWait(waitMs: number = 3000): Promise<void> {
-    // Listen for Page.loadEventFired to know when page is done loading
-    let loaded = false;
+    // Use a single-shot listener for Page.loadEventFired — don't destroy existing handlers
     const loadPromise = new Promise<void>((resolve) => {
       const handler = (data: Buffer) => {
         const message: CDPMessage = JSON.parse(data.toString());
         if (message.method === 'Page.loadEventFired') {
-          loaded = true;
+          this.ws?.removeListener('message', handler);
           resolve();
         }
       };
-      // We need to temporarily hook into the message stream
-      // Use a one-shot approach: register on ws and clean up
-      const origListeners = this.ws!.listeners('message');
-      this.ws!.removeAllListeners('message');
-
-      // Re-register original message handling
-      this.ws!.on('message', (data: Buffer) => {
-        const message: CDPMessage = JSON.parse(data.toString());
-
-        if (message.method === 'Page.loadEventFired' && !loaded) {
-          handler(data);
-        }
-
-        // Forward to the standard message handler by re-emitting
-        origListeners.forEach((l: any) => {
-          try { l(data); } catch {}
-        });
-      });
+      this.ws?.on('message', handler);
     });
 
-    // Navigate to reload
     await this.send('Page.enable');
     await this.send('Page.reload');
 
@@ -383,18 +361,14 @@ export class CDPClient {
     }
   }
 
-  async newPage(url: string): Promise<CDPTarget> {
+  async newTab(url: string): Promise<CDPTarget> {
     const encodedUrl = encodeURIComponent(url);
     const response = await axios.put(`http://localhost:${this.port}/json/new?${encodedUrl}`);
     return response.data;
   }
 
-  async closePage(pageId: string) {
-    await axios.get(`http://localhost:${this.port}/json/close/${pageId}`);
-    if (this.state.currentPageId === pageId) {
-      this.state.currentPageId = null;
-      await this.saveState();
-    }
+  async closeTab(tabId: string) {
+    await axios.get(`http://localhost:${this.port}/json/close/${tabId}`);
   }
 
   // Network Domain

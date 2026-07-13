@@ -5,11 +5,7 @@ import { getPortFromProfile } from '../utils.js';
 
 const execAsync = promisify(exec);
 
-export interface StopOptions {
-  profile: string;
-}
-
-export async function stop(options: StopOptions) {
+export async function stop(options: { profile: string }) {
   const port = getPortFromProfile(options.profile);
 
   try {

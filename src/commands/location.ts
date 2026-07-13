@@ -3,17 +3,16 @@ import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
 export interface LocationOptions {
-  profile: string;
   lat: number;
   lng: number;
   accuracy?: number;
+  profile: string;
 }
 
 export async function location(options: LocationOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Setting geolocation: ${options.lat}, ${options.lng}`));

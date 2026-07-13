@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { start } from './commands/start.js';
 import { stop } from './commands/stop.js';
 import { status } from './commands/status.js';
@@ -13,7 +13,7 @@ import { click } from './commands/click.js';
 import { fill } from './commands/fill.js';
 import { type } from './commands/type.js';
 import { key } from './commands/key.js';
-import { pages } from './commands/pages.js';
+import { tabs } from './commands/tabs.js';
 import { select } from './commands/select.js';
 import { newPage } from './commands/new.js';
 import { close } from './commands/close.js';
@@ -49,47 +49,57 @@ import chalk from 'chalk';
 
 const program = new Command();
 
+// Detect which binary was invoked for help text display
+const binName = process.env.DV_BIN_NAME || 'dv';
 program
-  .name('dv')
+  .name(binName)
   .description('Chrome DevTools Protocol CLI wrapper')
   .version('1.0.0');
+
+// Create --profile option (hidden when invoked via dv1-dv6 wrappers)
+const profileOption = new Option('--profile <profile>', 'Profile name (dv1 through dv6)').makeOptionMandatory();
+if (process.env.DV_BIN_NAME) {
+  profileOption.hidden = true;
+}
 
 // Start Chrome
 program
   .command('start')
   .description('Start Chrome with remote debugging')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .option('--headed', 'Run in headed mode (not headless)')
+  .addOption(profileOption)
+  .option('--headless', 'Run in headless mode (no visible window)')
   .action(start);
 
 // Status
 program
   .command('status')
-  .description('Check if Chrome is running and show open pages')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .description('Check if Chrome is running and show open tabs')
+  .addOption(profileOption)
   .action(status);
 
 // Stop Chrome
 program
   .command('stop')
   .description('Stop Chrome process on specified port')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .action(stop);
 
-// Navigate
+// Navigate / goto
 program
   .command('navigate')
-  .description('Navigate to URL')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-u, --url <url>', 'URL to navigate to')
-  .option('--headed', 'Run in headed mode')
-  .action(navigate);
+  .alias('goto')
+  .description('Navigate to URL on the current tab')
+  .addOption(profileOption)
+  .argument('<url>', 'URL to navigate to')
+  .action((url: string, options: Record<string, any>) => {
+    navigate({ ...options, url, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Evaluate JavaScript
 program
   .command('eval')
-  .description('Evaluate JavaScript in the page')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .description('Evaluate JavaScript in the tab')
+  .addOption(profileOption)
   .option('-s, --script <script>', 'JavaScript expression to evaluate')
   .option('-f, --file <file>', 'JavaScript file to evaluate')
   .option('--json', 'Output as JSON')
@@ -99,119 +109,152 @@ program
 program
   .command('snapshot')
   .description('Take accessibility tree snapshot')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('--json', 'Output as JSON')
   .action(snapshot);
 
 // Take screenshot
 program
   .command('screenshot')
-  .description('Take screenshot of the page')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-o, --output <file>', 'Output file path')
-  .action(screenshot);
+  .description('Take screenshot of the current tab')
+  .addOption(profileOption)
+  .argument('<output>', 'Output file path')
+  .action((output: string, options: Record<string, any>) => {
+    screenshot({ ...options, output, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Console
 program
   .command('console')
-  .description('List console messages')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .description('List console messages from the current tab')
+  .addOption(profileOption)
   .option('-t, --type <type>', 'Filter by message type (log, warn, error, info, debug)')
   .option('-f, --filter <pattern>', 'Filter messages by pattern')
   .option('--json', 'Output as JSON')
-  .option('--clear', 'Clear console after listing')
-  .option('-r, --reload', 'Reload page before reading (captures all messages from fresh load)')
-  .option('-w, --wait <ms>', 'Wait ms after reload (default: 3000)', parseInt)
+  .option('--tab-id <id>', 'Target specific tab by ID')
   .action(consoleCommand);
+
+// Reload
+program
+  .command('reload')
+  .description('Reload the current tab')
+  .addOption(profileOption)
+  .action(async (options: Record<string, any>) => {
+    const { CDPClient } = await import('./cdp.js');
+    const { getPortFromProfile } = await import('./utils.js');
+    const client = new CDPClient(getPortFromProfile(options.profile));
+    try {
+      await client.connect();
+      await client.enablePage();
+      await client.reloadAndWait(2000);
+      console.log(chalk.green('Tab reloaded'));
+    } catch (error) {
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
+      process.exit(1);
+    } finally {
+      await client.close();
+    }
+  });
 
 // Click
 program
   .command('click')
   .description('Click element by selector')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-s, --selector <selector>', 'CSS selector')
-  .action(click);
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector')
+  .action((selector: string, options: Record<string, any>) => {
+    click({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Fill
 program
   .command('fill')
   .description('Fill input with value (clears existing value)')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-s, --selector <selector>', 'CSS selector')
-  .requiredOption('-v, --value <value>', 'Value to fill')
-  .action(fill);
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector')
+  .argument('<value>', 'Value to fill')
+  .action((selector: string, value: string, options: Record<string, any>) => {
+    fill({ ...options, selector, value, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Type
 program
   .command('type')
   .description('Type text into element (appends to existing)')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-s, --selector <selector>', 'CSS selector')
-  .requiredOption('-t, --text <text>', 'Text to type')
-  .action(type);
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector')
+  .argument('<text>', 'Text to type')
+  .action((selector: string, text: string, options: Record<string, any>) => {
+    type({ ...options, selector, text, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Key
 program
   .command('key')
   .description('Press a key')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-k, --key <key>', 'Key to press (e.g., Enter, Escape, Tab)')
   .action(key);
 
-// Pages
+// Tabs
 program
-  .command('pages')
-  .description('List all open pages')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .command('tabs')
+  .description('List all open tabs')
+  .addOption(profileOption)
   .option('--json', 'Output as JSON')
-  .action(pages);
+  .action(tabs);
 
 // Select
 program
   .command('select')
-  .description('Select page by URL, ID, or index')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .option('-u, --url <url>', 'URL pattern to match')
-  .option('--page-id <id>', 'Page ID')
-  .option('-i, --index <index>', 'Page index (1-based)', parseInt)
+  .description('Select a tab by ID or index')
+  .addOption(profileOption)
+  .option('--tab-id <id>', 'Tab ID')
+  .option('-i, --index <index>', 'Tab index (1-based)', parseInt)
   .action(select);
 
-// New
+// New tab
 program
   .command('new')
-  .description('Open new page')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-u, --url <url>', 'URL to open')
+  .description('Open a new tab with URL')
+  .addOption(profileOption)
+  .argument('<url>', 'URL to open')
   .option('--json', 'Output as JSON')
-  .action(newPage);
+  .action((url: string, options: Record<string, any>) => {
+    newPage({ ...options, url, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
-// Close
+// Close tab
 program
   .command('close')
-  .description('Close page')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .option('--page-id <id>', 'Page ID (defaults to current page)')
-  .action(close);
+  .description('Close a tab')
+  .addOption(profileOption)
+  .argument('<tab-id>', 'Tab ID to close')
+  .action((tabId: string, options: Record<string, any>) => {
+    close({ ...options, tabId, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Resize
 program
   .command('resize')
   .description('Resize viewport')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('-w, --width <width>', 'Viewport width', parseInt)
-  .requiredOption('-h, --height <height>', 'Viewport height', parseInt)
-  .action(resize);
+  .addOption(profileOption)
+  .argument('<width>', 'Viewport width', parseInt)
+  .argument('<height>', 'Viewport height', parseInt)
+  .action((width: number, height: number, options: Record<string, any>) => {
+    resize({ ...options, width, height, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Monitor
 program
   .command('monitor')
   .description('Monitor console messages in real-time')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-t, --types <types>', 'Comma-separated message types (error,warn,log)')
   .action(monitor);
 
 // Profiles
-program
+const profilesCmd = program
   .command('profiles')
   .description('List available profiles')
   .action(() => {
@@ -220,16 +263,19 @@ program
     profileList.forEach(p => {
       console.log(chalk.bold(`  ${p.name}`));
       console.log(chalk.gray(`    Port: ${p.port}`));
-      console.log(chalk.gray(`    Purpose: ${p.purpose}`));
       console.log();
     });
   });
+
+if (process.env.DV_BIN_NAME) {
+  (profilesCmd as unknown as { _hidden: boolean })._hidden = true;
+}
 
 // Network commands
 program
   .command('network')
   .description('List network requests')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('-f, --filter <pattern>', 'Filter by URL pattern')
   .option('--json', 'Output as JSON')
   .action(network);
@@ -237,7 +283,7 @@ program
 program
   .command('intercept')
   .description('Intercept network requests')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-u, --url <url>', 'URL pattern to intercept')
   .requiredOption('-a, --action <action>', 'Action: block or mock')
   .option('-r, --response <response>', 'Mock response body')
@@ -246,7 +292,7 @@ program
 program
   .command('request')
   .description('Get request details')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-i, --id <id>', 'Request ID')
   .option('--body', 'Include response body')
   .option('--json', 'Output as JSON')
@@ -255,14 +301,14 @@ program
 program
   .command('clear-cache')
   .description('Clear browser cache')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .action(clearCache);
 
 // DOM commands
 program
   .command('inspect')
   .description('Inspect element details')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .option('--json', 'Output as JSON')
   .action(inspect);
@@ -270,7 +316,7 @@ program
 program
   .command('query-all')
   .description('Query all matching elements')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .option('--json', 'Output as JSON')
   .action(queryAll);
@@ -278,21 +324,21 @@ program
 program
   .command('get-text')
   .description('Get element text content')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .action(getText);
 
 program
   .command('get-html')
   .description('Get element HTML')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .action(getHtml);
 
 program
   .command('set-text')
   .description('Set element text content')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-v, --value <value>', 'Text value')
   .action(setText);
@@ -300,7 +346,7 @@ program
 program
   .command('set-html')
   .description('Set element HTML')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-v, --value <value>', 'HTML value')
   .action(setHtml);
@@ -308,7 +354,7 @@ program
 program
   .command('set-attribute')
   .description('Set element attribute')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-s, --selector <selector>', 'CSS selector')
   .requiredOption('-a, --attr <attr>', 'Attribute name')
   .requiredOption('-v, --value <value>', 'Attribute value')
@@ -318,37 +364,39 @@ program
 program
   .command('emulate')
   .description('Emulate device')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-d, --device <device>', 'Device name (e.g., iphone-13, pixel-5, ipad-pro)')
   .action(emulate);
 
 program
   .command('location')
   .description('Set geolocation')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
-  .requiredOption('--lat <lat>', 'Latitude', parseFloat)
-  .requiredOption('--lng <lng>', 'Longitude', parseFloat)
+  .addOption(profileOption)
+  .argument('<lat>', 'Latitude', parseFloat)
+  .argument('<lng>', 'Longitude', parseFloat)
   .option('--accuracy <accuracy>', 'Accuracy in meters', parseFloat)
-  .action(location);
+  .action((lat: number, lng: number, options: Record<string, any>) => {
+    location({ ...options, lat, lng, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 program
   .command('user-agent')
   .description('Set user agent')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('--ua <ua>', 'User agent string')
   .action(userAgent);
 
 program
   .command('timezone')
   .description('Set timezone')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('--tz <tz>', 'Timezone ID (e.g., America/New_York)')
   .action(timezone);
 
 program
   .command('throttle')
   .description('Throttle network')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('--offline', 'Go offline')
   .option('--slow-3g', 'Slow 3G')
   .option('--fast-3g', 'Fast 3G')
@@ -358,7 +406,7 @@ program
 program
   .command('cookies')
   .description('List cookies')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('--domain <domain>', 'Filter by domain')
   .option('--json', 'Output as JSON')
   .action(cookies);
@@ -366,21 +414,21 @@ program
 program
   .command('cookies-clear')
   .description('Clear cookies')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('--domain <domain>', 'Clear cookies for domain')
   .action(cookiesClear);
 
 program
   .command('storage-clear')
   .description('Clear storage')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .requiredOption('-t, --type <type>', 'Storage type: local, session, or all')
   .action(storageClear);
 
 program
   .command('local-storage')
   .description('List localStorage items')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('-k, --key <key>', 'Filter by key')
   .option('--json', 'Output as JSON')
   .action(localStorage);
@@ -388,7 +436,7 @@ program
 program
   .command('session-storage')
   .description('List sessionStorage items')
-  .requiredOption('--profile <profile>', 'Profile name (profile-1 through profile-6)')
+  .addOption(profileOption)
   .option('-k, --key <key>', 'Filter by key')
   .option('--json', 'Output as JSON')
   .action(sessionStorage);

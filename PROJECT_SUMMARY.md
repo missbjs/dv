@@ -51,7 +51,7 @@ dv --help
 
 4. **Profile Management** (`src/profiles.ts`)
    - 6 predefined Chrome profiles
-   - Port allocation (9222-9227)
+   - Port allocation (9230-9235)
    - Purpose documentation
 
 ### Dependencies
@@ -69,10 +69,10 @@ dv --help
 
 ### Navigation & Pages
 - `dv navigate` - Navigate to URL
-- `dv pages` - List all open pages
-- `dv select` - Select a page by URL/ID/index
-- `dv new` - Open new page
-- `dv close` - Close page
+- `dv tabs` - List all open tabs
+- `dv select` - Select a tab by URL/ID/index
+- `dv new` - Open new tab
+- `dv close` - Close tab
 
 ### JavaScript Execution
 - `dv eval` - Execute JavaScript (inline or file)
@@ -96,30 +96,18 @@ dv --help
 
 Six predefined profiles for parallel testing:
 
-| Profile | Port | Purpose |
-|---------|------|---------|
-| profile-qmdj-1 | 9222 | OAuth pinned |
-| profile-qmdj-2 | 9223 | Parallel testing |
-| profile-qmdj-3 | 9224 | Parallel testing |
-| profile-qmdj-4 | 9225 | Parallel testing |
-| profile-qmdj-5 | 9226 | Parallel testing |
-| profile-qmdj-6 | 9227 | Parallel testing |
+| Profile | Port |
+|---------|------|
+| dv1 | 9230 |
+| dv2 | 9231 |
+| dv3 | 9232 |
+| dv4 | 9233 |
+| dv5 | 9234 |
+| dv6 | 9235 |
 
 ## Session Management
 
-The CLI maintains session state in `.dv-session.json`:
-```json
-{
-  "currentPageId": "8FA659209153EAB4B4850A290DBF4D56",
-  "currentProfile": "profile-qmdj-1",
-  "port": 9222
-}
-```
-
-This enables:
-- Automatic reconnection to last used page
-- Context persistence across commands
-- Multi-tab workflow support
+The CLI discovers live tabs on each connection — no session state file is needed.
 
 ## Key Features
 
@@ -127,7 +115,7 @@ This enables:
 
 ```bash
 # Chrome not running
-Error: Chrome is not running on port 9222. Start it first with: dv start --port 9222 --headed
+Error: Chrome is not running. Start it first with e.g. `dv1 start`
 
 # Element not found
 Error: Element not found: .non-existent-selector
@@ -181,49 +169,49 @@ Automatic Chrome detection:
 
 ```bash
 # 1. Start Chrome
-dv start --profile profile-qmdj-1 --headed
+dv1 start
 
 # 2. Navigate
-dv navigate --url http://localhost:3000
+dv1 goto http://localhost:3000
 
 # 3. Evaluate
-dv eval --script "document.title"
+dv1 eval --script "document.title"
 
 # 4. Check console
-dv console --type error
+dv1 console --type error
 
 # 5. Screenshot
-dv screenshot --output result.png
+dv1 screenshot result.png
 ```
 
 ### Parallel Testing
 
 ```bash
 # Terminal 1
-dv start --profile profile-qmdj-1 --headed
+dv1 start
 
 # Terminal 2
-dv start --profile profile-qmdj-2 --headed
+dv2 start
 
 # Terminal 3
-dv start --profile profile-qmdj-3 --headed
+dv3 start
 ```
 
 ### Automated Testing
 
 ```bash
 #!/bin/bash
-dv start --profile profile-qmdj-1
-dv navigate --url http://localhost:3000
+dv1 start
+dv1 goto http://localhost:3000
 
-ERRORS=$(dv console --type error --json)
+ERRORS=$(dv1 console --type error --json)
 if [ "$ERRORS" != "[]" ]; then
   echo "Errors found: $ERRORS"
   exit 1
 fi
 
-dv screenshot --output test-result.png
-dv eval --script "window.testPassed" --json
+dv1 screenshot test-result.png
+dv1 eval --script "window.testPassed" --json
 ```
 
 ## File Structure
@@ -294,8 +282,6 @@ The CLI has been tested with:
 1. **WebSocket Lifecycle**: Properly handles connect, send, receive, and close operations
 2. **Timeout Handling**: 30-second timeout for all CDP operations
 3. **Error Messages**: Clear, actionable error messages for common issues
-4. **Session Persistence**: `.dv-session.json` stores current page and profile
-5. **Colorized Output**: Uses `chalk` for better UX
 6. **JSON Output**: All commands support `--json` flag for scripting
 
 ## Future Enhancements

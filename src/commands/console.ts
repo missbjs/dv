@@ -4,36 +4,35 @@ import { getPortFromProfile } from '../utils.js';
 
 export interface ConsoleOptions {
   profile: string;
-  type?: 'log' | 'warn' | 'error' | 'info' | 'debug';
+  type?: string;
   filter?: string;
   json?: boolean;
-  clear?: boolean;
-  reload?: boolean;
-  wait?: number;
+  tabId?: string;
 }
+
+// Map user-friendly short type names to CDP Console level values
+const TYPE_ALIASES: Record<string, string> = {
+  warn: 'warning',
+  error: 'error',
+  log: 'log',
+  info: 'info',
+  debug: 'debug',
+};
 
 export async function consoleCommand(options: ConsoleOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
-    await client.connect();
+    await client.connect(options.tabId);
     await client.enableConsole();
-
-    // If --reload flag is set, reload the page and wait for tests to finish
-    if (options.reload) {
-      // Clear any existing buffered messages before reload
-      await client.clearConsoleMessages();
-      // Reload page and wait for dynamic content to render
-      await client.reloadAndWait(options.wait ?? 3000);
-    }
 
     const messages = await client.getConsoleMessages();
 
     let filtered = messages;
 
     if (options.type) {
-      filtered = filtered.filter(m => m.type === options.type);
+      const cdpLevel = TYPE_ALIASES[options.type] || options.type;
+      filtered = filtered.filter(m => m.type === cdpLevel);
     }
 
     if (options.filter) {
@@ -52,7 +51,7 @@ export async function consoleCommand(options: ConsoleOptions) {
       filtered.forEach(msg => {
         const typeColors: Record<string, typeof chalk.red> = {
           error: chalk.red,
-          warn: chalk.yellow,
+          warning: chalk.yellow,
           log: chalk.white,
           info: chalk.blue,
           debug: chalk.gray,
@@ -65,10 +64,6 @@ export async function consoleCommand(options: ConsoleOptions) {
           console.log(chalk.gray(`  at ${msg.url}:${msg.line}:${msg.column}`));
         }
       });
-    }
-
-    if (options.clear) {
-      await client.clearConsoleMessages();
     }
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));

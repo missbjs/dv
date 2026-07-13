@@ -14,7 +14,6 @@ export async function evalCommand(options: EvalOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
     await client.enableRuntime();
 

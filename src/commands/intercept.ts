@@ -13,7 +13,6 @@ export async function intercept(options: InterceptOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
     await client.enableNetwork();
 

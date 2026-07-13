@@ -3,7 +3,7 @@ dist/
 .dv-session.json
 *.log
 .DS_Store
-profile-*/
+dv*/
 *.tgz
 REVIEW.md
 test-*.sh

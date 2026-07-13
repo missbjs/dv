@@ -12,7 +12,6 @@ export async function screenshot(options: ScreenshotOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
     await client.enablePage();
 

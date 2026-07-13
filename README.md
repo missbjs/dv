@@ -18,23 +18,23 @@ npx @missbjs/dv --help
 
 ```bash
 # Start Chrome with a profile
-dv start --profile profile-1 --headed
+dv1 start
 
 # Navigate to page
-dv navigate --profile profile-1 --url https://example.com
+dv1 goto https://example.com
 
 # Check status
-dv status --profile profile-1
+dv1 status
 
 # Interact with elements
-dv click --profile profile-1 --selector "#button"
-dv fill --profile profile-1 --selector "#email" --value "test@example.com"
+dv1 click #button
+dv1 fill #email "test@example.com"
 
 # Monitor network
-dv network --profile profile-1
+dv1 network
 
 # Take screenshot
-dv screenshot --profile profile-1 --output screenshot.png
+dv1 screenshot screenshot.png
 ```
 
 ## Features
@@ -42,7 +42,7 @@ dv screenshot --profile profile-1 --output screenshot.png
 ### 🚀 49 Commands Across 11 CDP Domains
 
 **Browser Management (6)**
-- `start`, `status`, `pages`, `select`, `new`, `close`
+- `start`, `status`, `tabs`, `select`, `new`, `close`
 
 **Navigation & Execution (4)**
 - `navigate`, `eval`, `snapshot`, `screenshot`
@@ -78,25 +78,25 @@ dv screenshot --profile profile-1 --output screenshot.png
 ### ✅ Network Monitoring & Interception
 Monitor API calls, view request details, block or mock requests:
 ```bash
-dv network --profile profile-1 --filter "api" --json
-dv intercept --profile profile-1 --url "api.example.com" --action block
-dv request --profile profile-1 --id <request-id> --body
+dv1 network --filter "api" --json
+dv1 intercept --url "api.example.com" --action block
+dv1 request --id <request-id> --body
 ```
 
 ### ✅ Enhanced DOM Manipulation
 Inspect elements, modify content, set attributes:
 ```bash
-dv inspect --profile profile-1 --selector "#button"
-dv set-attribute --profile profile-1 --selector "#btn" --attr disabled --value "true"
-dv query-all --profile profile-1 --selector ".item"
+dv1 inspect --selector "#button"
+dv1 set-attribute --selector "#btn" --attr disabled --value "true"
+dv1 query-all --selector ".item"
 ```
 
 ### ✅ Device Emulation
 Test mobile scenarios with device emulation, geolocation, network throttling:
 ```bash
-dv emulate --profile profile-1 --device iphone-13
-dv location --profile profile-1 --lat 37.7749 --lng -122.4194
-dv throttle --profile profile-1 --slow-3g
+dv1 emulate --device iphone-13
+dv1 location 37.7749 -122.4194
+dv1 throttle --slow-3g
 ```
 
 **Supported Devices:**
@@ -107,81 +107,81 @@ dv throttle --profile profile-1 --slow-3g
 ### ✅ Storage Management
 View and manage cookies, localStorage, sessionStorage:
 ```bash
-dv cookies --profile profile-1 --json
-dv storage-clear --profile profile-1 --type local
-dv local-storage --profile profile-1 --key "auth-token"
+dv1 cookies --json
+dv1 storage-clear --type local
+dv1 local-storage --key "auth-token"
 ```
 
-### ✅ Mandatory Profile Parameter
-All commands require `--profile` to prevent AI agent collisions:
+### ✅ Profile-Based Command Names
+Each profile has its own command (`dv1`–`dv6`) to prevent AI agent collisions:
 ```bash
-# Each agent uses a different profile
-dv start --profile profile-1 --headed
-dv start --profile profile-2 --headed
+# Each agent uses a different command
+dv1 start
+dv2 start --headless
 ```
 
 ## Profile System
 
 Pre-configured profiles for parallel testing:
 
-| Profile | Port | Purpose |
-|---------|------|---------|
-| profile-1 | 9230 | General use |
-| profile-2 | 9231 | Parallel testing |
-| profile-3 | 9232 | Parallel testing |
-| profile-4 | 9233 | Parallel testing |
-| profile-5 | 9234 | Parallel testing |
-| profile-6 | 9235 | Parallel testing |
+| Profile | Port |
+|---------|------|
+| dv1 | 9230 |
+| dv2 | 9231 |
+| dv3 | 9232 |
+| dv4 | 9233 |
+| dv5 | 9234 |
+| dv6 | 9235 |
 
 All profiles support persistent OAuth sessions and can maintain authentication state.
 
 ```bash
-dv start --profile profile-1
-dv status --profile profile-1
+dv1 start
+dv1 status
 ```
 
 ## Example Workflows
 
 ### API Testing
 ```bash
-dv start --profile profile-1 --headed
-dv navigate --profile profile-1 --url https://myapp.com
-dv network --profile profile-1 --filter "/api"
-dv request --profile profile-1 --id <request-id> --body --json
+dv1 start
+dv1 goto https://myapp.com
+dv1 network --filter "/api"
+dv1 request --id <request-id> --body --json
 ```
 
 ### Mobile Testing
 ```bash
-dv start --profile profile-1 --headed
-dv emulate --profile profile-1 --device iphone-13
-dv location --profile profile-1 --lat 37.7749 --lng -122.4194
-dv throttle --profile profile-1 --slow-3g
-dv navigate --profile profile-1 --url https://myapp.com
-dv screenshot --profile profile-1 --output mobile-test.png
+dv1 start
+dv1 emulate --device iphone-13
+dv1 location 37.7749 -122.4194
+dv1 throttle --slow-3g
+dv1 goto https://myapp.com
+dv1 screenshot mobile-test.png
 ```
 
 ### Form Testing
 ```bash
-dv fill --profile profile-1 --selector "#email" --value "test@example.com"
-dv fill --profile profile-1 --selector "#password" --value "secret"
-dv click --profile profile-1 --selector "#submit"
-dv console --profile profile-1 --type error
+dv1 fill #email "test@example.com"
+dv1 fill #password "secret"
+dv1 click #submit
+dv1 console --type error
 ```
 
 ### Debugging
 ```bash
-dv status --profile profile-1
-dv inspect --profile profile-1 --selector "#button"
-dv get-html --profile profile-1 --selector "#container"
-dv eval --profile profile-1 --script "localStorage.getItem('token')"
-dv cookies --profile profile-1
+dv1 status
+dv1 inspect --selector "#button"
+dv1 get-html --selector "#container"
+dv1 eval --script "localStorage.getItem('token')"
+dv1 cookies
 ```
 
 ## Architecture
 
 - **Language:** TypeScript 5.5
 - **Runtime:** Node.js ≥18.0.0
-- **Build:** tsup (ESM output)
+- **Build:** tsc + tsx (ESM output)
 - **Protocol:** Chrome DevTools Protocol via WebSocket
 - **Dependencies:** ws, axios, commander, chalk
 

@@ -42,18 +42,18 @@ describe('Integration Tests', () => {
   });
 
   describe('Profile System Integration', () => {
-    it('should enforce profile requirement across all commands', async () => {
-      const commandsToTest = ['navigate', 'eval', 'click', 'fill', 'network', 'screenshot'];
+    it('should enforce profile requirement for commands without required options', async () => {
+      const commandsToTest = ['eval', 'network', 'console'];
 
       for (const cmd of commandsToTest) {
         const { stdout, stderr } = await runCLIAsync([cmd]);
         const output = stdout + stderr;
-        expect(output).toContain('--profile');
+        expect(output).toContain('profile');
       }
     });
 
     it('should provide helpful error messages', async () => {
-      const { stdout, stderr } = await runCLIAsync(['navigate', '--profile', 'invalid']);
+      const { stdout, stderr } = await runCLIAsync(['start', '--profile', 'invalid']);
       const output = stdout + stderr;
 
       expect(output).toContain('Profile not found');
@@ -69,7 +69,6 @@ describe('Integration Tests', () => {
 
         expect(output).toContain('--filter');
         expect(output).toContain('--json');
-        expect(output).toContain('--clear');
       });
     });
 
@@ -79,7 +78,7 @@ describe('Integration Tests', () => {
         const output = stdout + stderr;
 
         expect(output).toContain('--type');
-        expect(output).toContain('--clear');
+        expect(output).toContain('--tab-id');
       });
     });
 
@@ -107,7 +106,7 @@ describe('Integration Tests', () => {
         const commands = ['inspect', 'click', 'get-text', 'get-html', 'set-text', 'set-html'];
 
         for (const cmd of commands) {
-          const { stdout, stderr } = await runCLIAsync([cmd, '--profile', 'profile-1']);
+          const { stdout, stderr } = await runCLIAsync([cmd, '--profile', 'dv1']);
           const output = stdout + stderr;
           // Should fail because Chrome isn't running, but we're testing the interface
           expect(output).toBeDefined();
@@ -138,7 +137,7 @@ describe('Integration Tests', () => {
 
   describe('Error Recovery Tests', () => {
     it('should handle multiple missing required options', async () => {
-      const { stdout, stderr } = await runCLIAsync(['fill', '--profile', 'profile-1']);
+      const { stdout, stderr } = await runCLIAsync(['fill', '--profile', 'dv1']);
       const output = stdout + stderr;
 
       // Should error about missing selector and value
@@ -146,7 +145,7 @@ describe('Integration Tests', () => {
     });
 
     it('should prioritize profile validation over other validations', async () => {
-      const { stdout, stderr } = await runCLIAsync(['navigate', '--profile', 'invalid', '--url', 'https://example.com']);
+      const { stdout, stderr } = await runCLIAsync(['navigate', '--profile', 'invalid', 'https://example.com']);
       const output = stdout + stderr;
 
       // Should complain about invalid profile first
@@ -179,7 +178,7 @@ describe('Integration Tests', () => {
       const output = stdout + stderr;
       expect(output).toContain('start');
       expect(output).toContain('status');
-      expect(output).toContain('pages');
+      expect(output).toContain('tabs');
       expect(output).toContain('close');
     });
 

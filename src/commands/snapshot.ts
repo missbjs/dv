@@ -11,7 +11,6 @@ export async function snapshot(options: SnapshotOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue('Taking accessibility snapshot...'));

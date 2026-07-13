@@ -13,7 +13,6 @@ export async function request(options: RequestOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     const requests = await client.getNetworkRequests();

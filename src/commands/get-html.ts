@@ -3,15 +3,14 @@ import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
 export interface GetHtmlOptions {
-  profile: string;
   selector: string;
+  profile: string;
 }
 
 export async function getHtml(options: GetHtmlOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     const result = await client.evaluate(

@@ -4,29 +4,21 @@ import { getPortFromProfile } from '../utils.js';
 
 export interface CloseOptions {
   profile: string;
-  pageId?: string;
+  tabId: string;
 }
 
 export async function close(options: CloseOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    if (!options.pageId) {
-      const state = await client.loadState();
-      options.pageId = state?.currentPageId ?? undefined;
+    console.log(chalk.blue(`Closing tab ${options.tabId}...`));
+    await client.closeTab(options.tabId);
 
-      if (!options.pageId) {
-        console.error(chalk.red('No page selected. Use --page-id or select a page first.'));
-        process.exit(1);
-      }
-    }
-
-    console.log(chalk.blue(`Closing page ${options.pageId}...`));
-    await client.closePage(options.pageId);
-
-    console.log(chalk.green('Page closed'));
+    console.log(chalk.green('Tab closed'));
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
     process.exit(1);
+  } finally {
+    await client.close();
   }
 }

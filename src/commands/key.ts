@@ -11,7 +11,6 @@ export async function key(options: KeyOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Pressing key ${options.key}...`));

@@ -1,6 +1,5 @@
 export interface Profile {
   port: number;
-  purpose: string;
 }
 
 export interface ProfileConfig {
@@ -26,16 +25,9 @@ export interface CDPMessage {
 }
 
 export interface ConsoleMessage {
-  type: 'log' | 'warn' | 'error' | 'info' | 'debug';
-  args: any[];
+  type: string;  // CDP level values: 'error' | 'warning' | 'log' | 'info' | 'debug'
   text: string;
   url?: string;
   line?: number;
   column?: number;
-}
-
-export interface SessionState {
-  currentPageId: string | null;
-  currentProfile: string | null;
-  port: number;
 }

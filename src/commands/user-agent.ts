@@ -11,7 +11,6 @@ export async function userAgent(options: UserAgentOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue('Setting user agent...'));

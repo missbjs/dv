@@ -12,16 +12,16 @@ export async function localStorage(options: LocalStorageOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
-    const page = await client.getCurrentPage();
-    if (!page) {
-      console.error(chalk.red('No page found'));
+    const targets = await client.getTargets();
+    const tab = client.getCurrentTab(targets);
+    if (!tab) {
+      console.error(chalk.red('No tab found'));
       process.exit(1);
     }
 
-    const origin = page.url;
+    const origin = tab.url;
 
     console.log(chalk.blue('Getting localStorage...'));
     const result = await client.getStorageItems(origin, 'local_storage');

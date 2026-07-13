@@ -4,89 +4,89 @@
 
 ### Browser Management
 ```bash
-dv start --profile profile-1 --headed
-dv status --profile profile-1
-dv pages --profile profile-1
-dv select --profile profile-1 --url "example"
-dv close --profile profile-1
-dv stop --profile profile-1
+dv1 start
+dv1 status
+dv1 tabs
+dv1 select --url "example"
+dv1 close
+dv1 stop
 ```
 
 ### Navigation & Execution
 ```bash
-dv navigate --profile profile-1 --url https://example.com
-dv new --profile profile-1 --url https://example.com
-dv eval --profile profile-1 --script "document.title"
-dv eval --profile profile-1 --file script.js
+dv1 goto https://example.com
+dv1 new https://example.com
+dv1 eval --script "document.title"
+dv1 eval --file script.js
 ```
 
 ### Element Interaction
 ```bash
-dv click --profile profile-1 --selector "#button"
-dv fill --profile profile-1 --selector "#input" --value "text"
-dv type --profile profile-1 --selector "#input" --text "more"
-dv key --profile profile-1 --key Enter
+dv1 click #button
+dv1 fill #input "text"
+dv1 type #input "more"
+dv1 key --key Enter
 ```
 
 ### DOM Manipulation
 ```bash
-dv inspect --profile profile-1 --selector "#button"
-dv query-all --profile profile-1 --selector ".item"
-dv get-text --profile profile-1 --selector "#title"
-dv get-html --profile profile-1 --selector "#container"
-dv set-text --profile profile-1 --selector "#title" --value "New"
-dv set-html --profile profile-1 --selector "#div" --value "<p>HTML</p>"
-dv set-attribute --profile profile-1 --selector "#btn" --attr disabled --value "true"
+dv1 inspect --selector "#button"
+dv1 query-all --selector ".item"
+dv1 get-text --selector "#title"
+dv1 get-html --selector "#container"
+dv1 set-text --selector "#title" --value "New"
+dv1 set-html --selector "#div" --value "<p>HTML</p>"
+dv1 set-attribute --selector "#btn" --attr disabled --value "true"
 ```
 
 ### Network Monitoring
 ```bash
-dv network --profile profile-1
-dv network --profile profile-1 --filter "api" --json
-dv intercept --profile profile-1 --url "api.example.com" --action block
-dv request --profile profile-1 --id <id> --body
-dv clear-cache --profile profile-1
+dv1 network
+dv1 network --filter "api" --json
+dv1 intercept --url "api.example.com" --action block
+dv1 request --id <id> --body
+dv1 clear-cache
 ```
 
 ### Device Emulation
 ```bash
-dv emulate --profile profile-1 --device iphone-13
-dv emulate --profile profile-1 --device pixel-5
-dv location --profile profile-1 --lat 37.7749 --lng -122.4194
-dv user-agent --profile profile-1 --ua "Mozilla/5.0..."
-dv timezone --profile profile-1 --tz "America/New_York"
-dv throttle --profile profile-1 --slow-3g
-dv throttle --profile profile-1 --offline
+dv1 emulate --device iphone-13
+dv1 emulate --device pixel-5
+dv1 location 37.7749 -122.4194
+dv1 user-agent --ua "Mozilla/5.0..."
+dv1 timezone --tz "America/New_York"
+dv1 throttle --slow-3g
+dv1 throttle --offline
 ```
 
 ### Storage Management
 ```bash
-dv cookies --profile profile-1
-dv cookies --profile profile-1 --domain example.com --json
-dv cookies-clear --profile profile-1
-dv storage-clear --profile profile-1 --type local
-dv storage-clear --profile profile-1 --type session
-dv storage-clear --profile profile-1 --type all
-dv local-storage --profile profile-1
-dv session-storage --profile profile-1
+dv1 cookies
+dv1 cookies --domain example.com --json
+dv1 cookies-clear
+dv1 storage-clear --type local
+dv1 storage-clear --type session
+dv1 storage-clear --type all
+dv1 local-storage
+dv1 session-storage
 ```
 
 ### Screenshots & Snapshots
 ```bash
-dv screenshot --profile profile-1 --output page.png
-dv snapshot --profile profile-1 --json
+dv1 screenshot page.png
+dv1 snapshot --json
 ```
 
 ### Console & Monitoring
 ```bash
-dv console --profile profile-1
-dv console --profile profile-1 --type error
-dv monitor --profile profile-1 --types error,warn
+dv1 console
+dv1 console --type error
+dv1 monitor --types error,warn
 ```
 
 ### Viewport Control
 ```bash
-dv resize --profile profile-1 --width 1920 --height 1080
+dv1 resize 1920 1080
 ```
 
 ### Profile Management
@@ -96,12 +96,12 @@ dv profiles
 
 ## Profiles (Port Assignments)
 ```
-profile-1 → port 9230 (General use)
-profile-2 → port 9231 (Parallel testing)
-profile-3 → port 9232 (Parallel testing)
-profile-4 → port 9233 (Parallel testing)
-profile-5 → port 9234 (Parallel testing)
-profile-6 → port 9235 (Parallel testing)
+dv1 → port 9230
+dv2 → port 9231
+dv3 → port 9232
+dv4 → port 9233
+dv5 → port 9234
+dv6 → port 9235
 ```
 
 ## Supported Devices for Emulation
@@ -126,42 +126,42 @@ profile-6 → port 9235 (Parallel testing)
 ## JSON Output
 Most commands support `--json` flag for programmatic use:
 ```bash
-dv network --profile profile-1 --json
-dv cookies --profile profile-1 --json
-dv inspect --profile profile-1 --selector "#btn" --json
+dv1 network --json
+dv1 cookies --json
+dv1 inspect --selector "#btn" --json
 ```
 
 ## Common Patterns
 
 ### API Testing
 ```bash
-dv start --profile profile-1 --headed
-dv navigate --profile profile-1 --url https://myapp.com
-dv network --profile profile-1 --filter "/api"
-dv request --profile profile-1 --id <id> --body --json
+dv1 start
+dv1 goto https://myapp.com
+dv1 network --filter "/api"
+dv1 request --id <id> --body --json
 ```
 
 ### Mobile Testing
 ```bash
-dv start --profile profile-1 --headed
-dv emulate --profile profile-1 --device iphone-13
-dv location --profile profile-1 --lat 37.7749 --lng -122.4194
-dv throttle --profile profile-1 --slow-3g
-dv navigate --profile profile-1 --url https://myapp.com
+dv1 start
+dv1 emulate --device iphone-13
+dv1 location 37.7749 -122.4194
+dv1 throttle --slow-3g
+dv1 goto https://myapp.com
 ```
 
 ### Form Testing
 ```bash
-dv fill --profile profile-1 --selector "#email" --value "test@example.com"
-dv fill --profile profile-1 --selector "#password" --value "secret"
-dv click --profile profile-1 --selector "#submit"
-dv console --profile profile-1 --type error
+dv1 fill #email "test@example.com"
+dv1 fill #password "secret"
+dv1 click #submit
+dv1 console --type error
 ```
 
 ### Performance Testing
 ```bash
-dv clear-cache --profile profile-1
-dv throttle --profile profile-1 --fast-3g
-dv navigate --profile profile-1 --url https://myapp.com
-dv screenshot --profile profile-1 --output result.png
+dv1 clear-cache
+dv1 throttle --fast-3g
+dv1 goto https://myapp.com
+dv1 screenshot result.png
 ```

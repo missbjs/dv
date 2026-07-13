@@ -53,8 +53,8 @@ if (pending.timeoutId) {
 **Code Changes:**
 ```typescript
 const validProfiles = [
-  'profile-qmdj-1', 'profile-qmdj-2', 'profile-qmdj-3',
-  'profile-qmdj-4', 'profile-qmdj-5', 'profile-qmdj-6'
+  'dv1', 'dv2', 'dv3',
+  'dv4', 'dv5', 'dv6'
 ];
 if (!validProfiles.includes(options.profile)) {
   console.error(chalk.red('Invalid profile name'));

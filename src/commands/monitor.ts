@@ -3,16 +3,25 @@ import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
 export interface MonitorOptions {
-  profile: string;
   types: string;
+  profile: string;
 }
+
+// Map user-friendly short type names to CDP Console level values
+const TYPE_ALIASES: Record<string, string> = {
+  warn: 'warning',
+  error: 'error',
+  log: 'log',
+  info: 'info',
+  debug: 'debug',
+};
 
 export async function monitor(options: MonitorOptions) {
   const types = options.types.split(',').map(t => t.trim());
+  const cdpTypes = types.map(t => TYPE_ALIASES[t] || t);
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
     await client.enableConsole();
 
@@ -21,13 +30,14 @@ export async function monitor(options: MonitorOptions) {
 
     // Keep the connection alive and listen for console messages
     const checkMessages = async () => {
-      const messages = await client.getConsoleMessages();
-      const filtered = messages.filter(m => types.includes(m.type));
+      // Use atomic swap to avoid losing messages between read and clear
+      const messages = await client.getAndClearConsoleMessages();
+      const filtered = messages.filter(m => cdpTypes.includes(m.type));
 
       filtered.forEach(msg => {
         const typeColors: Record<string, typeof chalk.red> = {
           error: chalk.red,
-          warn: chalk.yellow,
+          warning: chalk.yellow,
           log: chalk.white,
           info: chalk.blue,
           debug: chalk.gray,
@@ -40,8 +50,6 @@ export async function monitor(options: MonitorOptions) {
           console.log(chalk.gray(`  at ${msg.url}:${msg.line}:${msg.column}`));
         }
       });
-
-      await client.clearConsoleMessages();
 
       // Check again in 100ms
       setTimeout(checkMessages, 100);

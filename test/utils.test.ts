@@ -5,12 +5,12 @@ import { PROFILES } from '../src/profiles.js';
 describe('Utility Functions', () => {
   describe('getPortFromProfile', () => {
     it('should return correct port for valid profile', () => {
-      expect(getPortFromProfile('profile-1')).toBe(9230);
-      expect(getPortFromProfile('profile-2')).toBe(9231);
-      expect(getPortFromProfile('profile-3')).toBe(9232);
-      expect(getPortFromProfile('profile-4')).toBe(9233);
-      expect(getPortFromProfile('profile-5')).toBe(9234);
-      expect(getPortFromProfile('profile-6')).toBe(9235);
+      expect(getPortFromProfile('dv1')).toBe(9230);
+      expect(getPortFromProfile('dv2')).toBe(9231);
+      expect(getPortFromProfile('dv3')).toBe(9232);
+      expect(getPortFromProfile('dv4')).toBe(9233);
+      expect(getPortFromProfile('dv5')).toBe(9234);
+      expect(getPortFromProfile('dv6')).toBe(9235);
     });
 
     it('should throw error for invalid profile', () => {
@@ -30,21 +30,21 @@ describe('Utility Functions', () => {
     });
 
     it('should be case-sensitive', () => {
-      expect(() => getPortFromProfile('PROFILE-1')).toThrow();
-      expect(() => getPortFromProfile('Profile-1')).toThrow();
+      expect(() => getPortFromProfile('DV1')).toThrow();
+      expect(() => getPortFromProfile('Dv1')).toThrow();
     });
 
     it('should reject test profile names', () => {
-      expect(() => getPortFromProfile('test-profile-1')).toThrow();
+      expect(() => getPortFromProfile('test-dv1')).toThrow();
     });
 
     it('should return number type', () => {
-      const port = getPortFromProfile('profile-1');
+      const port = getPortFromProfile('dv1');
       expect(typeof port).toBe('number');
     });
 
     it('should return port in valid range', () => {
-      const port = getPortFromProfile('profile-1');
+      const port = getPortFromProfile('dv1');
       expect(port).toBeGreaterThanOrEqual(9230);
       expect(port).toBeLessThanOrEqual(9235);
     });

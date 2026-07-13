@@ -31,18 +31,17 @@ describe('CLI Commands', () => {
     });
 
     it('should show command-specific help', async () => {
-      const { stdout } = await runCLI(['start', '--help']);
+      const { stdout } = await runCLI(['start', '--profile', 'dv1', '--help']);
       expect(stdout).toContain('Start Chrome');
-      expect(stdout).toContain('--profile');
-      expect(stdout).toContain('--headed');
+      expect(stdout).toContain('--headless');
     });
   });
 
   describe('Profile Command', () => {
     it('should list all profiles', async () => {
       const { stdout } = await runCLI(['profiles']);
-      expect(stdout).toContain('profile-1');
-      expect(stdout).toContain('profile-6');
+      expect(stdout).toContain('dv1');
+      expect(stdout).toContain('dv6');
       expect(stdout).toContain('9230');
       expect(stdout).toContain('9235');
     });
@@ -51,22 +50,43 @@ describe('CLI Commands', () => {
   describe('Required Profile Parameter', () => {
     const commandsRequiringProfile = [
       'start',
-      'navigate',
       'status',
-      'click',
-      'fill',
       'eval',
-      'screenshot',
       'network',
       'console',
       'cookies',
-      'emulate',
     ];
 
     commandsRequiringProfile.forEach((command) => {
       it(`should require --profile for ${command} command`, async () => {
         const { stderr } = await runCLI([command]);
-        expect(stderr).toContain("required option '--profile <profile>'");
+        expect(stderr).toContain("required option '--profile <profile>' not specified");
+      });
+    });
+
+    // Commands that have required options: missing --profile only visible after Commander validates options
+    const commandsWithRequiredOptions: Record<string, string> = {
+      emulate: 'required option',
+    };
+
+    Object.entries(commandsWithRequiredOptions).forEach(([command, expectedPattern]) => {
+      it(`should still work for ${command} command with --profile and required option`, async () => {
+        const { stderr, stdout } = await runCLI([command, '--profile', 'dv1']);
+        const output = stdout + stderr;
+        // Should not crash with the duplicate-eval error or similar
+        expect(output).not.toContain('cannot add command');
+        // Commander should error about the missing required option, not about profile
+        expect(output).toMatch(new RegExp(expectedPattern));
+      });
+    });
+
+    // navigate, click, fill, screenshot use positional arguments now
+    ['navigate', 'click', 'fill', 'screenshot'].forEach((command) => {
+      it(`should still work for ${command} command with --profile`, async () => {
+        const { stderr, stdout } = await runCLI([command, '--profile', 'dv1']);
+        const output = stdout + stderr;
+        expect(output).not.toContain('cannot add command');
+        expect(output).toContain("missing required argument");
       });
     });
   });
@@ -87,29 +107,29 @@ describe('CLI Commands', () => {
 
   describe('Command Options Validation', () => {
     it('should require --url for navigate command', async () => {
-      const { stderr } = await runCLI(['navigate', '--profile', 'profile-1']);
-      expect(stderr).toContain("required option '-u, --url <url>'");
+      const { stderr } = await runCLI(['navigate', '--profile', 'dv1']);
+      expect(stderr).toContain("error: missing required argument 'url'");
     });
 
-    it('should require --selector for click command', async () => {
-      const { stderr } = await runCLI(['click', '--profile', 'profile-1']);
-      expect(stderr).toContain("required option '-s, --selector <selector>'");
+    it('should require selector for click command', async () => {
+      const { stderr } = await runCLI(['click', '--profile', 'dv1']);
+      expect(stderr).toContain("error: missing required argument 'selector'");
     });
 
-    it('should require --selector and --value for fill command', async () => {
-      const { stderr } = await runCLI(['fill', '--profile', 'profile-1']);
-      expect(stderr).toContain("required option '-s, --selector <selector>'");
+    it('should require selector and value for fill command', async () => {
+      const { stderr } = await runCLI(['fill', '--profile', 'dv1']);
+      expect(stderr).toContain("error: missing required argument 'selector'");
     });
 
     it('should require --script for eval command', async () => {
-      const { stderr, stdout } = await runCLI(['eval', '--profile', 'profile-1', '--script', '1+1']);
+      const { stderr, stdout } = await runCLI(['eval', '--profile', 'dv1', '--script', '1+1']);
       // The command will fail because Chrome isn't running, but that's OK
       const output = stdout + stderr;
       expect(output).toBeDefined();
     });
 
-    it('should require --output for screenshot command', async () => {
-      const { stderr, stdout } = await runCLI(['screenshot', '--profile', 'profile-1', '--output', 'test.png']);
+    it('should require output file for screenshot command', async () => {
+      const { stderr, stdout } = await runCLI(['screenshot', '--profile', 'dv1']);
       // The command will fail because Chrome isn't running, but that's OK
       const output = stdout + stderr;
       expect(output).toBeDefined();
@@ -117,24 +137,29 @@ describe('CLI Commands', () => {
   });
 
   describe('Command Options Accepted', () => {
-    it('should accept --headed flag for start command', async () => {
-      const { stdout } = await runCLI(['start', '--profile', 'profile-1', '--headed', '--help']);
-      expect(stdout).toContain('--headed');
+    it('should accept --headless flag for start command', async () => {
+      const { stdout } = await runCLI(['start', '--profile', 'dv1', '--headless', '--help']);
+      expect(stdout).toContain('--headless');
     });
 
     it('should accept --json flag for network command', async () => {
-      const { stdout } = await runCLI(['network', '--profile', 'profile-1', '--help']);
+      const { stdout } = await runCLI(['network', '--profile', 'dv1', '--help']);
       expect(stdout).toContain('--json');
     });
 
     it('should accept --filter option for network command', async () => {
-      const { stdout } = await runCLI(['network', '--profile', 'profile-1', '--help']);
+      const { stdout } = await runCLI(['network', '--profile', 'dv1', '--help']);
       expect(stdout).toContain('--filter');
     });
 
     it('should accept --type option for console command', async () => {
-      const { stdout } = await runCLI(['console', '--profile', 'profile-1', '--help']);
+      const { stdout } = await runCLI(['console', '--profile', 'dv1', '--help']);
       expect(stdout).toContain('--type');
+    });
+
+    it('should accept --tab-id option for console command', async () => {
+      const { stdout } = await runCLI(['console', '--profile', 'dv1', '--help']);
+      expect(stdout).toContain('--tab-id');
     });
   });
 });

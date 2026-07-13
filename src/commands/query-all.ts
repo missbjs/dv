@@ -3,16 +3,15 @@ import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
 export interface QueryAllOptions {
-  profile: string;
   selector: string;
   json?: boolean;
+  profile: string;
 }
 
 export async function queryAll(options: QueryAllOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Querying: ${options.selector}`));

@@ -7,15 +7,14 @@ This example shows a complete workflow for testing a web application with dv-cli
 ### Step 1: Start Chrome
 
 ```bash
-# Start Chrome with profile-1 in headed mode
-dv start --profile profile-1 --headed
+# Start Chrome with dv1
+dv1 start
 ```
 
 Expected output:
 ```
 Starting Chrome on port 9230...
-Profile: profile-1
-Headed: yes
+Profile: dv1
 Chrome started successfully on port 9230
 DevTools URL: http://localhost:9230
 ```
@@ -24,7 +23,7 @@ DevTools URL: http://localhost:9230
 
 ```bash
 # Navigate to your application
-dv navigate --profile profile-1 --url http://localhost:5178/visual/components/奇门遁甲宫.html
+dv1 goto http://localhost:5178/visual/components/奇门遁甲宫.html
 ```
 
 Expected output:
@@ -33,16 +32,16 @@ Navigating to http://localhost:5178/visual/components/奇门遁甲宫.html...
 Navigation complete
 ```
 
-### Step 3: List All Pages
+### Step 3: List All Tabs
 
 ```bash
 # List all open pages
-dv pages --profile profile-1
+dv1 tabs
 ```
 
 Expected output:
 ```
-Found 1 page(s):
+Found 1 tab(s):
 
 * 1. 奇门遁甲宫
   ID:  ABC123DEF456...
@@ -53,13 +52,13 @@ Found 1 page(s):
 
 ```bash
 # Get page title
-dv eval --profile profile-1 --script "document.title"
+dv1 eval --script "document.title"
 
 # Count elements
-dv eval --profile profile-1 --script "document.querySelectorAll('sy-奇门遁甲宫').length"
+dv1 eval --script "document.querySelectorAll('sy-奇门遁甲宫').length"
 
 # Execute script file
-dv eval --profile profile-1 --file test-script.js --json
+dv1 eval --file test-script.js --json
 ```
 
 Expected output:
@@ -81,17 +80,17 @@ Expected output:
 
 ```bash
 # Click a button
-dv click --profile profile-1 --selector "#submit-btn"
+dv1 click #submit-btn
 
 # Fill a form
-dv fill --profile profile-1 --selector "#username" --value "test@example.com"
-dv fill --profile profile-1 --selector "#password" --value "password123"
+dv1 fill #username "test@example.com"
+dv1 fill #password "password123"
 
 # Type text (appends)
-dv type --profile profile-1 --selector "#search" --text "奇门遁甲"
+dv1 type #search "奇门遁甲"
 
 # Press Enter
-dv key --profile profile-1 --key Enter
+dv1 key --key Enter
 ```
 
 Expected output:
@@ -113,13 +112,13 @@ Key press successful
 
 ```bash
 # Check for errors
-dv console --profile profile-1 --type error
+dv1 console --type error
 
 # Check for warnings
-dv console --profile profile-1 --type warn
+dv1 console --type warn
 
 # Filter logs by pattern
-dv console --profile profile-1 --type log --filter "API"
+dv1 console --type log --filter "API"
 ```
 
 Expected output:
@@ -137,7 +136,7 @@ Expected output:
 
 ```bash
 # Take a screenshot
-dv screenshot --profile profile-1 --output screenshot.png
+dv1 screenshot screenshot.png
 ```
 
 Expected output:
@@ -151,7 +150,7 @@ Size: 245678 bytes
 
 ```bash
 # Resize to mobile viewport
-dv resize --profile profile-1 --width 375 --height 667
+dv1 resize 375 667
 ```
 
 Expected output:
@@ -164,7 +163,7 @@ Viewport resized
 
 ```bash
 # Monitor errors and warnings
-dv monitor --profile profile-1 --types error,warn
+dv1 monitor --types error,warn
 ```
 
 Expected output:
@@ -178,48 +177,48 @@ Press Ctrl+C to stop
   at http://localhost:5178/monitor.js:12:5
 ```
 
-### Step 10: Page Management
+### Step 10: Tab Management
 
 ```bash
-# Open a new page
-dv new --profile profile-1 --url http://localhost:5178/another-page.html
+# Open a new tab
+dv1 new http://localhost:5178/another-page.html
 
-# List all pages
-dv pages --profile profile-1
+# List all tabs
+dv1 tabs
 
-# Select a different page
-dv select --profile profile-1 --index 2
+# Select a different tab
+dv1 select --index 2
 
 # Or select by URL
-dv select --profile profile-1 --url "another-page"
+dv1 select --index 2
 
-# Close the current page
-dv close --profile profile-1
+# Close a tab
+dv1 close <id>
 ```
 
 Expected output:
 ```
-Creating new page: http://localhost:5178/another-page.html...
-New page created
+Creating new tab: http://localhost:5178/another-page.html...
+New tab created
 ID: XYZ789ABC123...
 URL: http://localhost:5178/another-page.html
 
-Found 2 page(s):
+Found 2 tab(s):
 
   1. 奇门遁甲宫
   ID:  ABC123DEF456...
   URL: http://localhost:5178/visual/components/奇门遁甲宫.html
 
-* 2. Another Page
+  2. Another Page
   ID:  XYZ789ABC123...
   URL: http://localhost:5178/another-page.html
 
-Selected page: Another Page
+Selected tab: Another Page
 URL: http://localhost:5178/another-page.html
 ID: XYZ789ABC123...
 
-Closing page XYZ789ABC123...
-Page closed
+Closing tab XYZ789ABC123...
+Tab closed
 ```
 
 ## Parallel Testing Example
@@ -227,20 +226,20 @@ Page closed
 You can run multiple Chrome instances with different profiles for parallel testing:
 
 ```bash
-# Terminal 1: Start profile 1
-dv start --profile profile-1 --headed
+# Terminal 1: Start dv1
+dv1 start
 
-# Terminal 2: Start profile 2
-dv start --profile profile-2 --headed
+# Terminal 2: Start dv2
+dv2 start
 
-# Terminal 3: Start profile 3
-dv start --profile profile-3 --headed
+# Terminal 3: Start dv3
+dv3 start
 ```
 
 Each profile runs on a different port:
-- profile-1 → port 9230
-- profile-2 → port 9231
-- profile-3 → port 9232
+- dv1 → port 9230
+- dv2 → port 9231
+- dv3 → port 9232
 
 ## Automated Testing Script
 
@@ -253,16 +252,16 @@ Create a bash script for automated testing:
 echo "Starting automated test..."
 
 # Start Chrome
-dv start --profile profile-1
+dv1 start
 
 # Wait for Chrome to start
 sleep 2
 
 # Navigate
-dv navigate --profile profile-1 --url http://localhost:5178
+dv1 goto http://localhost:5178
 
 # Check for errors
-ERRORS=$(dv console --profile profile-1 --type error --json)
+ERRORS=$(dv1 console --type error --json)
 
 if [ "$ERRORS" != "[]" ]; then
   echo "Console errors found!"
@@ -271,10 +270,10 @@ if [ "$ERRORS" != "[]" ]; then
 fi
 
 # Take screenshot
-dv screenshot --profile profile-1 --output test-result.png
+dv1 screenshot test-result.png
 
 # Evaluate test
-RESULT=$(dv eval --profile profile-1 --script "window.testResult" --json)
+RESULT=$(dv1 eval --script "window.testResult" --json)
 
 if [ "$RESULT" == "true" ]; then
   echo "Test passed!"
@@ -287,9 +286,9 @@ fi
 
 ## Tips
 
-1. **Always use profiles**: Profiles allow you to maintain separate Chrome instances and user data
+1. **Use profile-specific commands**: `dv1`–`dv6` each manage a separate Chrome instance with its own user data
 2. **Check console errors first**: Always check for console errors before debugging other issues
 3. **Use --json for scripting**: When writing scripts, use --json to get machine-readable output
-4. **Monitor in real-time**: Use `dv monitor` to catch errors as they happen
-5. **Resize for mobile**: Use `dv resize` to test responsive designs
+4. **Monitor in real-time**: Use `dv1 monitor` to catch errors as they happen
+5. **Resize for mobile**: Use `dv1 resize` to test responsive designs
 6. **Take screenshots**: Screenshots help document issues and verify UI behavior

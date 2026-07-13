@@ -84,20 +84,20 @@ Duration: 66.37s
 ### Test Port Separation
 
 **Production Ports:** 9230-9235
-- profile-1 → 9230
-- profile-2 → 9231
-- profile-3 → 9232
-- profile-4 → 9233
-- profile-5 → 9234
-- profile-6 → 9235
+- dv1 → 9230
+- dv2 → 9231
+- dv3 → 9232
+- dv4 → 9233
+- dv5 → 9234
+- dv6 → 9235
 
 **Test Ports:** 9240-9245
-- test-profile-1 → 9240
-- test-profile-2 → 9241
-- test-profile-3 → 9242
-- test-profile-4 → 9243
-- test-profile-5 → 9244
-- test-profile-6 → 9245
+- test-dv1 → 9240
+- test-dv2 → 9241
+- test-dv3 → 9242
+- test-dv4 → 9243
+- test-dv5 → 9244
+- test-dv6 → 9245
 
 **Separation Reason:**
 - Prevents test runs from interfering with production Chrome instances

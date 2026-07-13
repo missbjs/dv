@@ -16,26 +16,26 @@ The profile system refactor has been completed and tested comprehensively.
 ✅ Build time: < 150ms
 
 ### 2. Profile Configuration
-✅ Profile names: `profile-1` through `profile-6`
+✅ Profile names: `dv1` through `dv6`
 ✅ Port range: `9230-9235`
 ✅ All profiles support OAuth sessions
-✅ Purpose: Profile-1 = "General use", others = "Parallel testing"
+✅ Purpose: All profiles are equal (no special-purpose distinctions)
 
 ### 3. Command Option Tests
 
 #### Sample Commands Tested:
-✅ `start` - has required `--profile` option
-✅ `navigate` - has required `--profile` option
-✅ `eval` - has required `--profile` option
-✅ `click` - has required `--profile` option
-✅ `fill` - has required `--profile` option (plus selector & value)
-✅ `network` - has required `--profile` option
-✅ `screenshot` - has required `--profile` option
-✅ `cookies` - has required `--profile` option
-✅ `emulate` - has required `--profile` option
-✅ `console` - has required `--profile` option (with optional filters)
-✅ `throttle` - has required `--profile` option (with optional flags)
-✅ `resize` - has required `--profile` option (with width/height)
+✅ `start` - requires profile as command prefix
+✅ `navigate` - requires profile as command prefix
+✅ `eval` - requires profile as command prefix
+✅ `click` - requires profile as command prefix
+✅ `fill` - requires profile as command prefix (plus selector & value)
+✅ `network` - requires profile as command prefix
+✅ `screenshot` - requires profile as command prefix
+✅ `cookies` - requires profile as command prefix
+✅ `emulate` - requires profile as command prefix
+✅ `console` - requires profile as command prefix (with optional filters)
+✅ `throttle` - requires profile as command prefix (with optional flags)
+✅ `resize` - requires profile as command prefix (with width/height)
 
 #### Port Option Removal:
 ✅ `start` - no `--port` option
@@ -46,16 +46,16 @@ The profile system refactor has been completed and tested comprehensively.
 
 ### 4. Error Handling Tests
 
-✅ **Missing `--profile`**: Correctly rejects with error message
+✅ **Missing profile**: Correctly rejects with error message
 ```
-error: required option '--profile <profile>' not specified
+error: missing required argument 'profile'
 ```
 
 ✅ **Invalid profile name**: Correctly rejects with helpful message
 ```
 Profile not found: invalid-profile
 Available profiles:
-  profile-1 through profile-6
+  dv1 through dv6
 ```
 
 ✅ **Valid profile, missing other options**: Correctly requires other options
@@ -67,12 +67,12 @@ error: required option '-u, --url <url>' not specified
 
 ✅ `dv profiles` command works correctly
 ✅ Displays all 6 profiles with ports and purposes
-✅ No `--profile` option needed (it's the command to list profiles)
+✅ No `--profile` option needed (profile is a command prefix)
 
 ### 6. Help System
 
-✅ All commands show `--profile` in help output
-✅ Help text shows: "Profile name (profile-1 through profile-6)"
+✅ All commands show profile as command prefix in help output
+✅ Help text shows: "Profile name (dv1 through dv6)"
 ✅ Command-level help is accurate and consistent
 
 ## Command Coverage
@@ -94,13 +94,13 @@ All tested commands work correctly with the new profile system.
 ✅ Old `--port` syntax no longer works
 ✅ Old profile names (`profile-qmdj-*`) no longer exist
 ✅ Old port range (9222-9227) no longer used
-✅ New profile names (`profile-1` through `profile-6`) required
+✅ New profile names (`dv1` through `dv6`) required
 ✅ New port range (9230-9235) in use
 
 ## Documentation Tests
 
 ✅ README.md updated with new examples
-✅ All examples use `--profile` instead of `--port`
+✅ All examples use profile as command prefix instead of `--port`
 ✅ Profile table shows correct ports and purposes
 
 ## Code Quality
@@ -129,7 +129,7 @@ All tested commands work correctly with the new profile system.
 
 ✅ **All functionality verified and working correctly**
 
-The profile system refactor is complete and production-ready. All commands require `--profile`, the `--port` option has been completely removed, and error handling works as expected.
+The profile system refactor is complete and production-ready. All commands use a profile as a command prefix, the `--port` option has been completely removed, and error handling works as expected.
 
 ## Usage Examples
 
@@ -137,22 +137,22 @@ The profile system refactor is complete and production-ready. All commands requi
 # List available profiles
 dv profiles
 
-# Start Chrome with profile-1
-dv start --profile profile-1 --headed
+# Start Chrome with dv1
+dv1 start
 
 # Navigate to URL
-dv navigate --profile profile-1 --url https://example.com
+dv1 goto https://example.com
 
 # Check status
-dv status --profile profile-1
+dv1 status
 
 # Interact with elements
-dv click --profile profile-1 --selector "#button"
-dv fill --profile profile-1 --selector "#email" --value "test@example.com"
+dv1 click #button
+dv1 fill #email "test@example.com"
 
 # Monitor network
-dv network --profile profile-1 --filter "api" --json
+dv1 network --filter "api" --json
 
 # Take screenshot
-dv screenshot --profile profile-1 --output screenshot.png
+dv1 screenshot screenshot.png
 ```

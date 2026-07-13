@@ -12,7 +12,6 @@ export async function fill(options: FillOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Filling ${options.selector} with "${options.value}"...`));

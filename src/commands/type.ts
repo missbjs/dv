@@ -12,7 +12,6 @@ export async function type(options: TypeOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Typing "${options.text}" into ${options.selector}...`));

@@ -3,8 +3,6 @@ import { CDPClient } from '../src/cdp.js';
 import { MockCDPServer, createMockTargets } from './mock-cdp-server.js';
 import { TEST_PORT } from './test-profiles.js';
 import axios from 'axios';
-import { promises as fs } from 'fs';
-import { join } from 'path';
 
 describe('CDPClient', () => {
   let client: CDPClient;
@@ -407,21 +405,6 @@ describe('CDPClient', () => {
       await expect(
         client.continueInterceptedRequest('int-1', 'BlockedByClient')
       ).resolves.toBeUndefined();
-    });
-  });
-
-  describe('State management', () => {
-    it('should load state from file', async () => {
-      const state = await client.loadState();
-      // Returns null if no state file exists
-      expect(state).toBeNull();
-    });
-
-    it('should save state to file', async () => {
-      await client.saveState();
-      // Verify file was created
-      const stateData = await fs.readFile('.dv-session.json', 'utf-8');
-      expect(stateData).toBeDefined();
     });
   });
 

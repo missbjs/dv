@@ -11,7 +11,6 @@ export async function getText(options: GetTextOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     const result = await client.evaluate(

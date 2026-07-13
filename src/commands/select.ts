@@ -4,8 +4,7 @@ import { getPortFromProfile } from '../utils.js';
 
 export interface SelectOptions {
   profile: string;
-  url?: string;
-  pageId?: string;
+  tabId?: string;
   index?: number;
 }
 
@@ -14,34 +13,27 @@ export async function select(options: SelectOptions) {
 
   try {
     const targets = await client.getTargets();
-    const pages = targets.filter(t => t.type === 'page');
+    const tabs = targets.filter(t => t.type === 'page');
 
-    let selectedPage;
+    let selectedTab;
 
-    if (options.pageId) {
-      selectedPage = pages.find(p => p.id === options.pageId);
-    } else if (options.url) {
-      const url = options.url;
-      selectedPage = pages.find(p => p.url.includes(url));
+    if (options.tabId) {
+      selectedTab = tabs.find(p => p.id === options.tabId);
     } else if (options.index !== undefined) {
-      selectedPage = pages[options.index - 1];
+      selectedTab = tabs[options.index - 1];
     } else {
-      console.error(chalk.red('Use --url, --page-id, or --index to select a page'));
+      console.error(chalk.red('Use --tab-id or --index to select a tab'));
       process.exit(1);
     }
 
-    if (!selectedPage) {
-      console.error(chalk.red('Page not found'));
+    if (!selectedTab) {
+      console.error(chalk.red('Tab not found'));
       process.exit(1);
     }
 
-    const state = await client.loadState() || { currentPageId: null, currentProfile: null, port: 9222 };
-    state.currentPageId = selectedPage.id;
-    await client.saveState();
-
-    console.log(chalk.green(`Selected page: ${selectedPage.title}`));
-    console.log(chalk.gray(`URL: ${selectedPage.url}`));
-    console.log(chalk.gray(`ID: ${selectedPage.id}`));
+    console.log(chalk.green(`Selected tab: ${selectedTab.title}`));
+    console.log(chalk.gray(`URL: ${selectedTab.url}`));
+    console.log(chalk.gray(`ID: ${selectedTab.id}`));
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
     process.exit(1);

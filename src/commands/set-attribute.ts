@@ -13,7 +13,6 @@ export async function setAttribute(options: SetAttributeOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Setting attribute ${options.attr} on ${options.selector}`));

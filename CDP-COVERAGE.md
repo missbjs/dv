@@ -11,7 +11,7 @@ Chrome DevTools Protocol CLI
 | Domain | CDP Method | CLI Command | Status |
 |--------|-----------|-------------|--------|
 | **Browser HTTP API** | | | |
-| HTTP | `/json` (list targets) | `pages`, `status` | ✅ Implemented |
+| HTTP | `/json` (list targets) | `tabs`, `status` | ✅ Implemented |
 | HTTP | `/json/new?url` | `new` | ✅ Implemented |
 | HTTP | `/json/close/id` | `close` | ✅ Implemented |
 | **Page** | | | |
@@ -110,10 +110,10 @@ These CDP domains are not relevant for browser automation/testing CLI:
 - `start` - Start Chrome with remote debugging
 - `stop` - Stop Chrome process
 - `status` - Check Chrome status
-- `pages` - List open pages
-- `select` - Select page
-- `new` - Open new page
-- `close` - Close page
+- `tabs` - List open tabs
+- `select` - Select tab
+- `new` - Open new tab
+- `close` - Close tab
 
 ### Navigation & Execution (4)
 - `navigate` - Navigate to URL
@@ -175,11 +175,11 @@ These CDP domains are not relevant for browser automation/testing CLI:
 The CLI focuses on **browser automation and testing** with these capabilities:
 
 ✅ Browser lifecycle (start, stop, status)
-✅ Navigation (navigate, new page)
+✅ Navigation (navigate, new tab)
 ✅ JavaScript execution (eval)
 ✅ Console monitoring (console, monitor)
 ✅ Element interaction (click, fill, type, key)
-✅ Page management (pages, select, close)
+✅ Tab management (tabs, select, close)
 ✅ Viewport control (resize)
 ✅ Screenshots (screenshot)
 ✅ Accessibility snapshots (snapshot)
@@ -191,9 +191,8 @@ The CLI focuses on **browser automation and testing** with these capabilities:
 
 **Architecture Strengths:**
 - Simple, focused API
-- Profile system for parallel agents (6 profiles, ports 9230-9235)
-- State persistence (.dv-session.json)
-- Mandatory `--profile` prevents agent collisions
+- Profile system for parallel agents (6 profiles: dv1-dv6, ports 9230-9235)
+- Mandatory profile argument (command prefix, e.g. `dv1 start`) prevents agent collisions
 - JSON output for programmatic use
 
 ---

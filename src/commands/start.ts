@@ -11,27 +11,27 @@ import chalk from 'chalk';
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export interface StartOptions {
+  headless?: boolean;
   profile: string;
-  headed?: boolean;
 }
 
 export async function start(options: StartOptions) {
-  const profile = getProfile(options.profile);
-  if (!profile) {
+  const profileConfig = getProfile(options.profile);
+  if (!profileConfig) {
     console.error(chalk.red(`Profile not found: ${options.profile}`));
     console.error(chalk.yellow('Available profiles:'));
-    console.error('  profile-1 through profile-6');
+    console.error('  dv1 through dv6');
     process.exit(1);
   }
 
   // Validate profile name to prevent path traversal
-  const validProfiles = ['profile-1', 'profile-2', 'profile-3', 'profile-4', 'profile-5', 'profile-6'];
+  const validProfiles = ['dv1', 'dv2', 'dv3', 'dv4', 'dv5', 'dv6'];
   if (!validProfiles.includes(options.profile)) {
     console.error(chalk.red('Invalid profile name'));
     process.exit(1);
   }
 
-  const port = profile.port;
+  const port = profileConfig.port;
   const profilePath = options.profile;
 
   // Check if Chrome is already running on this port
@@ -58,7 +58,7 @@ export async function start(options: StartOptions) {
     args.push(`--user-data-dir=${path.join(PKG_ROOT, profilePath)}`);
   }
 
-  if (!options.headed) {
+  if (options.headless) {
     args.push('--headless=new');
   }
 
@@ -74,7 +74,7 @@ export async function start(options: StartOptions) {
 
   console.log(chalk.blue(`Starting Chrome on port ${port}...`));
   console.log(chalk.gray(`Profile: ${profilePath || 'default'}`));
-  console.log(chalk.gray(`Headed: ${options.headed ? 'yes' : 'no'}`));
+  console.log(chalk.gray(`Headless: ${options.headless ? 'yes' : 'no'}`));
 
   const chrome = spawn(chromePath, args, {
     detached: true,

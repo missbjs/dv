@@ -12,7 +12,6 @@ export async function cookies(options: CookiesOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue('Getting cookies...'));

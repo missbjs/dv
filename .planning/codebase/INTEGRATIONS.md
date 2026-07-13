@@ -30,7 +30,8 @@
 
 **Chrome Profiles:**
 - 6 predefined profiles for session isolation
-- Profile purposes: OAuth pinning, parallel testing
+- Profile purposes: general use, parallel testing
+- All profiles support persistent OAuth sessions
 - Managed via `--user-data-dir` Chrome flag
 
 ## Monitoring & Observability

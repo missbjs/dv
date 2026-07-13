@@ -5,14 +5,12 @@ import { getPortFromProfile } from '../utils.js';
 export interface NavigateOptions {
   profile: string;
   url: string;
-  headed?: boolean;
 }
 
 export async function navigate(options: NavigateOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
     await client.enablePage();
 

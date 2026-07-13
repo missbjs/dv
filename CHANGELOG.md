@@ -5,33 +5,34 @@
 ### 1.0.0 (2026-07-03)
 
 #### Profile System Refactor
-Replaced `--port` parameter with mandatory `--profile` system for all commands.
+Replaced `--port` parameter with profile-specific commands (`dv1`–`dv6`).
 
 **Changes:**
-- All commands now require `--profile <profile>` instead of `--port <port>`
-- Profiles renamed from `profile-qmdj-1` to `profile-1` through `profile-6`
+- Each profile has its own command: `dv1` through `dv6` (instead of `dv start --port 9222`)
+- Profiles renamed from `profile-qmdj-1` to `dv1` through `dv6`
 - Port assignments changed: 9230-9235 (instead of 9222-9227)
 - `dv profiles` command lists all available profiles
+- `dv` base command is internal (use `dv1`–`dv6` wrappers)
 
 **Profile Table:**
-| Profile | Port | Purpose |
-|---------|------|---------|
-| profile-1 | 9230 | General use |
-| profile-2 | 9231 | Parallel testing |
-| profile-3 | 9232 | Parallel testing |
-| profile-4 | 9233 | Parallel testing |
-| profile-5 | 9234 | Parallel testing |
-| profile-6 | 9235 | Parallel testing |
+| Profile | Port |
+|---------|------|
+| dv1 | 9230 |
+| dv2 | 9231 |
+| dv3 | 9232 |
+| dv4 | 9233 |
+| dv5 | 9234 |
+| dv6 | 9235 |
 
 **Example:**
 ```bash
 # Old (deprecated)
-dv start --port 9222 --headed
+dv start --port 9222
 dv navigate --port 9222 --url https://example.com
 
 # New (current)
-dv start --profile profile-1 --headed
-dv navigate --profile profile-1 --url https://example.com
+dv1 start
+dv1 goto https://example.com
 ```
 
 ---
@@ -111,10 +112,10 @@ Core browser automation commands.
 - `fill` - Fill input
 - `type` - Type text
 - `key` - Press key
-- `pages` - List pages
-- `select` - Select page
-- `new` - Open new page
-- `close` - Close page
+- `tabs` - List tabs
+- `select` - Select tab
+- `new` - Open new tab
+- `close` - Close tab
 - `resize` - Resize viewport
 - `monitor` - Real-time console monitoring
 

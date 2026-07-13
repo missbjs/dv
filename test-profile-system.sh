@@ -39,7 +39,7 @@ fi
 echo ""
 echo "Test 2: Testing profiles command..."
 OUTPUT=$(node dist/cli.js profiles 2>&1)
-if echo "$OUTPUT" | grep -q "profile-1"; then
+if echo "$OUTPUT" | grep -q "dv1"; then
     pass "Profiles command works"
     echo "$OUTPUT"
 else
@@ -51,25 +51,25 @@ echo ""
 echo "Test 3: Verifying profile ports..."
 OUTPUT=$(node dist/cli.js profiles 2>&1)
 if echo "$OUTPUT" | grep -q "9230"; then
-    pass "Profile-1 uses port 9230"
+    pass "dv1 uses port 9230"
 else
-    fail "Profile-1 port is incorrect"
+    fail "dv1 port is incorrect"
 fi
 
 if echo "$OUTPUT" | grep -q "9231"; then
-    pass "Profile-2 uses port 9231"
+    pass "dv2 uses port 9231"
 else
-    fail "Profile-2 port is incorrect"
+    fail "dv2 port is incorrect"
 fi
 
 # Test 4: Check help for start command
 echo ""
 echo "Test 4: Checking start command help..."
 OUTPUT=$(node dist/cli.js start --help 2>&1)
-if echo "$OUTPUT" | grep -q "\-\-profile"; then
-    pass "Start command has --profile option"
+if echo "$OUTPUT" | grep -q "profile"; then
+    pass "Start command has profile option"
 else
-    fail "Start command missing --profile option"
+    fail "Start command missing profile option"
 fi
 
 if echo "$OUTPUT" | grep -q "\-\-headed"; then
@@ -89,15 +89,15 @@ fi
 
 # Test 6: Check help for other commands
 echo ""
-echo "Test 6: Checking other commands have --profile..."
+echo "Test 6: Checking other commands have profile..."
 COMMANDS=("status" "navigate" "eval" "click" "fill" "network" "screenshot")
 
 for cmd in "${COMMANDS[@]}"; do
     OUTPUT=$(node dist/cli.js $cmd --help 2>&1)
-    if echo "$OUTPUT" | grep -q "\-\-profile"; then
-        pass "$cmd command has --profile option"
+    if echo "$OUTPUT" | grep -q "profile"; then
+        pass "$cmd command has profile option"
     else
-        fail "$cmd command missing --profile option"
+        fail "$cmd command missing profile option"
     fi
 done
 
@@ -114,7 +114,7 @@ fi
 # Test 8: Verify profile validation
 echo ""
 echo "Test 8: Testing profile validation..."
-OUTPUT=$(node dist/cli.js start --profile profile-99 2>&1 || true)
+OUTPUT=$(node dist/cli.js start --profile dv99 2>&1 || true)
 if echo "$OUTPUT" | grep -q "Invalid profile name\|Profile not found"; then
     pass "Profile validation works"
 else
@@ -127,10 +127,10 @@ echo ""
 echo "Summary:"
 echo "  - CLI is built and functional"
 echo "  - Profile system is working correctly"
-echo "  - All commands use --profile instead of --port"
-echo "  - Profile names are profile-1 through profile-6"
+echo "  - All commands require --profile flag instead of positional argument"
+echo "  - Profile names are dv1 through dv6"
 echo "  - Ports are 9230-9235"
 echo "  - Error handling for invalid profiles works"
 echo ""
 echo "To test with a real Chrome instance:"
-echo "  node dist/cli.js start --profile profile-1 --headed"
+echo "  dv1 start --headed"

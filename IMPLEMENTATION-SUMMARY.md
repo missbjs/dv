@@ -12,10 +12,10 @@ Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser a
 - `start` - Start Chrome with remote debugging
 - `stop` - Stop Chrome process
 - `status` - Check if Chrome is running
-- `pages` - List open pages
-- `select` - Select page by URL, ID, or index
-- `new` - Open new page
-- `close` - Close page
+- `tabs` - List open tabs
+- `select` - Select tab by URL, ID, or index
+- `new` - Open new tab
+- `close` - Close tab
 
 ### Navigation & Execution (4)
 - `navigate` - Navigate to URL
@@ -74,8 +74,7 @@ Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser a
 
 **network** - List network requests
 ```bash
-dv network --profile profile-1
-dv network --profile profile-1 --filter "api" --json
+dv1 network --filter "api" --json
 ```
 - Monitors all HTTP requests
 - Shows request URLs, methods, statuses
@@ -84,8 +83,8 @@ dv network --profile profile-1 --filter "api" --json
 
 **intercept** - Intercept network requests
 ```bash
-dv intercept --profile profile-1 --url "api.example.com" --action block
-dv intercept --profile profile-1 --url "api.mock.com" --action mock --response '{"data":"mock"}'
+dv1 intercept --url "api.example.com" --action block
+dv1 intercept --url "api.mock.com" --action mock --response '{"data":"mock"}'
 ```
 - Block requests
 - Mock responses
@@ -93,8 +92,8 @@ dv intercept --profile profile-1 --url "api.mock.com" --action mock --response '
 
 **request** - Get request details
 ```bash
-dv request --profile profile-1 --id <request-id>
-dv request --profile profile-1 --id <request-id> --body --json
+dv1 request --id <request-id>
+dv1 request --id <request-id> --body --json
 ```
 - View request/response details
 - View response body
@@ -102,7 +101,7 @@ dv request --profile profile-1 --id <request-id> --body --json
 
 **clear-cache** - Clear browser cache
 ```bash
-dv clear-cache --profile profile-1
+dv1 clear-cache
 ```
 - Clears all browser cache
 - Useful for testing cache behavior
@@ -113,8 +112,8 @@ dv clear-cache --profile profile-1
 
 **inspect** - Inspect element details
 ```bash
-dv inspect --profile profile-1 --selector "#button"
-dv inspect --profile profile-1 --selector ".container" --json
+dv1 inspect --selector "#button"
+dv1 inspect --selector ".container" --json
 ```
 - Shows element attributes
 - Shows box model
@@ -122,43 +121,43 @@ dv inspect --profile profile-1 --selector ".container" --json
 
 **query-all** - Query all matching elements
 ```bash
-dv query-all --profile profile-1 --selector "button"
-dv query-all --profile profile-1 --selector ".item" --json
+dv1 query-all --selector "button"
+dv1 query-all --selector ".item" --json
 ```
 - Returns all matching elements
 - Count and node IDs
 
 **get-text** - Get element text content
 ```bash
-dv get-text --profile profile-1 --selector "#title"
+dv1 get-text --selector "#title"
 ```
 - Returns text content
 - Simple console output
 
 **get-html** - Get element HTML
 ```bash
-dv get-html --profile profile-1 --selector "#container"
+dv1 get-html --selector "#container"
 ```
 - Returns outerHTML
 - Full HTML structure
 
 **set-text** - Set element text content
 ```bash
-dv set-text --profile profile-1 --selector "#title" --value "New Title"
+dv1 set-text --selector "#title" --value "New Title"
 ```
 - Updates text content
 - Safe for plain text
 
 **set-html** - Set element HTML
 ```bash
-dv set-html --profile profile-1 --selector "#container" --value "<div>New HTML</div>"
+dv1 set-html --selector "#container" --value "<div>New HTML</div>"
 ```
 - Updates innerHTML
 - Supports HTML content
 
 **set-attribute** - Set element attribute
 ```bash
-dv set-attribute --profile profile-1 --selector "#button" --attr disabled --value "true"
+dv1 set-attribute --selector "#button" --attr disabled --value "true"
 ```
 - Set any attribute
 - Modify element properties
@@ -169,8 +168,8 @@ dv set-attribute --profile profile-1 --selector "#button" --attr disabled --valu
 
 **emulate** - Emulate device
 ```bash
-dv emulate --profile profile-1 --device iphone-13
-dv emulate --profile profile-1 --device pixel-5
+dv1 emulate --device iphone-13
+dv1 emulate --device pixel-5
 ```
 
 Supported Devices:
@@ -182,32 +181,32 @@ Sets viewport size, device scale factor, user agent, mobile flag.
 
 **location** - Set geolocation
 ```bash
-dv location --profile profile-1 --lat 37.7749 --lng -122.4194
-dv location --profile profile-1 --lat 40.7128 --lng -74.0060 --accuracy 10
+dv1 location 37.7749 -122.4194
+dv1 location 40.7128 -74.0060 --accuracy 10
 ```
 - Override geolocation
 - Test location-based features
 
 **user-agent** - Set user agent
 ```bash
-dv user-agent --profile profile-1 --ua "Mozilla/5.0..."
+dv1 user-agent --ua "Mozilla/5.0..."
 ```
 - Custom user agent
 - Test browser detection
 
 **timezone** - Set timezone
 ```bash
-dv timezone --profile profile-1 --tz "America/New_York"
-dv timezone --profile profile-1 --tz "Asia/Tokyo"
+dv1 timezone --tz "America/New_York"
+dv1 timezone --tz "Asia/Tokyo"
 ```
 - Override timezone
 - Test timezone-dependent features
 
 **throttle** - Throttle network
 ```bash
-dv throttle --profile profile-1 --offline
-dv throttle --profile profile-1 --slow-3g
-dv throttle --profile profile-1 --fast-3g
+dv1 throttle --offline
+dv1 throttle --slow-3g
+dv1 throttle --fast-3g
 ```
 - Offline mode
 - Slow 3G (500 Kbps, 2s latency)
@@ -219,8 +218,8 @@ dv throttle --profile profile-1 --fast-3g
 
 **cookies** - List cookies
 ```bash
-dv cookies --profile profile-1
-dv cookies --profile profile-1 --domain example.com --json
+dv1 cookies
+dv1 cookies --domain example.com --json
 ```
 - List all cookies
 - Filter by domain
@@ -228,17 +227,17 @@ dv cookies --profile profile-1 --domain example.com --json
 
 **cookies-clear** - Clear cookies
 ```bash
-dv cookies-clear --profile profile-1
-dv cookies-clear --profile profile-1 --domain example.com
+dv1 cookies-clear
+dv1 cookies-clear --domain example.com
 ```
 - Clear all cookies
 - Clear domain-specific cookies
 
 **storage-clear** - Clear storage
 ```bash
-dv storage-clear --profile profile-1 --type local
-dv storage-clear --profile profile-1 --type session
-dv storage-clear --profile profile-1 --type all
+dv1 storage-clear --type local
+dv1 storage-clear --type session
+dv1 storage-clear --type all
 ```
 - Clear localStorage
 - Clear sessionStorage
@@ -246,8 +245,8 @@ dv storage-clear --profile profile-1 --type all
 
 **local-storage** - List localStorage items
 ```bash
-dv local-storage --profile profile-1
-dv local-storage --profile profile-1 --key "auth-token" --json
+dv1 local-storage
+dv1 local-storage --key "auth-token" --json
 ```
 - List all localStorage
 - Filter by key
@@ -255,8 +254,8 @@ dv local-storage --profile profile-1 --key "auth-token" --json
 
 **session-storage** - List sessionStorage items
 ```bash
-dv session-storage --profile profile-1
-dv session-storage --profile profile-1 --key "session-id" --json
+dv1 session-storage
+dv1 session-storage --key "session-id" --json
 ```
 - List all sessionStorage
 - Filter by key
@@ -286,20 +285,20 @@ dv session-storage --profile profile-1 --key "session-id" --json
 
 Pre-configured profiles for parallel testing:
 
-| Profile | Port | Purpose |
-|---------|------|---------|
-| profile-1 | 9230 | General use |
-| profile-2 | 9231 | Parallel testing |
-| profile-3 | 9232 | Parallel testing |
-| profile-4 | 9233 | Parallel testing |
-| profile-5 | 9234 | Parallel testing |
-| profile-6 | 9235 | Parallel testing |
+| Profile | Port |
+|---------|------|
+| dv1 | 9230 |
+| dv2 | 9231 |
+| dv3 | 9232 |
+| dv4 | 9233 |
+| dv5 | 9234 |
+| dv6 | 9235 |
 
-All commands require `--profile` to prevent agent collisions:
+All commands require a profile as a command prefix to prevent agent collisions:
 ```bash
-dv start --profile profile-1 --headed
-dv navigate --profile profile-1 --url https://example.com
-dv click --profile profile-1 --selector "#btn"
+dv1 start
+dv1 goto https://example.com
+dv1 click #btn
 ```
 
 ---
@@ -308,31 +307,31 @@ dv click --profile profile-1 --selector "#btn"
 
 ### Network Debugging
 ```bash
-dv start --profile profile-1 --headed
-dv navigate --profile profile-1 --url https://example.com
-dv network --profile profile-1 --filter "api"
-dv request --profile profile-1 --id <request-id> --body
-dv clear-cache --profile profile-1
+dv1 start
+dv1 goto https://example.com
+dv1 network --filter "api"
+dv1 request --id <request-id> --body
+dv1 clear-cache
 ```
 
 ### Mobile Testing
 ```bash
-dv start --profile profile-1 --headed
-dv emulate --profile profile-1 --device iphone-13
-dv location --profile profile-1 --lat 37.7749 --lng -122.4194
-dv throttle --profile profile-1 --slow-3g
-dv navigate --profile profile-1 --url https://example.com
-dv cookies --profile profile-1
+dv1 start
+dv1 emulate --device iphone-13
+dv1 location 37.7749 -122.4194
+dv1 throttle --slow-3g
+dv1 goto https://example.com
+dv1 cookies
 ```
 
 ### DOM Manipulation
 ```bash
-dv inspect --profile profile-1 --selector "#button"
-dv query-all --profile profile-1 --selector ".item"
-dv get-text --profile profile-1 --selector "#title"
-dv set-text --profile profile-1 --selector "#title" --value "New Title"
-dv set-attribute --profile profile-1 --selector "#button" --attr disabled --value "true"
-dv get-html --profile profile-1 --selector "#container"
+dv1 inspect --selector "#button"
+dv1 query-all --selector ".item"
+dv1 get-text --selector "#title"
+dv1 set-text --selector "#title" --value "New Title"
+dv1 set-attribute --selector "#button" --attr disabled --value "true"
+dv1 get-html --selector "#container"
 ```
 
 ---
@@ -346,12 +345,12 @@ dv get-html --profile profile-1 --selector "#container"
 - Enhanced DOM manipulation methods
 - Emulation methods
 - Storage management methods
-- State persistence (.dv-session.json)
+- State persistence
 
 ### Command Files
 All 49 commands in `src/commands/`:
 - Browser: start.ts, stop.ts, status.ts, pages.ts, select.ts, new.ts, close.ts
-- Navigation: navigate.ts, eval.ts, snapshot.ts, screenshot.ts
+- Navigation: navigate.ts, goto.ts, eval.ts, snapshot.ts, screenshot.ts
 - Interaction: click.ts, fill.ts, type.ts, key.ts
 - DOM: inspect.ts, query-all.ts, get-text.ts, get-html.ts, set-text.ts, set-html.ts, set-attribute.ts
 - Network: network.ts, intercept.ts, request.ts, clear-cache.ts
@@ -377,7 +376,7 @@ All 49 commands in `src/commands/`:
 ✅ Storage management
 ✅ Profile-based parallel execution
 ✅ JSON output for scripting
-✅ Mandatory `--profile` prevents agent collisions
+✅ Mandatory profile command prefix prevents agent collisions
 ✅ Comprehensive error handling
 
 The CLI provides comprehensive browser automation, testing, and debugging capabilities for AI agents and developers!

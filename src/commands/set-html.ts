@@ -12,7 +12,6 @@ export async function setHtml(options: SetHtmlOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Setting HTML of ${options.selector}`));

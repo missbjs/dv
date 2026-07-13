@@ -10,12 +10,12 @@ This separation prevents test runs from interfering with production Chrome insta
 ## Test Profiles
 
 For testing, use these profile names:
-- `test-profile-1` → port 9240
-- `test-profile-2` → port 9241
-- `test-profile-3` → port 9242
-- `test-profile-4` → port 9243
-- `test-profile-5` → port 9244
-- `test-profile-6` → port 9245
+- `test-dv1` → port 9240
+- `test-dv2` → port 9241
+- `test-dv3` → port 9242
+- `test-dv4` → port 9243
+- `test-dv5` → port 9244
+- `test-dv6` → port 9245
 
 ## Running Tests
 

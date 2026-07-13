@@ -6,7 +6,7 @@ export function getPortFromProfile(profileName: string): number {
   if (!profile) {
     console.error(chalk.red(`Profile not found: ${profileName}`));
     console.error(chalk.yellow('Available profiles:'));
-    console.error('  profile-1 through profile-6');
+    console.error('  dv1 through dv6');
     process.exit(1);
   }
   return profile.port;

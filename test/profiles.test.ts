@@ -10,12 +10,12 @@ describe('Production Profiles', () => {
 
     it('should have correct profile names', () => {
       const expectedProfiles = [
-        'profile-1',
-        'profile-2',
-        'profile-3',
-        'profile-4',
-        'profile-5',
-        'profile-6',
+        'dv1',
+        'dv2',
+        'dv3',
+        'dv4',
+        'dv5',
+        'dv6',
       ];
       expect(Object.keys(PROFILES)).toEqual(expectedProfiles);
     });
@@ -23,14 +23,6 @@ describe('Production Profiles', () => {
     it('should use correct port range (9230-9235)', () => {
       const ports = Object.values(PROFILES).map((p) => p.port);
       expect(ports).toEqual([9230, 9231, 9232, 9233, 9234, 9235]);
-    });
-
-    it('should have purpose defined for each profile', () => {
-      Object.values(PROFILES).forEach((profile) => {
-        expect(profile).toHaveProperty('purpose');
-        expect(typeof profile.purpose).toBe('string');
-        expect(profile.purpose.length).toBeGreaterThan(0);
-      });
     });
 
     it('should have port defined for each profile', () => {
@@ -45,10 +37,9 @@ describe('Production Profiles', () => {
 
   describe('getProfile', () => {
     it('should return profile config for valid profile name', () => {
-      const profile = getProfile('profile-1');
+      const profile = getProfile('dv1');
       expect(profile).toBeDefined();
       expect(profile?.port).toBe(9230);
-      expect(profile?.purpose).toBe('General use');
     });
 
     it('should return undefined for invalid profile name', () => {
@@ -57,7 +48,7 @@ describe('Production Profiles', () => {
     });
 
     it('should return undefined for test profile name', () => {
-      const profile = getProfile('test-profile-1');
+      const profile = getProfile('test-dv1');
       expect(profile).toBeUndefined();
     });
   });
@@ -66,7 +57,7 @@ describe('Production Profiles', () => {
     it('should return profile by port number', () => {
       const result = getProfileByPort(9230);
       expect(result).toBeDefined();
-      expect(result?.[0]).toBe('profile-1');
+      expect(result?.[0]).toBe('dv1');
       expect(result?.[1].port).toBe(9230);
     });
 
@@ -92,7 +83,6 @@ describe('Production Profiles', () => {
       profiles.forEach((profile) => {
         expect(profile).toHaveProperty('name');
         expect(profile).toHaveProperty('port');
-        expect(profile).toHaveProperty('purpose');
       });
     });
 
@@ -126,7 +116,7 @@ describe('Test Profiles', () => {
 
   describe('getTestProfile', () => {
     it('should return test profile config', () => {
-      const profile = getTestProfile('test-profile-1');
+      const profile = getTestProfile('test-dv1');
       expect(profile).toBeDefined();
       expect(profile?.port).toBe(9240);
     });
@@ -137,15 +127,15 @@ describe('Test Profiles', () => {
     });
 
     it('should return undefined for production profile name', () => {
-      const profile = getTestProfile('profile-1');
+      const profile = getTestProfile('dv1');
       expect(profile).toBeUndefined();
     });
   });
 
   describe('getTestPort', () => {
     it('should return correct port for test profile', () => {
-      expect(getTestPort('test-profile-1')).toBe(9240);
-      expect(getTestPort('test-profile-6')).toBe(9245);
+      expect(getTestPort('test-dv1')).toBe(9240);
+      expect(getTestPort('test-dv6')).toBe(9245);
     });
 
     it('should throw error for invalid test profile', () => {

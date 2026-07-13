@@ -12,7 +12,6 @@ export async function setText(options: SetTextOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue(`Setting text content of ${options.selector}`));

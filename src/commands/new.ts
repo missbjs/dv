@@ -12,19 +12,15 @@ export async function newPage(options: NewOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    console.log(chalk.blue(`Creating new page: ${options.url}...`));
-    const page = await client.newPage(options.url);
-
-    const state = await client.loadState() || { currentPageId: null, currentProfile: null, port: 9222 };
-    state.currentPageId = page.id;
-    await client.saveState();
+    console.log(chalk.blue(`Creating new tab: ${options.url}...`));
+    const tab = await client.newTab(options.url);
 
     if (options.json) {
-      console.log(JSON.stringify(page, null, 2));
+      console.log(JSON.stringify(tab, null, 2));
     } else {
-      console.log(chalk.green('New page created'));
-      console.log(chalk.gray(`ID: ${page.id}`));
-      console.log(chalk.gray(`URL: ${page.url}`));
+      console.log(chalk.green('New tab created'));
+      console.log(chalk.gray(`ID: ${tab.id}`));
+      console.log(chalk.gray(`URL: ${tab.url}`));
     }
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));

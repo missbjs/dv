@@ -11,7 +11,6 @@ export async function cookiesClear(options: CookiesClearOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.loadState();
     await client.connect();
 
     console.log(chalk.blue('Clearing cookies...'));
