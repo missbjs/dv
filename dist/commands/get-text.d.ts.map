@@ -1,0 +1,1 @@
+{"version":3,"file":"get-text.d.ts","sourceRoot":"","sources":["../../src/commands/get-text.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,cAAc;IAC7B,OAAO,EAAE,MAAM,CAAC;IAChB,QAAQ,EAAE,MAAM,CAAC;CAClB;AAED,wBAAsB,OAAO,CAAC,OAAO,EAAE,cAAc,iBAqBpD"}

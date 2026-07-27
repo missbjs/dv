@@ -1,0 +1,1 @@
+{"version":3,"file":"location.d.ts","sourceRoot":"","sources":["../../src/commands/location.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,eAAe;IAC9B,GAAG,EAAE,MAAM,CAAC;IACZ,GAAG,EAAE,MAAM,CAAC;IACZ,QAAQ,CAAC,EAAE,MAAM,CAAC;IAClB,OAAO,EAAE,MAAM,CAAC;CACjB;AAED,wBAAsB,QAAQ,CAAC,OAAO,EAAE,eAAe,iBAqBtD"}

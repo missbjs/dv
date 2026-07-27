@@ -1,5 +1,4 @@
 node_modules/
-dist/
 .dv-session.json
 *.log
 .DS_Store

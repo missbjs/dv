@@ -1,0 +1,1 @@
+{"version":3,"file":"timezone.d.ts","sourceRoot":"","sources":["../../src/commands/timezone.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,eAAe;IAC9B,OAAO,EAAE,MAAM,CAAC;IAChB,EAAE,EAAE,MAAM,CAAC;CACZ;AAED,wBAAsB,QAAQ,CAAC,OAAO,EAAE,eAAe,iBAiBtD"}
