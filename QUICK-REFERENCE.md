@@ -1,6 +1,6 @@
 # DV CLI Quick Reference
 
-## Total Commands: 49
+## Total Commands: 50
 
 ### Browser Management
 ```bash
@@ -32,6 +32,11 @@ dv1 key --key Enter
 ```bash
 dv1 inspect --selector "#button"
 dv1 query-all --selector ".item"
+dv1 query "my-comp >>> .btn" --html
+dv1 query "my-comp >>> .title" --text
+dv1 query "my-comp >>> input" --attr placeholder
+dv1 query ".list-item" --count
+dv1 query ".modal" --exists
 dv1 get-text --selector "#title"
 dv1 get-html --selector "#container"
 dv1 set-text --selector "#title" --value "New"

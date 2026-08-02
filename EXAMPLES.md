@@ -284,6 +284,71 @@ else
 fi
 ```
 
+## Shadow DOM Query Examples
+
+The `query` command supports shadow DOM piercing with the `>>>` syntax. This compiles to standard `element.shadowRoot.querySelector()` calls at runtime.
+
+### Basic Shadow DOM Access
+
+```bash
+# Get HTML content inside a shadow root
+dv1 query "my-component >>> .inner-btn" --html
+
+# Get text content from inside shadow root
+dv1 query "my-component >>> .title" --text
+
+# Get attribute value of element inside shadow root
+dv1 query "x-input >>> input" --attr placeholder
+```
+
+### Nested Shadow Roots
+
+```bash
+# Pierce multiple levels of shadow DOM
+dv3 query "outer >>> widget >>> .item" --text
+```
+
+### Counting and Existence Checks
+
+```bash
+# Count elements inside shadow root
+dv3 query "my-list >>> .item" --count
+
+# Check if element exists inside shadow root
+dv3 query "my-dialog >>> .modal" --exists
+```
+
+### Regular DOM (No Shadow)
+
+Without `>>>`, `query` works as a standard selector:
+
+```bash
+# Get HTML of a regular DOM element
+dv1 query ".container" --html
+
+# Get text content
+dv1 query "#title" --text
+
+# Get attribute
+dv1 query "input" --attr placeholder
+
+# Count elements
+dv1 query ".list-item" --count
+
+# Check existence
+dv1 query ".modal" --exists
+```
+
+### JSON Output for Scripting
+
+```bash
+dv3 query "my-comp >>> .data" --html --json
+# Output: { "value": "<div class=\"data\">Content</div>" }
+
+dv3 query "my-list >>> .item" --count --json
+# Output: { "count": 5 }
+```
+
 ## Tips
 
 1. **Use profile-specific commands**: `dv1`–`dv6` each manage a separate Chrome instance with its own user data

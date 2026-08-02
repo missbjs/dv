@@ -50,8 +50,8 @@ dv1 screenshot screenshot.png
 **Element Interaction (4)**
 - `click`, `fill`, `type`, `key`
 
-**DOM Manipulation (7)**
-- `inspect`, `query-all`, `get-text`, `get-html`
+**DOM Manipulation (8)**
+- `inspect`, `query-all`, `query`, `get-text`, `get-html`
 - `set-text`, `set-html`, `set-attribute`
 
 **Network Monitoring (4)**
@@ -112,7 +112,29 @@ dv1 storage-clear --type local
 dv1 local-storage --key "auth-token"
 ```
 
-### ✅ Profile-Based Command Names
+### ✅ Shadow DOM Query with `>>>` Pierce Syntax
+Query elements inside Shadow DOM using the `>>>` syntax:
+```bash
+# Get HTML of element inside shadow root
+dv3 query "my-component >>> .inner-btn" --html
+
+# Get text content through nested shadow roots
+dv3 query "outer >>> widget >>> .title" --text
+
+# Get attribute value
+dv3 query "x-input >>> input" --attr placeholder
+
+# Count elements inside shadow root
+dv3 query "my-list >>> .item" --count
+
+# Check element exists
+dv3 query "my-dialog >>> .modal" --exists
+
+# JSON output
+dv3 query "my-comp >>> .data" --html --json
+```
+
+The `>>>` operator is syntactic sugar that compiles to standard `element.shadowRoot.querySelector()` calls at runtime — no non-standard CSS involved.
 Each profile has its own command (`dv1`–`dv6`) to prevent AI agent collisions:
 ```bash
 # Each agent uses a different command

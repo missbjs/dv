@@ -19,6 +19,7 @@ import { newPage } from './commands/new.js';
 import { close } from './commands/close.js';
 import { resize } from './commands/resize.js';
 import { monitor } from './commands/monitor.js';
+import { query } from './commands/query.js';
 import { listProfiles } from './profiles.js';
 // Network commands
 import { network } from './commands/network.js';
@@ -270,6 +271,22 @@ const profilesCmd = program
 if (process.env.DV_BIN_NAME) {
   (profilesCmd as unknown as { _hidden: boolean })._hidden = true;
 }
+
+// Query command — shadow DOM piercing via >>>
+program
+  .command('query')
+  .description('Query element content (supports shadow DOM piercing with >>>)')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots, e.g. "my-comp >>> .btn")')
+  .option('--html', 'Get outerHTML (default)')
+  .option('--text', 'Get textContent')
+  .option('--attr <name>', 'Get attribute value')
+  .option('--count', 'Count matching elements')
+  .option('--exists', 'Check if element exists')
+  .option('--json', 'Output as JSON')
+  .action((selector: string, options: Record<string, any>) => {
+    query({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 // Network commands
 program

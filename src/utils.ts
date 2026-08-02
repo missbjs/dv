@@ -11,3 +11,54 @@ export function getPortFromProfile(profileName: string): number {
   }
   return profile.port;
 }
+
+/** Escape a string for safe use inside a JS single-quoted string literal */
+export function escapeJsString(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+}
+
+/**
+ * Build a JS expression that traverses shadow DOM using `>>>` syntax.
+ *
+ * `>>>` separates each level: `"host >>> .inner"` becomes
+ * `document.querySelector('host')?.shadowRoot?.querySelector('.inner')`
+ *
+ * The `accessor` is appended at the end (e.g. `outerHTML`, `textContent`).
+ */
+export function buildShadowExpression(selector: string, accessor: string): string {
+  const parts = selector.split('>>>').map(s => s.trim());
+  let expr = 'document';
+
+  for (let i = 0; i < parts.length; i++) {
+    expr += `.querySelector('${escapeJsString(parts[i])}')`;
+    if (i < parts.length - 1) {
+      expr += '?.shadowRoot';
+    }
+  }
+
+  return `${expr}?.${accessor} ?? ''`;
+}
+
+/**
+ * Build a JS expression that returns the center coordinates and dimensions
+ * of an element selected via shadow-piercing `>>>` syntax.
+ *
+ * Returns `null` if the element is not found.
+ */
+export function buildShadowRectExpression(selector: string): string {
+  const parts = selector.split('>>>').map(s => s.trim());
+  let expr = 'document';
+
+  for (let i = 0; i < parts.length; i++) {
+    expr += `.querySelector('${escapeJsString(parts[i])}')`;
+    if (i < parts.length - 1) {
+      expr += '?.shadowRoot';
+    }
+  }
+
+  return `(() => { const el = ${expr}; if (!el) return null; const r = el.getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, width: r.width, height: r.height }; })()`;
+}

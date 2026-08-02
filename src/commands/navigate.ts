@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { ensureChromeRunning } from '../ensureChrome.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
@@ -8,6 +9,9 @@ export interface NavigateOptions {
 }
 
 export async function navigate(options: NavigateOptions) {
+  // Auto-start Chrome if it's not running
+  await ensureChromeRunning(options.profile);
+
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {

@@ -1,11 +1,14 @@
 import { WebSocketServer } from 'ws';
+import http from 'http';
 import { CDPMessage, CDPTarget } from '../src/types.js';
 
 /**
- * Mock CDP Server for testing without real Chrome
+ * Mock CDP Server for testing without real Chrome.
+ * Serves HTTP on /json for target discovery and WebSocket for CDP commands.
  */
 export class MockCDPServer {
-  private server: WebSocket.Server | null = null;
+  private server: http.Server | null = null;
+  private wsServer: WebSocket.Server | null = null;
   private port: number;
   private connections: WebSocket[] = [];
   private messageHandlers: Map<string, (params: any) => any> = new Map();
@@ -162,21 +165,25 @@ export class MockCDPServer {
   }
 
   /**
-   * Start the mock CDP server
+   * Start the mock CDP server (HTTP + WebSocket)
    */
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server = new WebSocketServer({ port: this.port });
-
-      this.server.on('listening', () => {
-        resolve();
+      // Create HTTP server for /json target discovery
+      this.server = http.createServer((req, res) => {
+        if (req.url === '/json' || req.url === '/json/version') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(createMockTargets(this.port)));
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
       });
 
-      this.server.on('error', (error) => {
-        reject(error);
-      });
+      // Attach WebSocket server to the same HTTP server
+      this.wsServer = new WebSocketServer({ server: this.server });
 
-      this.server.on('connection', (ws) => {
+      this.wsServer.on('connection', (ws) => {
         this.connections.push(ws);
 
         ws.on('message', (data: Buffer) => {
@@ -197,6 +204,14 @@ export class MockCDPServer {
         ws.on('close', () => {
           this.connections = this.connections.filter((c) => c !== ws);
         });
+      });
+
+      this.server.listen(this.port, () => {
+        resolve();
+      });
+
+      this.server.on('error', (error) => {
+        reject(error);
       });
     });
   }
@@ -236,8 +251,13 @@ export class MockCDPServer {
       this.connections.forEach((ws) => ws.close());
       this.connections = [];
 
+      // Close WebSocket server
+      this.wsServer?.close();
+
+      // Close HTTP server
       this.server.close(() => {
         this.server = null;
+        this.wsServer = null;
         resolve();
       });
     });

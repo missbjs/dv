@@ -40,7 +40,7 @@ export class CDPClient {
       });
       return response.data;
     } catch (error) {
-      if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+      if (error && typeof error === 'object' && 'code' in error && (error as any).code === 'ECONNREFUSED') {
         throw new Error(`Chrome is not running on port ${this.port}. Start it first with: dv1 start`);
       }
       throw error;
