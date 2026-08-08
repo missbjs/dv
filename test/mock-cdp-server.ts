@@ -286,6 +286,58 @@ export class MockCDPServer {
 
     // ── DOM mutation ──
     this.messageHandlers.set('DOM.setOuterHTML', () => ({}));
+    this.messageHandlers.set('DOM.setNodeValue', () => ({}));
+    this.messageHandlers.set('DOM.setFileInputFiles', () => ({}));
+
+    // ── Additional domain enables ──
+    this.messageHandlers.set('DOMStorage.enable', () => ({}));
+    this.messageHandlers.set('Emulation.enable', () => ({}));
+    this.messageHandlers.set('Performance.enable', () => ({}));
+
+    // ── Performance metrics ──
+    this.messageHandlers.set('Performance.getMetrics', () => ({
+      metrics: [
+        { name: 'Timestamp', value: 123456.789 },
+        { name: 'JSHeapUsedSize', value: 5_000_000 },
+        { name: 'Nodes', value: 240 },
+      ],
+    }));
+
+    // ── Page reload / navigation history ──
+    // Page.reload fires a delayed Page.loadEventFired so reloadAndWait() resolves.
+    this.messageHandlers.set('Page.reload', () => {
+      setTimeout(() => {
+        this.connections.forEach((ws) => {
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ method: 'Page.loadEventFired', params: { timestamp: 1 } }));
+          }
+        });
+      }, 10);
+      return {};
+    });
+    this.messageHandlers.set('Page.getNavigationHistory', () => ({
+      currentIndex: 1,
+      entries: [
+        { id: 0, url: 'https://example.com', title: 'Home' },
+        { id: 1, url: 'https://example.com/about', title: 'About' },
+      ],
+    }));
+    this.messageHandlers.set('Page.navigateToHistoryEntry', () => ({}));
+
+    // ── DOM storage items ──
+    this.messageHandlers.set('DOMStorage.getDOMStorageItems', () => ({
+      entries: [
+        ['theme', 'dark'],
+        ['token', 'abc123'],
+      ],
+    }));
+    this.messageHandlers.set('DOMStorage.setDOMStorageItem', () => ({}));
+    this.messageHandlers.set('DOMStorage.removeDOMStorageItem', () => ({}));
+
+    // ── Overlay (element highlight) ──
+    this.messageHandlers.set('Overlay.enable', () => ({}));
+    this.messageHandlers.set('Overlay.highlightNode', () => ({}));
+    this.messageHandlers.set('Overlay.hideHighlight', () => ({}));
   }
 
   /** Reset all handlers back to defaults — call between tests to avoid cross-test pollution */
@@ -308,9 +360,26 @@ export class MockCDPServer {
     return new Promise((resolve, reject) => {
       // Create HTTP server for /json target discovery
       this.server = http.createServer((req, res) => {
-        if (req.url === '/json' || req.url === '/json/version') {
+        const url = req.url || '';
+        if (url === '/json' || url === '/json/version') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(createMockTargets(this.port)));
+        } else if (url.startsWith('/json/new')) {
+          // newTab: target URL is the query string after '?'
+          const q = url.indexOf('?');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              id: 'new-tab-1',
+              type: 'page',
+              title: 'New Tab',
+              url: q >= 0 ? decodeURIComponent(url.slice(q + 1)) : 'about:blank',
+              webSocketDebuggerUrl: `ws://localhost:${this.port}/devtools/page/new-tab-1`,
+            })
+          );
+        } else if (url.startsWith('/json/close/')) {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('Target is closing');
         } else {
           res.writeHead(404);
           res.end();
