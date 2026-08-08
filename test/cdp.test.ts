@@ -316,10 +316,18 @@ describe('CDPClient', () => {
       ).resolves.toBeUndefined();
     });
 
-    it('should set geolocation', async () => {
-      await expect(
-        client.setGeolocationOverride(37.7749, -122.4194)
-      ).resolves.toBeUndefined();
+    it('should set geolocation with a default accuracy of 100', async () => {
+      await client.setGeolocationOverride(37.7749, -122.4194);
+      expect(mockServer.getCallParams('Emulation.setGeolocationOverride')).toEqual({
+        latitude: 37.7749,
+        longitude: -122.4194,
+        accuracy: 100,
+      });
+    });
+
+    it('should honor an explicit geolocation accuracy', async () => {
+      await client.setGeolocationOverride(1, 2, 25);
+      expect(mockServer.getCallParams('Emulation.setGeolocationOverride').accuracy).toBe(25);
     });
 
     it('should set user agent', async () => {
@@ -447,56 +455,79 @@ describe('CDPClient', () => {
     it('should push backend node ids to frontend', async () => {
       const result = await client.pushNodesByBackendIdsToFrontend([10]);
       expect(result.nodeIds).toEqual([110]); // mock maps id -> id + 100
+      expect(mockServer.getCallParams('DOM.pushNodesByBackendIdsToFrontend').backendNodeIds).toEqual([10]);
     });
 
     it('should get attributes for a node', async () => {
       const result = await client.getAttributes(4);
       expect(Array.isArray(result.attributes)).toBe(true);
       expect(result.attributes).toContain('data-dv-ref');
+      expect(mockServer.getCallParams('DOM.getAttributes').nodeId).toBe(4);
     });
 
-    it('should get box model by backend node', async () => {
+    it('should resolve the backend id then query the mapped node id', async () => {
       const result = await client.getBoxModelByBackendNode(10);
       expect(result.model).toHaveProperty('content');
+      // backend 10 -> nodeId 110; box model must be requested for the mapped id
+      expect(mockServer.getCallParams('DOM.getBoxModel').nodeId).toBe(110);
     });
 
-    it('should get outer HTML by backend node', async () => {
+    it('should get outer HTML for the mapped node id', async () => {
       const result = await client.getOuterHTMLByBackendNode(10);
       expect(result).toHaveProperty('outerHTML');
+      expect(mockServer.getCallParams('DOM.getOuterHTML').nodeId).toBe(110);
     });
 
-    it('should get text by backend node via evaluate', async () => {
-      const text = await client.getTextByBackendNode(10);
-      expect(typeof text).toBe('string');
-    });
-
-    it('should get node text by backend node via callFunctionOn', async () => {
+    it('should get node text via resolveNode + callFunctionOn on the mapped id', async () => {
       const text = await client.getNodeTextByBackendNode(10);
       expect(text).toBe('Test Content');
+      expect(mockServer.getCallParams('DOM.resolveNode').nodeId).toBe(110);
+      expect(mockServer.getCallParams('Runtime.callFunctionOn').objectId).toBe('mock-object-1');
     });
 
-    it('should inspect a backend node', async () => {
+    it('should inspect the mapped node (attributes + box)', async () => {
       const result = await client.inspectBackendNode(10);
       expect(result.nodeId).toBe(110);
       expect(Array.isArray(result.attributes)).toBe(true);
       expect(result.box).toHaveProperty('content');
+      expect(mockServer.getCallParams('DOM.getAttributes').nodeId).toBe(110);
+      expect(mockServer.getCallParams('DOM.getBoxModel').nodeId).toBe(110);
     });
 
-    it('should click a backend node', async () => {
-      await expect(client.clickBackendNode(10)).resolves.toBeUndefined();
+    it('should click the mapped node at its box-model center', async () => {
+      await client.clickBackendNode(10);
+      expect(mockServer.getCallParams('DOM.scrollIntoViewIfNeeded').nodeId).toBe(110);
+      const mouse = mockServer.getCalls('Input.dispatchMouseEvent');
+      expect(mouse.map((c) => c.params.type)).toEqual(['mousePressed', 'mouseReleased']);
+      // content [0,0,100,0,100,100,0,100] -> center (50,50)
+      expect(mouse[0].params).toMatchObject({ x: 50, y: 50, button: 'left' });
+      expect(mouse[1].params).toMatchObject({ x: 50, y: 50, button: 'left' });
     });
 
-    it('should fill a backend node', async () => {
-      await expect(client.fillBackendNode(10, 'hello')).resolves.toBeUndefined();
+    it('should fill by selecting all (Ctrl+A) then typing each character', async () => {
+      await client.fillBackendNode(10, 'ab');
+      const keys = mockServer.getCalls('Input.dispatchKeyEvent').map((c) => c.params);
+      // First two events are the Ctrl+A select-all (modifiers=2)
+      expect(keys[0]).toMatchObject({ type: 'keyDown', key: 'a', modifiers: 2 });
+      expect(keys[1]).toMatchObject({ type: 'keyUp', key: 'a', modifiers: 2 });
+      // Then keyDown/keyUp per character with text
+      const typed = keys.slice(2).filter((k) => k.type === 'keyDown').map((k) => k.text);
+      expect(typed).toEqual(['a', 'b']);
     });
 
-    it('should type into a backend node', async () => {
-      await expect(client.typeBackendNode(10, 'hello')).resolves.toBeUndefined();
+    it('should type each character without a select-all', async () => {
+      await client.typeBackendNode(10, 'hi');
+      const keys = mockServer.getCalls('Input.dispatchKeyEvent').map((c) => c.params);
+      // No Ctrl+A: no key event should carry modifiers
+      expect(keys.every((k) => !k.modifiers)).toBe(true);
+      const typed = keys.filter((k) => k.type === 'keyDown').map((k) => k.text);
+      expect(typed).toEqual(['h', 'i']);
     });
 
     it('should resolve a node', async () => {
       const result = await client.resolveNode(4);
       expect(result.object).toHaveProperty('objectId');
+      expect(mockServer.getCallParams('DOM.resolveNode').nodeId).toBe(4);
     });
 
     it('should throw when backend node cannot be resolved', async () => {
@@ -553,15 +584,27 @@ describe('CDPClient', () => {
     it('should get box model by selector', async () => {
       const model = await client.getBoxModelBySelector('#test-element');
       expect(model).toHaveProperty('content');
+      expect(mockServer.getCallParams('DOM.getBoxModel').nodeId).toBe(4);
     });
 
     it('should throw for missing element box model', async () => {
       await expect(client.getBoxModelBySelector('#nonexistent')).rejects.toThrow('Element not found');
     });
 
-    it('should capture screenshot with clip', async () => {
-      const result = await client.captureScreenshotWithClip({ x: 0, y: 0, width: 100, height: 100 });
+    it('should capture screenshot with the given clip and default scale', async () => {
+      const result = await client.captureScreenshotWithClip({ x: 5, y: 10, width: 100, height: 200 });
       expect(result).toHaveProperty('data');
+      const params = mockServer.getCallParams('Page.captureScreenshot');
+      expect(params).toMatchObject({
+        format: 'png',
+        captureBeyondViewport: true,
+        clip: { x: 5, y: 10, width: 100, height: 200, scale: 1 },
+      });
+    });
+
+    it('should honor an explicit clip scale', async () => {
+      await client.captureScreenshotWithClip({ x: 0, y: 0, width: 50, height: 50, scale: 2 });
+      expect(mockServer.getCallParams('Page.captureScreenshot').clip.scale).toBe(2);
     });
   });
 
@@ -574,24 +617,40 @@ describe('CDPClient', () => {
       await client.close();
     });
 
-    it('should hover by backend node', async () => {
-      await expect(client.hoverBackendNode(10)).resolves.toBeUndefined();
+    it('should hover the mapped node with a buttonless mouse move at center', async () => {
+      await client.hoverBackendNode(10);
+      expect(mockServer.getCallParams('DOM.scrollIntoViewIfNeeded').nodeId).toBe(110);
+      const move = mockServer.getCallParams('Input.dispatchMouseEvent');
+      expect(move).toMatchObject({ type: 'mouseMoved', x: 50, y: 50, button: 'none' });
     });
 
-    it('should hover by selector', async () => {
-      await expect(client.hoverBySelector('#test-element')).resolves.toBeUndefined();
+    it('should hover by selector at the element center', async () => {
+      await client.hoverBySelector('#test-element');
+      expect(mockServer.getCallParams('DOM.scrollIntoViewIfNeeded').nodeId).toBe(4);
+      expect(mockServer.getCallParams('Input.dispatchMouseEvent')).toMatchObject({
+        type: 'mouseMoved',
+        x: 50,
+        y: 50,
+        button: 'none',
+      });
     });
 
     it('should throw hovering a missing element', async () => {
       await expect(client.hoverBySelector('#nonexistent')).rejects.toThrow('Element not found');
     });
 
-    it('should focus by backend node', async () => {
-      await expect(client.focusBackendNode(10)).resolves.toBeUndefined();
+    it('should focus the mapped node via callFunctionOn(this.focus())', async () => {
+      await client.focusBackendNode(10);
+      expect(mockServer.getCallParams('DOM.resolveNode').nodeId).toBe(110);
+      const call = mockServer.getCallParams('Runtime.callFunctionOn');
+      expect(call.objectId).toBe('mock-object-1');
+      expect(call.functionDeclaration).toContain('focus');
     });
 
-    it('should focus by selector', async () => {
-      await expect(client.focusBySelector('#test-element')).resolves.toBeUndefined();
+    it('should focus by selector via callFunctionOn(this.focus())', async () => {
+      await client.focusBySelector('#test-element');
+      expect(mockServer.getCallParams('DOM.resolveNode').nodeId).toBe(4);
+      expect(mockServer.getCallParams('Runtime.callFunctionOn').functionDeclaration).toContain('focus');
     });
 
     it('should throw focusing a missing element', async () => {
@@ -629,7 +688,8 @@ describe('CDPClient', () => {
     });
 
     it('should scroll an element into view', async () => {
-      await expect(client.scrollIntoView('#test-element')).resolves.toBeUndefined();
+      await client.scrollIntoView('#test-element');
+      expect(mockServer.getCallParams('DOM.scrollIntoViewIfNeeded').nodeId).toBe(4);
     });
 
     it('should throw scrolling a missing element into view', async () => {
@@ -637,11 +697,15 @@ describe('CDPClient', () => {
     });
 
     it('should scroll the window by offset', async () => {
-      await expect(client.scrollBy(null, 0, 100)).resolves.toBeUndefined();
+      await client.scrollBy(null, 0, 100);
+      expect(mockServer.getCallParams('Runtime.evaluate').expression).toBe('window.scrollBy(0, 100)');
     });
 
-    it('should scroll an element by offset', async () => {
-      await expect(client.scrollBy('#test-element', 0, 50)).resolves.toBeUndefined();
+    it('should scroll a specific element by offset', async () => {
+      await client.scrollBy('#test-element', 0, 50);
+      const expr = mockServer.getCallParams('Runtime.evaluate').expression;
+      expect(expr).toContain('#test-element');
+      expect(expr).toContain('.scrollBy(0, 50)');
     });
   });
 
@@ -660,12 +724,15 @@ describe('CDPClient', () => {
       expect(Array.isArray(result.entries)).toBe(true);
     });
 
-    it('should navigate to a history entry', async () => {
-      await expect(client.navigateToHistoryEntry(0)).resolves.toBeUndefined();
+    it('should navigate to a history entry by id', async () => {
+      await client.navigateToHistoryEntry(7);
+      expect(mockServer.getCallParams('Page.navigateToHistoryEntry').entryId).toBe(7);
     });
 
-    it('should reload and wait for load event', async () => {
-      await expect(client.reloadAndWait(0)).resolves.toBeUndefined();
+    it('should enable page then reload, resolving on the load event', async () => {
+      await client.reloadAndWait(0);
+      expect(mockServer.getCalls('Page.reload')).toHaveLength(1);
+      expect(mockServer.getCalls('Page.enable').length).toBeGreaterThan(0);
     });
   });
 
@@ -678,8 +745,22 @@ describe('CDPClient', () => {
       await client.close();
     });
 
-    it('should highlight an element', async () => {
-      await expect(client.highlightNode('#test-element')).resolves.toBeUndefined();
+    it('should highlight an element with the default overlay color', async () => {
+      await client.highlightNode('#test-element');
+      const params = mockServer.getCallParams('Overlay.highlightNode');
+      expect(params.nodeId).toBe(4);
+      expect(params.highlightConfig.contentColor).toEqual({ r: 77, g: 144, b: 254, a: 0.6 });
+      expect(params.highlightConfig.showInfo).toBe(true);
+    });
+
+    it('should honor a custom highlight color', async () => {
+      await client.highlightNode('#test-element', { r: 1, g: 2, b: 3, a: 0.5 });
+      expect(mockServer.getCallParams('Overlay.highlightNode').highlightConfig.contentColor).toEqual({
+        r: 1,
+        g: 2,
+        b: 3,
+        a: 0.5,
+      });
     });
 
     it('should throw highlighting a missing element', async () => {
@@ -687,7 +768,8 @@ describe('CDPClient', () => {
     });
 
     it('should hide the highlight', async () => {
-      await expect(client.hideHighlight()).resolves.toBeUndefined();
+      await client.hideHighlight();
+      expect(mockServer.getCalls('Overlay.hideHighlight')).toHaveLength(1);
     });
   });
 
@@ -700,14 +782,20 @@ describe('CDPClient', () => {
       await client.close();
     });
 
-    it('should set files by backend node', async () => {
-      await expect(client.setFileInputFiles(10, ['/tmp/a.png'])).resolves.toBeUndefined();
+    it('should set files on the mapped backend node', async () => {
+      await client.setFileInputFiles(10, ['/tmp/a.png', '/tmp/b.png']);
+      expect(mockServer.getCallParams('DOM.setFileInputFiles')).toEqual({
+        nodeId: 110,
+        files: ['/tmp/a.png', '/tmp/b.png'],
+      });
     });
 
-    it('should set files by selector', async () => {
-      await expect(
-        client.setFileInputFilesBySelector('#test-element', ['/tmp/a.png'])
-      ).resolves.toBeUndefined();
+    it('should set files on the node matched by selector', async () => {
+      await client.setFileInputFilesBySelector('#test-element', ['/tmp/a.png']);
+      expect(mockServer.getCallParams('DOM.setFileInputFiles')).toEqual({
+        nodeId: 4,
+        files: ['/tmp/a.png'],
+      });
     });
 
     it('should throw setting files on a missing element', async () => {
@@ -726,16 +814,34 @@ describe('CDPClient', () => {
       await client.close();
     });
 
-    it('should drag from one selector to another', async () => {
-      await expect(client.dragAndDrop('#source', '#target')).resolves.toBeUndefined();
+    it('should press at source, move in 8 steps, then release at the coordinate', async () => {
+      await client.dragAndDrop('#source', { x: 200, y: 200 });
+      const mouse = mockServer.getCalls('Input.dispatchMouseEvent').map((c) => c.params);
+      const moves = mouse.filter((m) => m.type === 'mouseMoved');
+
+      // press -> 8 moves -> release
+      expect(mouse[0]).toMatchObject({ type: 'mousePressed', x: 50, y: 50, button: 'left' });
+      expect(moves).toHaveLength(8);
+      expect(moves.every((m) => m.buttons === 1)).toBe(true);
+      // final interpolation step lands exactly on the target
+      expect(moves[7]).toMatchObject({ x: 200, y: 200 });
+      expect(mouse[mouse.length - 1]).toMatchObject({ type: 'mouseReleased', x: 200, y: 200 });
     });
 
-    it('should drag to a coordinate', async () => {
-      await expect(client.dragAndDrop('#source', { x: 200, y: 200 })).resolves.toBeUndefined();
+    it('should drag from one selector to another', async () => {
+      await client.dragAndDrop('#source', '#target');
+      const moves = mockServer
+        .getCalls('Input.dispatchMouseEvent')
+        .filter((c) => c.params.type === 'mouseMoved');
+      expect(moves).toHaveLength(8);
     });
 
     it('should throw when source element is missing', async () => {
       await expect(client.dragAndDrop('#nonexistent', '#target')).rejects.toThrow('Element not found');
+    });
+
+    it('should throw when target selector is missing', async () => {
+      await expect(client.dragAndDrop('#source', '#nonexistent')).rejects.toThrow('Element not found');
     });
   });
 
@@ -756,21 +862,35 @@ describe('CDPClient', () => {
       await expect(client.enableEmulation()).resolves.toBeUndefined();
     });
 
-    it('should get storage items', async () => {
+    it('should get storage items for the local-storage storageId', async () => {
       const result = await client.getStorageItems('https://example.com', true);
       expect(Array.isArray(result.entries)).toBe(true);
+      expect(mockServer.getCallParams('DOMStorage.getDOMStorageItems').storageId).toEqual({
+        origin: 'https://example.com',
+        isLocalStorage: true,
+      });
     });
 
-    it('should set a storage item', async () => {
-      await expect(
-        client.setStorageItem('https://example.com', true, 'k', 'v')
-      ).resolves.toBeUndefined();
+    it('should distinguish session storage via isLocalStorage=false', async () => {
+      await client.getStorageItems('https://example.com', false);
+      expect(mockServer.getCallParams('DOMStorage.getDOMStorageItems').storageId.isLocalStorage).toBe(false);
     });
 
-    it('should remove a storage item', async () => {
-      await expect(
-        client.removeStorageItem('https://example.com', true, 'k')
-      ).resolves.toBeUndefined();
+    it('should set a storage item with the storageId, key and value', async () => {
+      await client.setStorageItem('https://example.com', true, 'k', 'v');
+      expect(mockServer.getCallParams('DOMStorage.setDOMStorageItem')).toEqual({
+        storageId: { origin: 'https://example.com', isLocalStorage: true },
+        key: 'k',
+        value: 'v',
+      });
+    });
+
+    it('should remove a storage item by storageId and key', async () => {
+      await client.removeStorageItem('https://example.com', true, 'k');
+      expect(mockServer.getCallParams('DOMStorage.removeDOMStorageItem')).toEqual({
+        storageId: { origin: 'https://example.com', isLocalStorage: true },
+        key: 'k',
+      });
     });
   });
 
@@ -784,7 +904,8 @@ describe('CDPClient', () => {
     });
 
     it('should set node value', async () => {
-      await expect(client.setNodeValue(4, 'new value')).resolves.toBeUndefined();
+      await client.setNodeValue(4, 'new value');
+      expect(mockServer.getCallParams('DOM.setNodeValue')).toEqual({ nodeId: 4, value: 'new value' });
     });
   });
 
@@ -797,8 +918,12 @@ describe('CDPClient', () => {
       await client.close();
     });
 
-    it('should install a mutation observer', async () => {
-      await expect(client.installMutationObserver()).resolves.toBeUndefined();
+    it('should install a mutation observer via evaluate', async () => {
+      await client.installMutationObserver();
+      const expr = mockServer.getCallParams('Runtime.evaluate').expression;
+      expect(expr).toContain('MutationObserver');
+      expect(expr).toContain('__dvMutations');
+      expect(expr).toContain('.observe(');
     });
 
     it('should read accumulated mutations', async () => {

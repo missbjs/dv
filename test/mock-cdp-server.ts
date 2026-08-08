@@ -12,6 +12,8 @@ export class MockCDPServer {
   private port: number;
   private connections: WebSocket[] = [];
   private messageHandlers: Map<string, (params: any) => any> = new Map();
+  /** Every CDP command received over the WebSocket, in order — lets tests assert on sent params */
+  private recordedCalls: Array<{ method: string; params: any }> = [];
 
   constructor(port: number) {
     this.port = port;
@@ -340,9 +342,10 @@ export class MockCDPServer {
     this.messageHandlers.set('Overlay.hideHighlight', () => ({}));
   }
 
-  /** Reset all handlers back to defaults — call between tests to avoid cross-test pollution */
+  /** Reset all handlers back to defaults and clear recorded calls — call between tests to avoid cross-test pollution */
   reset() {
     this.messageHandlers.clear();
+    this.recordedCalls = [];
     this.setupDefaultHandlers();
   }
 
@@ -351,6 +354,20 @@ export class MockCDPServer {
    */
   setHandler(method: string, handler: (params: any) => any) {
     this.messageHandlers.set(method, handler);
+  }
+
+  /** Return recorded CDP commands, optionally filtered by method name (in received order) */
+  getCalls(method?: string): Array<{ method: string; params: any }> {
+    return method ? this.recordedCalls.filter((c) => c.method === method) : this.recordedCalls;
+  }
+
+  /** Return the params of the single recorded call to `method`; throws unless exactly one exists */
+  getCallParams(method: string): any {
+    const calls = this.getCalls(method);
+    if (calls.length !== 1) {
+      throw new Error(`Expected exactly 1 call to ${method}, got ${calls.length}`);
+    }
+    return calls[0].params;
   }
 
   /**
@@ -426,6 +443,8 @@ export class MockCDPServer {
     if (message.id === undefined || !message.method) {
       return { id: message.id || 0, error: { message: 'Invalid message' } };
     }
+
+    this.recordedCalls.push({ method: message.method, params: message.params });
 
     const handler = this.messageHandlers.get(message.method);
     if (!handler) {

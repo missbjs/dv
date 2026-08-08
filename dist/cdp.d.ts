@@ -118,8 +118,6 @@ export declare class CDPClient {
     getOuterHTMLByBackendNode(backendNodeId: number): Promise<{
         outerHTML: string;
     }>;
-    /** Get text content using backend node ID */
-    getTextByBackendNode(backendNodeId: number): Promise<string>;
     /** Get computed text content via evaluate on a backend node */
     getNodeTextByBackendNode(backendNodeId: number): Promise<string>;
     /** Inspect element using backend node ID */

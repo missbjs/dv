@@ -584,22 +584,6 @@ export class CDPClient {
     return await this.send('DOM.getOuterHTML', { nodeId: nodeIds[0] });
   }
 
-  /** Get text content using backend node ID */
-  async getTextByBackendNode(backendNodeId: number): Promise<string> {
-    const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
-    if (!nodeIds || nodeIds.length === 0) {
-      throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
-    }
-    // Use Remote DOM or Runtime.evaluate to get textContent
-    // Push to get objectId first, then call getNodeForLocation... actually
-    // simpler: use Runtime.evaluate with remoteObject
-    const result = await this.send('Runtime.evaluate', {
-      expression: `(() => { const el = document.querySelector('[data-dv-ref]'); return el ? el.textContent : ''; })()`,
-      returnByValue: true,
-    });
-    return result.result?.value ?? '';
-  }
-
   /** Get computed text content via evaluate on a backend node */
   async getNodeTextByBackendNode(backendNodeId: number): Promise<string> {
     const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
