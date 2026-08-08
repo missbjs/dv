@@ -10,4 +10,89 @@ export function getPortFromProfile(profileName) {
     }
     return profile.port;
 }
+/** Escape a string for safe use inside a JS single-quoted string literal */
+export function escapeJsString(str) {
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
+}
+/**
+ * Build a JS expression that traverses shadow DOM using `>>>` syntax.
+ *
+ * `>>>` separates each level: `"host >>> .inner"` becomes
+ * `document.querySelector('host')?.shadowRoot?.querySelector('.inner')`
+ *
+ * The `accessor` is appended at the end (e.g. `outerHTML`, `textContent`).
+ */
+export function buildShadowExpression(selector, accessor) {
+    const parts = selector.split('>>>').map(s => s.trim());
+    let expr = 'document';
+    for (let i = 0; i < parts.length; i++) {
+        expr += `.querySelector('${escapeJsString(parts[i])}')`;
+        if (i < parts.length - 1) {
+            expr += '?.shadowRoot';
+        }
+    }
+    return `${expr}?.${accessor} ?? ''`;
+}
+/**
+ * Build a JS expression that returns the center coordinates and dimensions
+ * of an element selected via shadow-piercing `>>>` syntax.
+ *
+ * Returns `null` if the element is not found.
+ */
+export function buildShadowRectExpression(selector) {
+    const parts = selector.split('>>>').map(s => s.trim());
+    let expr = 'document';
+    for (let i = 0; i < parts.length; i++) {
+        expr += `.querySelector('${escapeJsString(parts[i])}')`;
+        if (i < parts.length - 1) {
+            expr += '?.shadowRoot';
+        }
+    }
+    return `(() => { const el = ${expr}; if (!el) return null; const r = el.getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, width: r.width, height: r.height }; })()`;
+}
+/** Check if a target string is a dv ref (e.g. "@e1", "@e1-2-3") */
+export function isRef(target) {
+    return /^@e[\d]+(?:-[\d]+)*$/.test(target);
+}
+/**
+ * Convert a glob pattern to RegExp.
+ * Supports: `*` (any chars except /), `**` (any chars), `?` (single char).
+ */
+export function globToRegex(pattern) {
+    let regexStr = '';
+    let i = 0;
+    while (i < pattern.length) {
+        if (pattern[i] === '*' && pattern[i + 1] === '*') {
+            regexStr += '.*';
+            i += 2;
+            // Skip trailing /
+            if (pattern[i] === '/')
+                i++;
+        }
+        else if (pattern[i] === '*') {
+            regexStr += '[^/]*';
+            i++;
+        }
+        else if (pattern[i] === '?') {
+            regexStr += '[^/]';
+            i++;
+        }
+        else {
+            // Escape regex special chars
+            const c = pattern[i];
+            if ('\\^$(){}+|.[]'.includes(c)) {
+                regexStr += '\\' + c;
+            }
+            else {
+                regexStr += c;
+            }
+            i++;
+        }
+    }
+    return new RegExp(`^${regexStr}$`, 'i');
+}
 //# sourceMappingURL=utils.js.map

@@ -16,6 +16,8 @@ export declare class CDPClient {
     enableRuntime(): Promise<void>;
     enableConsole(): Promise<void>;
     enablePage(): Promise<void>;
+    enableStorage(): Promise<void>;
+    enableEmulation(): Promise<void>;
     navigate(url: string): Promise<any>;
     evaluate(expression: string): Promise<any>;
     getConsoleMessages(): Promise<{
@@ -80,9 +82,109 @@ export declare class CDPClient {
     getCookies(urls?: string[]): Promise<any>;
     clearCookies(browserContextId?: string): Promise<void>;
     clearDataForOrigin(origin: string, storageTypes: string): Promise<void>;
-    getStorageItems(origin: string, storageType: 'local_storage' | 'session_storage'): Promise<any>;
-    setStorageItem(origin: string, storageType: 'local_storage' | 'session_storage', key: string, value: string): Promise<void>;
-    removeStorageItem(origin: string, storageType: 'local_storage' | 'session_storage', key: string): Promise<void>;
+    getStorageItems(origin: string, isLocalStorage: boolean): Promise<any>;
+    setStorageItem(origin: string, isLocalStorage: boolean, key: string, value: string): Promise<void>;
+    removeStorageItem(origin: string, isLocalStorage: boolean, key: string): Promise<void>;
     onRequestIntercepted(callback: (params: any) => void): void;
+    enableAccessibility(): Promise<void>;
+    getFullAXTree(depth?: number, frameId?: string): Promise<{
+        nodes: any[];
+    }>;
+    getPartialAXTree(opts: {
+        nodeId?: number;
+        backendNodeId?: number;
+        objectId?: string;
+        depth?: number;
+        fetchRelatives?: boolean;
+    }): Promise<any>;
+    queryAXTree(opts: {
+        nodeId?: number;
+        backendNodeId?: number;
+        objectId?: string;
+        accessibleName?: string;
+        role?: string;
+    }): Promise<any>;
+    /** Push nodes by backend DOM node IDs to frontend to get nodeIds */
+    pushNodesByBackendIdsToFrontend(backendNodeIds: number[]): Promise<{
+        nodeIds: number[];
+    }>;
+    /** Get attributes for a node (used to read data-dv-ref) */
+    getAttributes(nodeId: number): Promise<{
+        attributes: string[];
+    }>;
+    /** Get box model using backend node ID (convenience: push + getBoxModel) */
+    getBoxModelByBackendNode(backendNodeId: number): Promise<any>;
+    /** Get outer HTML using backend node ID */
+    getOuterHTMLByBackendNode(backendNodeId: number): Promise<{
+        outerHTML: string;
+    }>;
+    /** Get text content using backend node ID */
+    getTextByBackendNode(backendNodeId: number): Promise<string>;
+    /** Get computed text content via evaluate on a backend node */
+    getNodeTextByBackendNode(backendNodeId: number): Promise<string>;
+    /** Inspect element using backend node ID */
+    inspectBackendNode(backendNodeId: number): Promise<{
+        nodeId: number;
+        attributes: string[];
+        box: any;
+    }>;
+    /** Click element by backend node ID */
+    clickBackendNode(backendNodeId: number): Promise<void>;
+    /** Fill an input by backend node ID */
+    fillBackendNode(backendNodeId: number, value: string): Promise<void>;
+    /** Type text into element by backend node ID */
+    typeBackendNode(backendNodeId: number, text: string): Promise<void>;
+    /** Resolve a DOM node to its object for inspection */
+    resolveNode(nodeId: number): Promise<any>;
+    /** Get box model for a CSS selector (returns model or throws if not found) */
+    getBoxModelBySelector(selector: string): Promise<any>;
+    /** Capture screenshot clipped to a bounding box (viewport CSS coords) */
+    captureScreenshotWithClip(clip: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        scale?: number;
+    }): Promise<any>;
+    /** Get the center point of a node by its frontend nodeId */
+    private getNodeCenter;
+    /** Hover over an element by backend DOM node ID */
+    hoverBackendNode(backendNodeId: number): Promise<void>;
+    /** Hover over an element by CSS selector */
+    hoverBySelector(selector: string): Promise<void>;
+    /** Focus an element by backend DOM node ID */
+    focusBackendNode(backendNodeId: number): Promise<void>;
+    /** Focus an element by CSS selector */
+    focusBySelector(selector: string): Promise<void>;
+    enablePerformance(): Promise<void>;
+    getPerformanceMetrics(): Promise<any>;
+    /** Scroll an element into view by CSS selector */
+    scrollIntoView(selector: string): Promise<void>;
+    /** Scroll the window or an element by pixel offset */
+    scrollBy(selector: string | null, deltaX: number, deltaY: number): Promise<void>;
+    getNavigationHistory(): Promise<any>;
+    navigateToHistoryEntry(entryId: number): Promise<void>;
+    /** Highlight an element in the browser by CSS selector (uses Overlay) */
+    highlightNode(selector: string, color?: {
+        r: number;
+        g: number;
+        b: number;
+        a: number;
+    }): Promise<void>;
+    /** Hide any active overlay highlight */
+    hideHighlight(): Promise<void>;
+    /** Set files on an <input type=file> element via backend node ID */
+    setFileInputFiles(backendNodeId: number, files: string[]): Promise<void>;
+    /** Set files on an <input type=file> element via CSS selector */
+    setFileInputFilesBySelector(selector: string, files: string[]): Promise<void>;
+    /** Drag an element (source selector) to a target (target selector or x,y) */
+    dragAndDrop(sourceSelector: string, target: string | {
+        x: number;
+        y: number;
+    }): Promise<void>;
+    /** Install a MutationObserver that records mutations to window.__dvMutations */
+    installMutationObserver(): Promise<void>;
+    /** Read accumulated mutations since last read (returns array and clears) */
+    readMutations(): Promise<any[]>;
 }
 //# sourceMappingURL=cdp.d.ts.map

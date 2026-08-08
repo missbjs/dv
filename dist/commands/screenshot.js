@@ -7,10 +7,25 @@ export async function screenshot(options) {
     try {
         await client.connect();
         await client.enablePage();
-        console.log(chalk.blue('Taking screenshot...'));
-        const result = await client.takeScreenshot();
-        if (result.data) {
-            const buffer = Buffer.from(result.data, 'base64');
+        let data;
+        if (options.selector) {
+            console.log(chalk.blue(`Taking screenshot of element "${options.selector}"...`));
+            const box = await client.getBoxModelBySelector(options.selector);
+            const result = await client.captureScreenshotWithClip({
+                x: box.content[0],
+                y: box.content[1],
+                width: box.content[2] - box.content[0],
+                height: box.content[5] - box.content[1],
+            });
+            data = result.data;
+        }
+        else {
+            console.log(chalk.blue('Taking screenshot...'));
+            const result = await client.takeScreenshot();
+            data = result.data;
+        }
+        if (data) {
+            const buffer = Buffer.from(data, 'base64');
             await fs.writeFile(options.output, buffer);
             console.log(chalk.green(`Screenshot saved to ${options.output}`));
             console.log(chalk.gray(`Size: ${buffer.length} bytes`));

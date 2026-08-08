@@ -1,6 +1,12 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import {
+  buildSnapshotLines,
+  anchorRefs,
+  formatSnapshotLines,
+  formatSnapshotJSON,
+} from '../snapshot.js';
 
 export interface SnapshotOptions {
   profile: string;
@@ -13,14 +19,27 @@ export async function snapshot(options: SnapshotOptions) {
   try {
     await client.connect();
 
-    console.log(chalk.blue('Taking accessibility snapshot...'));
-    const result = await client.takeSnapshot();
+    // Enable accessibility domain
+    await client.enableAccessibility();
+
+    // Get the full accessibility tree
+    const axResult = await client.getFullAXTree();
+
+    if (!axResult.nodes || axResult.nodes.length === 0) {
+      console.log(chalk.yellow('No accessibility nodes found. The page may be empty.'));
+      return;
+    }
+
+    // Anchor refs: read existing data-dv-ref, assign new ones
+    const existingRefs = await anchorRefs(client, axResult.nodes);
+
+    // Build snapshot lines from the anchored tree
+    const result = buildSnapshotLines(axResult.nodes, existingRefs);
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(formatSnapshotJSON(result));
     } else {
-      console.log(chalk.green('Snapshot captured'));
-      console.log(chalk.gray(`Documents: ${result.documents?.length || 0}`));
+      console.log(formatSnapshotLines(result));
     }
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));

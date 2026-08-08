@@ -3,6 +3,9 @@ node_modules/
 *.log
 .DS_Store
 dv*/
+# Chrome user-data-dirs created at runtime by the dv1-dv6 profiles
+profile-*/
+dist/profile-*/
 *.tgz
 REVIEW.md
 test-*.sh

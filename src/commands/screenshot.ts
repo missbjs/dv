@@ -6,6 +6,7 @@ import { getPortFromProfile } from '../utils.js';
 export interface ScreenshotOptions {
   profile: string;
   output: string;
+  selector?: string;
 }
 
 export async function screenshot(options: ScreenshotOptions) {
@@ -15,11 +16,25 @@ export async function screenshot(options: ScreenshotOptions) {
     await client.connect();
     await client.enablePage();
 
-    console.log(chalk.blue('Taking screenshot...'));
-    const result = await client.takeScreenshot();
+    let data: string;
+    if (options.selector) {
+      console.log(chalk.blue(`Taking screenshot of element "${options.selector}"...`));
+      const box = await client.getBoxModelBySelector(options.selector);
+      const result = await client.captureScreenshotWithClip({
+        x: box.content[0],
+        y: box.content[1],
+        width: box.content[2] - box.content[0],
+        height: box.content[5] - box.content[1],
+      });
+      data = result.data;
+    } else {
+      console.log(chalk.blue('Taking screenshot...'));
+      const result = await client.takeScreenshot();
+      data = result.data;
+    }
 
-    if (result.data) {
-      const buffer = Buffer.from(result.data, 'base64');
+    if (data) {
+      const buffer = Buffer.from(data, 'base64');
       await fs.writeFile(options.output, buffer);
 
       console.log(chalk.green(`Screenshot saved to ${options.output}`));

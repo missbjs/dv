@@ -5,6 +5,7 @@ export async function throttle(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
         await client.connect();
+        // Emulation domain doesn't have an enable method; try setNetworkConditions directly
         let conditions;
         if (options.offline) {
             conditions = { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 };

@@ -1,0 +1,1 @@
+{"version":3,"file":"dialog.d.ts","sourceRoot":"","sources":["../../src/commands/dialog.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,aAAa;IAC5B,OAAO,EAAE,MAAM,CAAC;IAChB,MAAM,CAAC,EAAE,OAAO,CAAC;IACjB,OAAO,CAAC,EAAE,OAAO,CAAC;IAClB,IAAI,CAAC,EAAE,MAAM,CAAC;CACf;AAED,wBAAsB,MAAM,CAAC,OAAO,EAAE,aAAa,iBA4DlD"}

@@ -14,28 +14,36 @@ export async function sessionStorage(options: SessionStorageOptions) {
   try {
     await client.connect();
 
-    const targets = await client.getTargets();
-    const tab = client.getCurrentTab(targets);
-    if (!tab) {
-      console.error(chalk.red('No tab found'));
+    console.log(chalk.blue('Getting sessionStorage...'));
+    const result = await client.evaluate(`
+      JSON.stringify(Array.from({ length: sessionStorage.length }, (_, i) => {
+        const k = sessionStorage.key(i);
+        return [k, sessionStorage.getItem(k)];
+      }))
+    `);
+
+    if (result?.exceptionDetails) {
+      console.error(chalk.red(`Error: ${result.exceptionDetails.text}`));
       process.exit(1);
     }
 
-    const origin = tab.url;
-
-    console.log(chalk.blue('Getting sessionStorage...'));
-    const result = await client.getStorageItems(origin, 'session_storage');
+    let items: string[][] = [];
+    try {
+      items = JSON.parse(result.result.value);
+    } catch {
+      // no items
+    }
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(items, null, 2));
     } else {
-      if (!result || result.length === 0) {
+      if (!items || items.length === 0) {
         console.log(chalk.gray('No sessionStorage items found'));
         return;
       }
 
-      console.log(chalk.green(`\n✓ Found ${result.length} item(s):\n`));
-      result.forEach((item: string[], index: number) => {
+      console.log(chalk.green(`\n✓ Found ${items.length} item(s):\n`));
+      items.forEach((item: string[], index: number) => {
         const [key, value] = item;
         if (!options.key || key === options.key) {
           console.log(chalk.white(`${index + 1}. ${key}`));

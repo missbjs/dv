@@ -62,3 +62,41 @@ export function buildShadowRectExpression(selector: string): string {
 
   return `(() => { const el = ${expr}; if (!el) return null; const r = el.getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, width: r.width, height: r.height }; })()`;
 }
+
+/** Check if a target string is a dv ref (e.g. "@e1", "@e1-2-3") */
+export function isRef(target: string): boolean {
+  return /^@e[\d]+(?:-[\d]+)*$/.test(target);
+}
+
+/**
+ * Convert a glob pattern to RegExp.
+ * Supports: `*` (any chars except /), `**` (any chars), `?` (single char).
+ */
+export function globToRegex(pattern: string): RegExp {
+  let regexStr = '';
+  let i = 0;
+  while (i < pattern.length) {
+    if (pattern[i] === '*' && pattern[i + 1] === '*') {
+      regexStr += '.*';
+      i += 2;
+      // Skip trailing /
+      if (pattern[i] === '/') i++;
+    } else if (pattern[i] === '*') {
+      regexStr += '[^/]*';
+      i++;
+    } else if (pattern[i] === '?') {
+      regexStr += '[^/]';
+      i++;
+    } else {
+      // Escape regex special chars
+      const c = pattern[i];
+      if ('\\^$(){}+|.[]'.includes(c)) {
+        regexStr += '\\' + c;
+      } else {
+        regexStr += c;
+      }
+      i++;
+    }
+  }
+  return new RegExp(`^${regexStr}$`, 'i');
+}

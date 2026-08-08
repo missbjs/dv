@@ -19,7 +19,7 @@ export class CDPClient {
             return response.data;
         }
         catch (error) {
-            if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+            if (error && typeof error === 'object' && 'code' in error && error.code === 'ECONNREFUSED') {
                 throw new Error(`Chrome is not running on port ${this.port}. Start it first with: dv1 start`);
             }
             throw error;
@@ -66,7 +66,7 @@ export class CDPClient {
                             clearTimeout(pending.timeoutId);
                         }
                         if (message.error) {
-                            pending.reject(message.error);
+                            pending.reject(new Error(message.error.message || JSON.stringify(message.error)));
                         }
                         else {
                             pending.resolve(message.result);
@@ -152,6 +152,12 @@ export class CDPClient {
     }
     async enablePage() {
         await this.send('Page.enable');
+    }
+    async enableStorage() {
+        await this.send('DOMStorage.enable');
+    }
+    async enableEmulation() {
+        await this.send('Emulation.enable');
     }
     async navigate(url) {
         return await this.send('Page.navigate', { url });
@@ -393,7 +399,7 @@ export class CDPClient {
         await this.send('Emulation.setTimezoneOverride', { timezoneId });
     }
     async setNetworkConditions(offline, latency, downloadThroughput, uploadThroughput) {
-        await this.send('Emulation.setNetworkConditions', {
+        await this.send('Network.emulateNetworkConditions', {
             offline,
             latency,
             downloadThroughput,
@@ -413,27 +419,468 @@ export class CDPClient {
     async clearDataForOrigin(origin, storageTypes) {
         await this.send('Storage.clearDataForOrigin', { origin, storageTypes });
     }
-    async getStorageItems(origin, storageType) {
+    async getStorageItems(origin, isLocalStorage) {
         return await this.send('DOMStorage.getDOMStorageItems', {
-            storageId: { origin, storageType }
+            storageId: { origin, isLocalStorage }
         });
     }
-    async setStorageItem(origin, storageType, key, value) {
+    async setStorageItem(origin, isLocalStorage, key, value) {
         await this.send('DOMStorage.setDOMStorageItem', {
-            storageId: { origin, storageType },
+            storageId: { origin, isLocalStorage },
             key,
             value,
         });
     }
-    async removeStorageItem(origin, storageType, key) {
+    async removeStorageItem(origin, isLocalStorage, key) {
         await this.send('DOMStorage.removeDOMStorageItem', {
-            storageId: { origin, storageType },
+            storageId: { origin, isLocalStorage },
             key,
         });
     }
     // Request interception callback
     onRequestIntercepted(callback) {
         this.requestInterceptedCallback = callback;
+    }
+    // ── Accessibility Domain ──
+    async enableAccessibility() {
+        await this.send('Accessibility.enable');
+    }
+    async getFullAXTree(depth, frameId) {
+        const params = {};
+        if (depth !== undefined)
+            params.depth = depth;
+        if (frameId !== undefined)
+            params.frameId = frameId;
+        return await this.send('Accessibility.getFullAXTree', params);
+    }
+    async getPartialAXTree(opts) {
+        return await this.send('Accessibility.getPartialAXTree', opts);
+    }
+    async queryAXTree(opts) {
+        return await this.send('Accessibility.queryAXTree', opts);
+    }
+    // ── DOM Backend-Node Bridge ──
+    /** Push nodes by backend DOM node IDs to frontend to get nodeIds */
+    async pushNodesByBackendIdsToFrontend(backendNodeIds) {
+        return await this.send('DOM.pushNodesByBackendIdsToFrontend', { backendNodeIds });
+    }
+    /** Get attributes for a node (used to read data-dv-ref) */
+    async getAttributes(nodeId) {
+        return await this.send('DOM.getAttributes', { nodeId });
+    }
+    /** Get box model using backend node ID (convenience: push + getBoxModel) */
+    async getBoxModelByBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        return await this.send('DOM.getBoxModel', { nodeId: nodeIds[0] });
+    }
+    /** Get outer HTML using backend node ID */
+    async getOuterHTMLByBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        return await this.send('DOM.getOuterHTML', { nodeId: nodeIds[0] });
+    }
+    /** Get text content using backend node ID */
+    async getTextByBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        // Use Remote DOM or Runtime.evaluate to get textContent
+        // Push to get objectId first, then call getNodeForLocation... actually
+        // simpler: use Runtime.evaluate with remoteObject
+        const result = await this.send('Runtime.evaluate', {
+            expression: `(() => { const el = document.querySelector('[data-dv-ref]'); return el ? el.textContent : ''; })()`,
+            returnByValue: true,
+        });
+        return result.result?.value ?? '';
+    }
+    /** Get computed text content via evaluate on a backend node */
+    async getNodeTextByBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        const result = await this.send('DOM.resolveNode', { nodeId: nodeIds[0] });
+        const objectId = result.object?.objectId;
+        if (!objectId) {
+            throw new Error(`Cannot resolve object for node: ${nodeIds[0]}`);
+        }
+        const callResult = await this.send('Runtime.callFunctionOn', {
+            functionDeclaration: 'function() { return this.textContent ?? ""; }',
+            objectId,
+            returnByValue: true,
+        });
+        return callResult.result?.value ?? '';
+    }
+    /** Inspect element using backend node ID */
+    async inspectBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        const nodeId = nodeIds[0];
+        const attributes = await this.send('DOM.getAttributes', { nodeId });
+        const box = await this.send('DOM.getBoxModel', { nodeId });
+        return { nodeId, attributes: attributes.attributes, box: box.model };
+    }
+    /** Click element by backend node ID */
+    async clickBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        const nodeId = nodeIds[0];
+        const box = await this.send('DOM.getBoxModel', { nodeId });
+        const x = (box.model.content[0] + box.model.content[2]) / 2;
+        const y = (box.model.content[1] + box.model.content[5]) / 2;
+        await this.send('DOM.scrollIntoViewIfNeeded', { nodeId });
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mousePressed',
+            x,
+            y,
+            button: 'left',
+            clickCount: 1,
+        });
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mouseReleased',
+            x,
+            y,
+            button: 'left',
+            clickCount: 1,
+        });
+    }
+    /** Fill an input by backend node ID */
+    async fillBackendNode(backendNodeId, value) {
+        await this.clickBackendNode(backendNodeId);
+        // Select all existing content
+        await this.send('Input.dispatchKeyEvent', {
+            type: 'keyDown',
+            key: 'a',
+            code: 'KeyA',
+            modifiers: 2, // Ctrl
+        });
+        await this.send('Input.dispatchKeyEvent', {
+            type: 'keyUp',
+            key: 'a',
+            code: 'KeyA',
+            modifiers: 2,
+        });
+        // Type new value
+        for (const char of value) {
+            await this.send('Input.dispatchKeyEvent', {
+                type: 'keyDown',
+                key: char,
+                text: char,
+            });
+            await this.send('Input.dispatchKeyEvent', {
+                type: 'keyUp',
+                key: char,
+            });
+        }
+    }
+    /** Type text into element by backend node ID */
+    async typeBackendNode(backendNodeId, text) {
+        await this.clickBackendNode(backendNodeId);
+        for (const char of text) {
+            await this.send('Input.dispatchKeyEvent', {
+                type: 'keyDown',
+                key: char,
+                text: char,
+            });
+            await this.send('Input.dispatchKeyEvent', {
+                type: 'keyUp',
+                key: char,
+            });
+        }
+    }
+    /** Resolve a DOM node to its object for inspection */
+    async resolveNode(nodeId) {
+        return await this.send('DOM.resolveNode', { nodeId });
+    }
+    // ── Element Screenshot ──
+    /** Get box model for a CSS selector (returns model or throws if not found) */
+    async getBoxModelBySelector(selector) {
+        const document = await this.send('DOM.getDocument');
+        const node = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector,
+        });
+        if (!node.nodeId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        const box = await this.send('DOM.getBoxModel', { nodeId: node.nodeId });
+        return box.model;
+    }
+    /** Capture screenshot clipped to a bounding box (viewport CSS coords) */
+    async captureScreenshotWithClip(clip) {
+        return await this.send('Page.captureScreenshot', {
+            format: 'png',
+            clip: { ...clip, scale: clip.scale ?? 1 },
+            captureBeyondViewport: true,
+        });
+    }
+    // ── Hover / Focus ──
+    /** Get the center point of a node by its frontend nodeId */
+    async getNodeCenter(nodeId) {
+        const box = await this.send('DOM.getBoxModel', { nodeId });
+        const content = box.model.content;
+        return {
+            x: (content[0] + content[2]) / 2,
+            y: (content[1] + content[5]) / 2,
+        };
+    }
+    /** Hover over an element by backend DOM node ID */
+    async hoverBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        const nodeId = nodeIds[0];
+        await this.send('DOM.scrollIntoViewIfNeeded', { nodeId });
+        const { x, y } = await this.getNodeCenter(nodeId);
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x,
+            y,
+            button: 'none',
+        });
+    }
+    /** Hover over an element by CSS selector */
+    async hoverBySelector(selector) {
+        const document = await this.send('DOM.getDocument');
+        const node = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector,
+        });
+        if (!node.nodeId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: node.nodeId });
+        const { x, y } = await this.getNodeCenter(node.nodeId);
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved',
+            x,
+            y,
+            button: 'none',
+        });
+    }
+    /** Focus an element by backend DOM node ID */
+    async focusBackendNode(backendNodeId) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        const nodeId = nodeIds[0];
+        const result = await this.send('DOM.resolveNode', { nodeId });
+        const objectId = result.object?.objectId;
+        if (!objectId) {
+            throw new Error(`Cannot resolve object for node: ${nodeId}`);
+        }
+        await this.send('Runtime.callFunctionOn', {
+            functionDeclaration: 'function() { this.focus(); }',
+            objectId,
+        });
+    }
+    /** Focus an element by CSS selector */
+    async focusBySelector(selector) {
+        const document = await this.send('DOM.getDocument');
+        const node = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector,
+        });
+        if (!node.nodeId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        const result = await this.send('DOM.resolveNode', { nodeId: node.nodeId });
+        const objectId = result.object?.objectId;
+        if (!objectId) {
+            throw new Error(`Cannot resolve object for node: ${node.nodeId}`);
+        }
+        await this.send('Runtime.callFunctionOn', {
+            functionDeclaration: 'function() { this.focus(); }',
+            objectId,
+        });
+    }
+    // ── Performance ──
+    async enablePerformance() {
+        await this.send('Performance.enable');
+    }
+    async getPerformanceMetrics() {
+        return await this.send('Performance.getMetrics');
+    }
+    // ── Scroll ──
+    /** Scroll an element into view by CSS selector */
+    async scrollIntoView(selector) {
+        const document = await this.send('DOM.getDocument');
+        const node = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector,
+        });
+        if (!node.nodeId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: node.nodeId });
+    }
+    /** Scroll the window or an element by pixel offset */
+    async scrollBy(selector, deltaX, deltaY) {
+        const expression = selector
+            ? `document.querySelector(${JSON.stringify(selector)}).scrollBy(${deltaX}, ${deltaY})`
+            : `window.scrollBy(${deltaX}, ${deltaY})`;
+        await this.send('Runtime.evaluate', { expression, returnByValue: true });
+    }
+    // ── History ──
+    async getNavigationHistory() {
+        return await this.send('Page.getNavigationHistory');
+    }
+    async navigateToHistoryEntry(entryId) {
+        await this.send('Page.navigateToHistoryEntry', { entryId });
+    }
+    // ── Element Highlight ──
+    /** Highlight an element in the browser by CSS selector (uses Overlay) */
+    async highlightNode(selector, color = { r: 77, g: 144, b: 254, a: 0.6 }) {
+        const document = await this.send('DOM.getDocument');
+        const node = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector,
+        });
+        if (!node.nodeId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        await this.send('Overlay.enable');
+        await this.send('Overlay.highlightNode', {
+            highlightConfig: { contentColor: color, showInfo: true },
+            nodeId: node.nodeId,
+        });
+    }
+    /** Hide any active overlay highlight */
+    async hideHighlight() {
+        await this.send('Overlay.hideHighlight');
+    }
+    // ── File Upload ──
+    /** Set files on an <input type=file> element via backend node ID */
+    async setFileInputFiles(backendNodeId, files) {
+        const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+        if (!nodeIds || nodeIds.length === 0) {
+            throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+        }
+        await this.send('DOM.setFileInputFiles', {
+            nodeId: nodeIds[0],
+            files,
+        });
+    }
+    /** Set files on an <input type=file> element via CSS selector */
+    async setFileInputFilesBySelector(selector, files) {
+        const document = await this.send('DOM.getDocument');
+        const node = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector,
+        });
+        if (!node.nodeId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        await this.send('DOM.setFileInputFiles', {
+            nodeId: node.nodeId,
+            files,
+        });
+    }
+    // ── Drag & Drop ──
+    /** Drag an element (source selector) to a target (target selector or x,y) */
+    async dragAndDrop(sourceSelector, target) {
+        const document = await this.send('DOM.getDocument');
+        const srcNode = await this.send('DOM.querySelector', {
+            nodeId: document.root.nodeId,
+            selector: sourceSelector,
+        });
+        if (!srcNode.nodeId) {
+            throw new Error(`Element not found: ${sourceSelector}`);
+        }
+        await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: srcNode.nodeId });
+        const srcCenter = await this.getNodeCenter(srcNode.nodeId);
+        let targetPos;
+        if (typeof target === 'string') {
+            const tgtNode = await this.send('DOM.querySelector', {
+                nodeId: document.root.nodeId,
+                selector: target,
+            });
+            if (!tgtNode.nodeId) {
+                throw new Error(`Element not found: ${target}`);
+            }
+            await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: tgtNode.nodeId });
+            targetPos = await this.getNodeCenter(tgtNode.nodeId);
+        }
+        else {
+            targetPos = target;
+        }
+        // Mouse down at source
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mousePressed',
+            x: srcCenter.x,
+            y: srcCenter.y,
+            button: 'left',
+            clickCount: 1,
+        });
+        // Move in steps to trigger drag events
+        const steps = 8;
+        for (let i = 1; i <= steps; i++) {
+            const x = srcCenter.x + ((targetPos.x - srcCenter.x) * i) / steps;
+            const y = srcCenter.y + ((targetPos.y - srcCenter.y) * i) / steps;
+            await this.send('Input.dispatchMouseEvent', {
+                type: 'mouseMoved',
+                x,
+                y,
+                button: 'left',
+                buttons: 1,
+            });
+        }
+        // Mouse up at target
+        await this.send('Input.dispatchMouseEvent', {
+            type: 'mouseReleased',
+            x: targetPos.x,
+            y: targetPos.y,
+            button: 'left',
+            clickCount: 1,
+        });
+    }
+    // ── DOM Watch (MutationObserver) ──
+    /** Install a MutationObserver that records mutations to window.__dvMutations */
+    async installMutationObserver() {
+        await this.send('Runtime.evaluate', {
+            expression: `
+        window.__dvMutations = [];
+        window.__dvObserver = null;
+        if (window.__dvObserver) { window.__dvObserver.disconnect(); }
+        window.__dvObserver = new MutationObserver(function(muts) {
+          for (const m of muts) {
+            window.__dvMutations.push({
+              type: m.type,
+              target: m.target.nodeName + (m.target.className ? '.' + m.target.className : ''),
+              added: m.addedNodes.length,
+              removed: m.removedNodes.length,
+              attr: m.attributeName || null,
+              time: Date.now()
+            });
+          }
+        });
+        window.__dvObserver.observe(document.documentElement, {
+          childList: true, subtree: true, attributes: true, characterData: true
+        });
+        true
+      `,
+            returnByValue: true,
+        });
+    }
+    /** Read accumulated mutations since last read (returns array and clears) */
+    async readMutations() {
+        const result = await this.send('Runtime.evaluate', {
+            expression: `(() => { const m = window.__dvMutations || []; window.__dvMutations = []; return m; })()`,
+            returnByValue: true,
+        });
+        return result.result?.value ?? [];
     }
 }
 //# sourceMappingURL=cdp.js.map

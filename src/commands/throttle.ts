@@ -15,6 +15,8 @@ export async function throttle(options: ThrottleOptions) {
   try {
     await client.connect();
 
+    // Emulation domain doesn't have an enable method; try setNetworkConditions directly
+
     let conditions: { offline: boolean; latency: number; downloadThroughput: number; uploadThroughput: number };
 
     if (options.offline) {

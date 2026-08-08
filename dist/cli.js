@@ -18,6 +18,7 @@ import { newPage } from './commands/new.js';
 import { close } from './commands/close.js';
 import { resize } from './commands/resize.js';
 import { monitor } from './commands/monitor.js';
+import { query } from './commands/query.js';
 import { listProfiles } from './profiles.js';
 // Network commands
 import { network } from './commands/network.js';
@@ -44,6 +45,26 @@ import { cookiesClear } from './commands/cookies-clear.js';
 import { storageClear } from './commands/storage-clear.js';
 import { localStorage } from './commands/local-storage.js';
 import { sessionStorage } from './commands/session-storage.js';
+// New feature commands
+import { read } from './commands/read.js';
+import { wait } from './commands/wait.js';
+import { batch } from './commands/batch.js';
+import { find } from './commands/find.js';
+import { diff } from './commands/diff.js';
+import { a11y } from './commands/a11y.js';
+// Medium/low priority feature commands
+import { hover } from './commands/hover.js';
+import { focus } from './commands/focus.js';
+import { perf } from './commands/perf.js';
+import { scroll } from './commands/scroll.js';
+import { history } from './commands/history.js';
+import { upload } from './commands/upload.js';
+import { har } from './commands/har.js';
+import { dialog } from './commands/dialog.js';
+import { frame } from './commands/frame.js';
+import { watch } from './commands/watch.js';
+import { drag } from './commands/drag.js';
+import { highlight } from './commands/highlight.js';
 import chalk from 'chalk';
 const program = new Command();
 // Detect which binary was invoked for help text display
@@ -105,9 +126,10 @@ program
 // Take screenshot
 program
     .command('screenshot')
-    .description('Take screenshot of the current tab')
+    .description('Take screenshot of the current tab (optionally a specific element)')
     .addOption(profileOption)
     .argument('<output>', 'Output file path')
+    .option('-s, --selector <selector>', 'Capture only this element (CSS selector)')
     .action((output, options) => {
     screenshot({ ...options, output, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -247,6 +269,21 @@ const profilesCmd = program
 if (process.env.DV_BIN_NAME) {
     profilesCmd._hidden = true;
 }
+// Query command — shadow DOM piercing via >>>
+program
+    .command('query')
+    .description('Query element content (supports shadow DOM piercing with >>>)')
+    .addOption(profileOption)
+    .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots, e.g. "my-comp >>> .btn")')
+    .option('--html', 'Get outerHTML (default)')
+    .option('--text', 'Get textContent')
+    .option('--attr <name>', 'Get attribute value')
+    .option('--count', 'Count matching elements')
+    .option('--exists', 'Check if element exists')
+    .option('--json', 'Output as JSON')
+    .action((selector, options) => {
+    query({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
+});
 // Network commands
 program
     .command('network')
@@ -396,5 +433,191 @@ program
     .option('-k, --key <key>', 'Filter by key')
     .option('--json', 'Output as JSON')
     .action(sessionStorage);
+// Read command
+program
+    .command('read')
+    .description('Read page content (accessibility tree, text, or HTTP fetch)')
+    .addOption(profileOption)
+    .option('--url <url>', 'Fetch URL via HTTP instead of reading from the page')
+    .option('--snapshot', 'Output accessibility snapshot tree')
+    .option('--text', 'Output page body text content')
+    .action(read);
+// Wait command
+program
+    .command('wait')
+    .description('Wait for a condition on the page')
+    .addOption(profileOption)
+    .option('--load', 'Wait for page load event')
+    .option('--domcontentloaded', 'Wait for DOMContentLoaded')
+    .option('--networkidle', 'Wait for ~500ms of no network activity')
+    .option('-s, --selector <selector>', 'CSS selector or @e ref to wait for')
+    .option('--text <text>', 'Text to wait for (case-insensitive)')
+    .option('--ms <ms>', 'Simple sleep in ms', parseInt)
+    .option('-t, --timeout <ms>', 'Max wait time in ms (default: 30000)', parseInt)
+    .action(wait);
+// Batch command
+program
+    .command('batch')
+    .description('Run multiple dv commands sequentially')
+    .addOption(profileOption)
+    .option('--bail', 'Stop on first non-zero exit code')
+    .option('--delay <ms>', 'Delay between commands in ms', parseInt)
+    .argument('<commands...>', 'Commands to run (e.g. "navigate https://example.com" "snapshot")')
+    .action((commands, options) => {
+    batch({ ...options, commands, profile: options.profile || process.env.DV_PROFILE });
+});
+// Find command
+program
+    .command('find')
+    .description('Find element by semantic locator and optionally act on it')
+    .addOption(profileOption)
+    .requiredOption('-m, --mode <mode>', 'Locator mode: text, role, label, placeholder, testid')
+    .requiredOption('-v, --value <value>', 'Value to match')
+    .option('-a, --action <action>', 'Action: click, fill, type, inspect, text, html')
+    .option('--action-value <value>', 'Value for fill/type action')
+    .option('--json', 'Output as JSON')
+    .action(find);
+// Diff command
+program
+    .command('diff')
+    .description('Compare two snapshots or current page with a saved snapshot')
+    .addOption(profileOption)
+    .option('--files <files...>', 'Two snapshot JSON files to compare')
+    .option('--compare <file>', 'Compare current page with a saved snapshot file')
+    .option('--output <file>', 'Save diff result to file')
+    .action((options) => {
+    diff({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// A11y command
+program
+    .command('a11y')
+    .description('Run accessibility audit on the current page')
+    .addOption(profileOption)
+    .option('--json', 'Output as JSON')
+    .action(a11y);
+// Hover command
+program
+    .command('hover')
+    .description('Hover over an element by CSS selector')
+    .addOption(profileOption)
+    .argument('<selector>', 'CSS selector')
+    .action((selector, options) => {
+    hover({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
+});
+// Focus command
+program
+    .command('focus')
+    .description('Focus an element by CSS selector')
+    .addOption(profileOption)
+    .argument('<selector>', 'CSS selector')
+    .action((selector, options) => {
+    focus({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
+});
+// Perf command
+program
+    .command('perf')
+    .description('Show performance metrics')
+    .addOption(profileOption)
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+    perf({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// Scroll command
+program
+    .command('scroll')
+    .description('Scroll the page or an element')
+    .addOption(profileOption)
+    .option('-s, --selector <selector>', 'Element to scroll (omit to scroll window)')
+    .option('-x, --delta-x <px>', 'Horizontal scroll offset', parseInt)
+    .option('-y, --delta-y <px>', 'Vertical scroll offset', parseInt)
+    .action((options) => {
+    scroll({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// History command
+program
+    .command('history')
+    .description('Navigate back/forward in browser history')
+    .addOption(profileOption)
+    .option('--back', 'Go back one entry')
+    .option('--forward', 'Go forward one entry')
+    .option('--list', 'List navigation history')
+    .option('--go <entry>', 'Go to a specific history entry index', parseInt)
+    .action((options) => {
+    history({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// Upload command
+program
+    .command('upload')
+    .description('Upload file(s) to an <input type=file> element')
+    .addOption(profileOption)
+    .requiredOption('-s, --selector <selector>', 'CSS selector for file input element')
+    .requiredOption('-f, --files <files...>', 'File paths to upload')
+    .action((options) => {
+    upload({ selector: options.selector, files: options.files, profile: options.profile || process.env.DV_PROFILE });
+});
+// HAR export command
+program
+    .command('har')
+    .description('Export network activity as HAR file')
+    .addOption(profileOption)
+    .argument('<output>', 'Output HAR file path')
+    .action((output, options) => {
+    har({ ...options, output, profile: options.profile || process.env.DV_PROFILE });
+});
+// Dialog command
+program
+    .command('dialog')
+    .description('Handle JavaScript dialogs (alert, confirm, prompt)')
+    .addOption(profileOption)
+    .option('--accept', 'Accept dialog (default)')
+    .option('--dismiss', 'Dismiss dialog')
+    .option('--text <text>', 'Text for prompt dialogs')
+    .action((options) => {
+    dialog({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// Frame command
+program
+    .command('frame')
+    .description('Switch to a specific frame or iframe context')
+    .addOption(profileOption)
+    .option('-s, --selector <selector>', 'CSS selector for iframe element')
+    .option('--parent', 'Switch to parent frame')
+    .option('--top', 'Switch to top-level frame')
+    .option('--list', 'List all frames')
+    .option('--index <index>', 'Switch to frame by child index', parseInt)
+    .action((options) => {
+    frame({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// Watch command (DOM MutationObserver)
+program
+    .command('watch')
+    .description('Watch DOM mutations in real-time')
+    .addOption(profileOption)
+    .option('--install', 'Install MutationObserver on the page')
+    .option('--read', 'Read accumulated mutations')
+    .option('--continuous', 'Install and continuously poll for mutations')
+    .action((options) => {
+    watch({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
+// Drag command
+program
+    .command('drag')
+    .description('Drag and drop an element')
+    .addOption(profileOption)
+    .requiredOption('-s, --source <selector>', 'Source element selector')
+    .requiredOption('-t, --target <target>', 'Target selector or x,y (e.g. "x=100,y=200")')
+    .action((options) => {
+    drag({ source: options.source, target: options.target, profile: options.profile || process.env.DV_PROFILE });
+});
+// Highlight command
+program
+    .command('highlight')
+    .description('Highlight an element in the browser')
+    .addOption(profileOption)
+    .option('-s, --selector <selector>', 'CSS selector')
+    .option('--hide', 'Hide the highlight')
+    .action((options) => {
+    highlight({ ...options, profile: options.profile || process.env.DV_PROFILE });
+});
 program.parse();
 //# sourceMappingURL=cli.js.map
