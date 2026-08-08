@@ -155,6 +155,143 @@ export class MockCDPServer {
 
     // Network.continueInterceptedRequest
     this.messageHandlers.set('Network.continueInterceptedRequest', () => ({}));
+
+    // ── Accessibility Domain ──
+    this.messageHandlers.set('Accessibility.enable', () => ({}));
+
+    this.messageHandlers.set('Accessibility.getFullAXTree', () => ({
+      nodes: [
+        {
+          nodeId: 'a0',
+          ignored: true,
+          role: { type: 'role', value: 'RootWebArea' },
+          childIds: ['a1', 'a4'],
+        },
+        {
+          nodeId: 'a1',
+          ignored: false,
+          role: { type: 'role', value: 'navigation' },
+          name: { type: 'string', value: 'Main Navigation' },
+          childIds: ['a2', 'a3'],
+          parentId: 'a0',
+          backendDOMNodeId: 10,
+          properties: [
+            { name: 'focusable', value: { type: 'boolean', value: true } },
+          ],
+        },
+        {
+          nodeId: 'a2',
+          ignored: false,
+          role: { type: 'role', value: 'link' },
+          name: { type: 'string', value: 'Home' },
+          parentId: 'a1',
+          backendDOMNodeId: 11,
+          properties: [
+            { name: 'focusable', value: { type: 'boolean', value: true } },
+          ],
+        },
+        {
+          nodeId: 'a3',
+          ignored: false,
+          role: { type: 'role', value: 'link' },
+          name: { type: 'string', value: 'About' },
+          parentId: 'a1',
+          backendDOMNodeId: 12,
+          properties: [
+            { name: 'focusable', value: { type: 'boolean', value: true } },
+            { name: 'focused', value: { type: 'boolean', value: true } },
+          ],
+        },
+        {
+          nodeId: 'a4',
+          ignored: false,
+          role: { type: 'role', value: 'main' },
+          childIds: ['a5', 'a6'],
+          parentId: 'a0',
+          backendDOMNodeId: 20,
+        },
+        {
+          nodeId: 'a5',
+          ignored: false,
+          role: { type: 'role', value: 'heading' },
+          name: { type: 'string', value: 'Welcome' },
+          parentId: 'a4',
+          backendDOMNodeId: 21,
+          properties: [
+            { name: 'level', value: { type: 'integer', value: 1 } },
+          ],
+        },
+        {
+          nodeId: 'a6',
+          ignored: false,
+          role: { type: 'role', value: 'button' },
+          name: { type: 'string', value: 'Submit' },
+          parentId: 'a4',
+          backendDOMNodeId: 22,
+          properties: [
+            { name: 'focusable', value: { type: 'boolean', value: true } },
+            { name: 'disabled', value: { type: 'boolean', value: false } },
+          ],
+        },
+      ],
+    }));
+
+    this.messageHandlers.set('Accessibility.getPartialAXTree', () => ({
+      nodes: [],
+    }));
+
+    this.messageHandlers.set('Accessibility.queryAXTree', () => ({
+      nodes: [],
+    }));
+
+    // ── DOM Backend-Node Bridge ──
+    this.messageHandlers.set('DOM.pushNodesByBackendIdsToFrontend', (params: any) => {
+      const backendIds: number[] = params.backendNodeIds || [];
+      return {
+        nodeIds: backendIds.map((id) => id + 100), // simple mapping: backend 10 → nodeId 110
+      };
+    });
+
+    this.messageHandlers.set('DOM.getAttributes', () => ({
+      attributes: ['data-dv-ref', '@e1', 'class', 'test-class', 'id', 'test-element'],
+    }));
+
+    this.messageHandlers.set('DOM.setAttributeValue', () => ({}));
+
+    this.messageHandlers.set('DOM.scrollIntoViewIfNeeded', () => ({}));
+
+    this.messageHandlers.set('DOM.resolveNode', () => ({
+      object: { objectId: 'mock-object-1' },
+    }));
+
+    this.messageHandlers.set('Runtime.callFunctionOn', (params: any) => {
+      if (params.functionDeclaration?.includes('textContent')) {
+        return { result: { type: 'string', value: 'Test Content' } };
+      }
+      return { result: { type: 'undefined' } };
+    });
+
+    // ── Emulation overrides ──
+    this.messageHandlers.set('Emulation.setGeolocationOverride', () => ({}));
+    this.messageHandlers.set('Emulation.clearGeolocationOverride', () => ({}));
+    this.messageHandlers.set('Emulation.setTimezoneOverride', () => ({}));
+    this.messageHandlers.set('Emulation.setUserAgentOverride', () => ({}));
+
+    // ── Network conditions ──
+    this.messageHandlers.set('Network.emulateNetworkConditions', () => ({}));
+
+    // ── Storage clearing ──
+    this.messageHandlers.set('Storage.clearCookies', () => ({}));
+    this.messageHandlers.set('Storage.clearDataForOrigin', () => ({}));
+
+    // ── DOM mutation ──
+    this.messageHandlers.set('DOM.setOuterHTML', () => ({}));
+  }
+
+  /** Reset all handlers back to defaults — call between tests to avoid cross-test pollution */
+  reset() {
+    this.messageHandlers.clear();
+    this.setupDefaultHandlers();
   }
 
   /**
@@ -186,10 +323,10 @@ export class MockCDPServer {
       this.wsServer.on('connection', (ws) => {
         this.connections.push(ws);
 
-        ws.on('message', (data: Buffer) => {
+        ws.on('message', async (data: Buffer) => {
           try {
             const message: CDPMessage = JSON.parse(data.toString());
-            const response = this.handleMessage(message);
+            const response = await this.handleMessage(message);
             ws.send(JSON.stringify(response));
           } catch (error) {
             ws.send(
@@ -216,7 +353,7 @@ export class MockCDPServer {
     });
   }
 
-  private handleMessage(message: CDPMessage): CDPMessage {
+  private async handleMessage(message: CDPMessage): Promise<CDPMessage> {
     if (message.id === undefined || !message.method) {
       return { id: message.id || 0, error: { message: 'Invalid message' } };
     }
@@ -230,7 +367,7 @@ export class MockCDPServer {
     }
 
     try {
-      const result = handler(message.params);
+      const result = await handler(message.params);
       return { id: message.id, result };
     } catch (error: any) {
       return { id: message.id, error: { message: error.message } };
@@ -270,7 +407,9 @@ export class MockCDPServer {
     const message = {
       method: 'Console.messageAdded',
       params: {
-        message: { type, text },
+        // Real CDP Console.messageAdded carries the severity in `level`; the
+        // client reads `raw.level`, so mirror that here (not `type`).
+        message: { level: type, text },
       },
     };
 

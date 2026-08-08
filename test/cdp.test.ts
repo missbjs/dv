@@ -20,6 +20,9 @@ describe('CDPClient', () => {
   });
 
   beforeEach(() => {
+    // Reset mock handlers so a negative test's setHandler() override (e.g.
+    // DOM.querySelector → nodeId undefined) doesn't leak into later tests.
+    mockServer.reset();
     client = new CDPClient(testPort);
   });
 
