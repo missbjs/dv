@@ -68,6 +68,10 @@ import { drag } from './commands/drag.js';
 import { highlight } from './commands/highlight.js';
 import { printStructured } from './output.js';
 import chalk from 'chalk';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 const program = new Command();
 
@@ -76,7 +80,7 @@ const binName = process.env.DV_BIN_NAME || 'dv';
 program
   .name(binName)
   .description('Chrome DevTools Protocol CLI wrapper')
-  .version('1.0.0');
+  .version(version);
 
 // Create --profile option (hidden when invoked via dv1-dv6 wrappers)
 const profileOption = new Option('--profile <profile>', 'Profile name (dv1 through dv6)').makeOptionMandatory();
