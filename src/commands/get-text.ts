@@ -1,11 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
-import { getPortFromProfile, isRef } from '../utils.js';
+import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 
 export interface GetTextOptions {
   profile: string;
   selector: string;
+  json?: boolean;
+  yaml?: boolean;
 }
 
 export async function getText(options: GetTextOptions) {
@@ -13,6 +16,8 @@ export async function getText(options: GetTextOptions) {
 
   try {
     await client.connect();
+
+    let text: string | null = null;
 
     if (isRef(options.selector)) {
       // @e ref — resolve via snapshot
@@ -31,23 +36,21 @@ export async function getText(options: GetTextOptions) {
         process.exit(1);
       }
 
-      const text = await client.getNodeTextByBackendNode(entry.backendDOMNodeId);
-      if (text) {
-        console.log(text);
-      } else {
-        console.log(chalk.gray('Element has no text content'));
-      }
+      text = (await client.getNodeTextByBackendNode(entry.backendDOMNodeId)) ?? null;
     } else {
-      // CSS selector
+      // CSS selector — buildElementExpression handles both plain CSS and `>>>` shadow-pierce
       const result = await client.evaluate(
-        `document.querySelector('${options.selector.replace(/'/g, "\\'")}')?.textContent || ''`
+        `${buildElementExpression(options.selector)}?.textContent ?? null`
       );
+      text = (result.result?.value as string | null) ?? null;
+    }
 
-      if (result.result?.value) {
-        console.log(result.result.value);
-      } else {
-        console.log(chalk.gray('Element not found or no text content'));
-      }
+    if (wantsStructured(options)) {
+      console.log(renderStructured({ text }, options));
+    } else if (text) {
+      console.log(text);
+    } else {
+      console.log(chalk.gray('Element not found or no text content'));
     }
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));

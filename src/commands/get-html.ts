@@ -1,11 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
-import { getPortFromProfile, isRef } from '../utils.js';
+import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 
 export interface GetHtmlOptions {
   selector: string;
   profile: string;
+  json?: boolean;
+  yaml?: boolean;
 }
 
 export async function getHtml(options: GetHtmlOptions) {
@@ -13,6 +16,8 @@ export async function getHtml(options: GetHtmlOptions) {
 
   try {
     await client.connect();
+
+    let html: string | null = null;
 
     if (isRef(options.selector)) {
       // @e ref — resolve via snapshot
@@ -32,22 +37,21 @@ export async function getHtml(options: GetHtmlOptions) {
       }
 
       const result = await client.getOuterHTMLByBackendNode(entry.backendDOMNodeId);
-      if (result.outerHTML) {
-        console.log(result.outerHTML);
-      } else {
-        console.log(chalk.gray('Element not found'));
-      }
+      html = result.outerHTML ?? null;
     } else {
-      // CSS selector
+      // CSS selector — buildElementExpression handles both plain CSS and `>>>` shadow-pierce
       const result = await client.evaluate(
-        `document.querySelector('${options.selector.replace(/'/g, "\\'")}')?.outerHTML || ''`
+        `${buildElementExpression(options.selector)}?.outerHTML ?? null`
       );
+      html = (result.result?.value as string | null) ?? null;
+    }
 
-      if (result.result?.value) {
-        console.log(result.result.value);
-      } else {
-        console.log(chalk.gray('Element not found'));
-      }
+    if (wantsStructured(options)) {
+      console.log(renderStructured({ html }, options));
+    } else if (html) {
+      console.log(html);
+    } else {
+      console.log(chalk.gray('Element not found'));
     }
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));

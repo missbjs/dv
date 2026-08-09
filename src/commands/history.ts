@@ -1,6 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { wantsStructured, renderStructured } from '../output.js';
 
 export interface HistoryOptions {
   profile: string;
@@ -8,6 +9,8 @@ export interface HistoryOptions {
   forward?: boolean;
   list?: boolean;
   go?: number;
+  json?: boolean;
+  yaml?: boolean;
 }
 
 export async function history(options: HistoryOptions) {
@@ -20,6 +23,11 @@ export async function history(options: HistoryOptions) {
       const hist = await client.getNavigationHistory();
       const entries = hist.entries || [];
       const currentIndex = hist.currentIndex;
+
+      if (wantsStructured(options)) {
+        console.log(renderStructured({ entries, currentIndex }, options));
+        return;
+      }
 
       console.log(chalk.blue('Navigation History\n'));
       entries.forEach((entry: any, i: number) => {

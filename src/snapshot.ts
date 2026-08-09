@@ -495,7 +495,12 @@ export function formatSnapshotLines(result: SnapshotResult): string {
 /**
  * Format snapshot as JSON for programmatic consumption.
  */
-export function formatSnapshotJSON(result: SnapshotResult): string {
+/**
+ * Build the plain-object form of a snapshot result, suitable for feeding to
+ * any structured serializer (JSON or YAML). Kept separate from
+ * `formatSnapshotJSON` so `--yaml` and `--json` render the exact same shape.
+ */
+export function buildSnapshotJSONObject(result: SnapshotResult): Record<string, any> {
   const refsObj: Record<string, any> = {};
   for (const [key, entry] of result.refs) {
     refsObj[key] = {
@@ -512,10 +517,14 @@ export function formatSnapshotJSON(result: SnapshotResult): string {
     };
   }
 
-  return JSON.stringify({
+  return {
     lines: result.lines,
     refs: refsObj,
     elementCount: result.elementCount,
     ignoredCount: result.ignoredCount,
-  }, null, 2);
+  };
+}
+
+export function formatSnapshotJSON(result: SnapshotResult): string {
+  return JSON.stringify(buildSnapshotJSONObject(result), null, 2);
 }

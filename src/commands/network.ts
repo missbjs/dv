@@ -1,10 +1,12 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 
 export interface NetworkOptions {
   filter?: string;
   json?: boolean;
+  yaml?: boolean;
   profile: string;
 }
 
@@ -26,8 +28,8 @@ export async function network(options: NetworkOptions) {
       filtered = requests.filter(r => regex.test(r.url));
     }
 
-    if (options.json) {
-      console.log(JSON.stringify(filtered, null, 2));
+    if (wantsStructured(options)) {
+      console.log(renderStructured(filtered, options));
     } else {
       if (filtered.length === 0) {
         console.log(chalk.gray('No network requests found'));

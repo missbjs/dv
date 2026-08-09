@@ -1,4 +1,7 @@
-export declare function status(options: {
+export interface StatusOptions {
     profile: string;
-}): Promise<void>;
+    json?: boolean;
+    yaml?: boolean;
+}
+export declare function status(options: StatusOptions): Promise<void>;
 //# sourceMappingURL=status.d.ts.map

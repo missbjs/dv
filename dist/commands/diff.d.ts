@@ -8,6 +8,8 @@ export interface DiffOptions {
     screenshot?: boolean;
     /** Output file for the diff analysis */
     output?: string;
+    json?: boolean;
+    yaml?: boolean;
 }
 export declare function diff(options: DiffOptions): Promise<void>;
 //# sourceMappingURL=diff.d.ts.map

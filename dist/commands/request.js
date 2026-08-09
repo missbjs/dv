@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function request(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
@@ -11,8 +12,8 @@ export async function request(options) {
             console.error(chalk.red(`Request not found: ${options.id}`));
             process.exit(1);
         }
-        if (options.json) {
-            console.log(JSON.stringify(req, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(req, options));
         }
         else {
             console.log(chalk.bold(`\n${req.method} ${req.url}`));

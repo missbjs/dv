@@ -1,14 +1,22 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
-import { getPortFromProfile } from '../utils.js';
-import { buildSnapshotLines, anchorRefs, formatSnapshotLines } from '../snapshot.js';
+import { getPortFromProfile, buildElementExpression } from '../utils.js';
+import { buildSnapshotLines, anchorRefs, formatSnapshotLines, buildSnapshotJSONObject } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 import axios from 'axios';
 export async function read(options) {
+    const wantsHtml = options.html || options.dom;
     // If a URL is provided, fetch via HTTP
     if (options.url) {
         try {
             const response = await axios.get(options.url, { timeout: 10000, responseType: 'text' });
-            console.log(response.data);
+            const body = typeof response.data === 'string' ? response.data : String(response.data);
+            if (wantsStructured(options)) {
+                console.log(renderStructured({ url: options.url, body }, options));
+            }
+            else {
+                console.log(body);
+            }
             return;
         }
         catch (error) {
@@ -26,20 +34,52 @@ export async function read(options) {
             const axResult = await client.getFullAXTree();
             const existingRefs = await anchorRefs(client, axResult.nodes);
             const result = buildSnapshotLines(axResult.nodes, existingRefs);
-            console.log(formatSnapshotLines(result));
+            if (wantsStructured(options)) {
+                console.log(renderStructured(buildSnapshotJSONObject(result), options));
+            }
+            else {
+                console.log(formatSnapshotLines(result));
+            }
+        }
+        else if (wantsHtml) {
+            // Output HTML: whole document, or a specific element when a selector is given
+            const expr = options.selector
+                ? `${buildElementExpression(options.selector)}?.outerHTML ?? null`
+                : 'document.documentElement.outerHTML';
+            const result = await client.evaluate(expr);
+            const html = result.result?.value ?? null;
+            if (wantsStructured(options)) {
+                console.log(renderStructured({ html }, options));
+            }
+            else if (html) {
+                console.log(html);
+            }
+            else {
+                console.log(chalk.yellow(options.selector ? 'Element not found.' : 'No HTML content found.'));
+            }
         }
         else if (options.text) {
-            // Output page body text
-            const result = await client.evaluate('document.body?.textContent || ""');
-            console.log(result.result?.value ?? '');
+            // Output text: whole body, or a specific element when a selector is given
+            const expr = options.selector
+                ? `${buildElementExpression(options.selector)}?.textContent ?? ''`
+                : 'document.body?.textContent || ""';
+            const result = await client.evaluate(expr);
+            const text = result.result?.value ?? '';
+            if (wantsStructured(options)) {
+                console.log(renderStructured({ text }, options));
+            }
+            else {
+                console.log(text);
+            }
         }
         else {
             // Default: try to extract readable content (article/main/body)
+            const scope = options.selector
+                ? `[${buildElementExpression(options.selector)}].filter(Boolean)`
+                : `['article', 'main', '[role="main"]', 'body'].map((sel) => document.querySelector(sel))`;
             const result = await client.evaluate(`
         (() => {
-          // Try semantic containers first
-          for (const sel of ['article', 'main', '[role="main"]', 'body']) {
-            const el = document.querySelector(sel);
+          for (const el of ${scope}) {
             if (el) {
               const text = el.textContent?.trim();
               if (text && text.length > 100) return text;
@@ -49,7 +89,10 @@ export async function read(options) {
         })()
       `);
             const text = result.result?.value ?? '';
-            if (text) {
+            if (wantsStructured(options)) {
+                console.log(renderStructured({ text }, options));
+            }
+            else if (text) {
                 console.log(text);
             }
             else {

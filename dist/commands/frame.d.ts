@@ -5,6 +5,8 @@ export interface FrameOptions {
     top?: boolean;
     list?: boolean;
     index?: number;
+    json?: boolean;
+    yaml?: boolean;
 }
 export declare function frame(options: FrameOptions): Promise<void>;
 //# sourceMappingURL=frame.d.ts.map

@@ -2,6 +2,7 @@ import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, compareRefs } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 import fs from 'fs';
 export async function diff(options) {
     if (options.files) {
@@ -17,7 +18,12 @@ export async function diff(options) {
             process.exit(1);
         }
         const result = computeSnapshotDiff(snap1.refs || {}, snap2.refs || {});
-        printDiff(result);
+        if (wantsStructured(options)) {
+            console.log(renderStructured(result, options));
+        }
+        else {
+            printDiff(result);
+        }
         return;
     }
     if (options.compare) {
@@ -48,7 +54,12 @@ export async function diff(options) {
                 };
             }
             const result = computeSnapshotDiff(currentRefs, savedData.refs || {});
-            printDiff(result);
+            if (wantsStructured(options)) {
+                console.log(renderStructured(result, options));
+            }
+            else {
+                printDiff(result);
+            }
             if (options.output) {
                 fs.writeFileSync(options.output, JSON.stringify(result, null, 2));
                 console.log(chalk.gray(`\nDiff saved to ${options.output}`));

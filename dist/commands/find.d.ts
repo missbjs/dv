@@ -10,6 +10,8 @@ export interface FindOptions {
     actionValue?: string;
     /** If true, output as JSON */
     json?: boolean;
+    /** If true, output as YAML */
+    yaml?: boolean;
 }
 export declare function find(options: FindOptions): Promise<void>;
 //# sourceMappingURL=find.d.ts.map

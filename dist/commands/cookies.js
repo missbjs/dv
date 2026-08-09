@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function cookies(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
@@ -7,8 +8,8 @@ export async function cookies(options) {
         await client.connect();
         console.log(chalk.blue('Getting cookies...'));
         const result = await client.getCookies(options.domain ? [options.domain] : undefined);
-        if (options.json) {
-            console.log(JSON.stringify(result.cookies, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(result.cookies, options));
         }
         else {
             if (!result.cookies || result.cookies.length === 0) {

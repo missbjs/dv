@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 // Map user-friendly short type names to CDP Console level values
 const TYPE_ALIASES = {
@@ -24,8 +25,8 @@ export async function consoleCommand(options) {
             const regex = new RegExp(options.filter, 'i');
             filtered = filtered.filter(m => regex.test(m.text));
         }
-        if (options.json) {
-            console.log(JSON.stringify(filtered, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(filtered, options));
         }
         else {
             if (filtered.length === 0) {

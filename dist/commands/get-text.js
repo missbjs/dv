@@ -1,11 +1,13 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
-import { getPortFromProfile, isRef } from '../utils.js';
+import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 export async function getText(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
         await client.connect();
+        let text = null;
         if (isRef(options.selector)) {
             // @e ref — resolve via snapshot
             await client.enableAccessibility();
@@ -21,23 +23,21 @@ export async function getText(options) {
                 console.error(chalk.red(`Ref ${options.selector} has no DOM node`));
                 process.exit(1);
             }
-            const text = await client.getNodeTextByBackendNode(entry.backendDOMNodeId);
-            if (text) {
-                console.log(text);
-            }
-            else {
-                console.log(chalk.gray('Element has no text content'));
-            }
+            text = (await client.getNodeTextByBackendNode(entry.backendDOMNodeId)) ?? null;
         }
         else {
-            // CSS selector
-            const result = await client.evaluate(`document.querySelector('${options.selector.replace(/'/g, "\\'")}')?.textContent || ''`);
-            if (result.result?.value) {
-                console.log(result.result.value);
-            }
-            else {
-                console.log(chalk.gray('Element not found or no text content'));
-            }
+            // CSS selector — buildElementExpression handles both plain CSS and `>>>` shadow-pierce
+            const result = await client.evaluate(`${buildElementExpression(options.selector)}?.textContent ?? null`);
+            text = result.result?.value ?? null;
+        }
+        if (wantsStructured(options)) {
+            console.log(renderStructured({ text }, options));
+        }
+        else if (text) {
+            console.log(text);
+        }
+        else {
+            console.log(chalk.gray('Element not found or no text content'));
         }
     }
     catch (error) {

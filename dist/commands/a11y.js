@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 import { buildSnapshotLines, anchorRefs } from '../snapshot.js';
 import { auditA11y, formatA11yReport } from '../a11y.js';
@@ -23,8 +24,8 @@ export async function a11y(options) {
         }
         // Run audit
         const report = auditA11y(axResult.nodes, refMap);
-        if (options.json) {
-            console.log(JSON.stringify(report, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(report, options));
         }
         else {
             console.log(formatA11yReport(report));

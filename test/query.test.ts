@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { buildExpression } from '../src/commands/query.js';
+import { buildExpression, parseProps } from '../src/commands/query.js';
 import { CDPClient } from '../src/cdp.js';
 import { MockCDPServer, createMockTargets } from './mock-cdp-server.js';
 import { getTestPort } from './test-profiles.js';
@@ -81,6 +81,59 @@ describe('buildExpression', () => {
       const expr = buildExpression("my-comp >>> it's.btn", { profile: 'test-dv1', selector: "my-comp >>> it's.btn" });
       expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('it\\'s.btn')?.outerHTML ?? ''");
     });
+  });
+
+  describe('computed-style selectors', () => {
+    it('should build all-properties expression for a native selector', () => {
+      const expr = buildExpression('.btn', { profile: 'test-dv1', selector: '.btn', computedStyle: true });
+      expect(expr).toBe(
+        "(() => { const el = document.querySelector('.btn'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([...cs].map((p) => [p, cs.getPropertyValue(p)])); })()"
+      );
+    });
+
+    it('should build all-properties expression across shadow roots', () => {
+      const expr = buildExpression('my-custom-el >>> sy-a', {
+        profile: 'test-dv1',
+        selector: 'my-custom-el >>> sy-a',
+        computedStyle: true,
+      });
+      expect(expr).toBe(
+        "(() => { const el = document.querySelector('my-custom-el')?.shadowRoot.querySelector('sy-a'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([...cs].map((p) => [p, cs.getPropertyValue(p)])); })()"
+      );
+    });
+
+    it('should embed a filtered --props list', () => {
+      const expr = buildExpression('my-custom-el >>> sy-a', {
+        profile: 'test-dv1',
+        selector: 'my-custom-el >>> sy-a',
+        computedStyle: true,
+        props: 'color, font-size ,display',
+      });
+      expect(expr).toBe(
+        "(() => { const el = document.querySelector('my-custom-el')?.shadowRoot.querySelector('sy-a'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([\"color\",\"font-size\",\"display\"].map((p) => [p, cs.getPropertyValue(p)])); })()"
+      );
+    });
+
+    it('should escape special characters in the element selector', () => {
+      const expr = buildExpression("it's.btn", { profile: 'test-dv1', selector: "it's.btn", computedStyle: true });
+      expect(expr).toContain("document.querySelector('it\\'s.btn')");
+    });
+  });
+});
+
+// ── parseProps() unit tests ──
+
+describe('parseProps', () => {
+  it('should return [] for undefined', () => {
+    expect(parseProps(undefined)).toEqual([]);
+  });
+
+  it('should return [] for an empty string', () => {
+    expect(parseProps('')).toEqual([]);
+  });
+
+  it('should split, trim, and drop empties', () => {
+    expect(parseProps(' color , font-size ,, display,')).toEqual(['color', 'font-size', 'display']);
   });
 });
 
@@ -165,6 +218,39 @@ describe('query command integration', () => {
       const result = await client.evaluate(expression);
 
       expect(result.result.value).toBe(false);
+    });
+
+    it('should evaluate a computed-style expression and return a styles object', async () => {
+      await client.connect('page-1');
+
+      let capturedExpression = '';
+      mockServer.setHandler('Runtime.evaluate', (params: any) => {
+        capturedExpression = params.expression;
+        return { result: { type: 'object', value: { color: 'rgb(255, 0, 0)', display: 'block' } } };
+      });
+
+      const expression = buildExpression('my-custom-el >>> sy-a', {
+        profile: 'test-dv1',
+        selector: 'my-custom-el >>> sy-a',
+        computedStyle: true,
+        props: 'color,display',
+      });
+      const result = await client.evaluate(expression);
+
+      expect(capturedExpression).toContain('getComputedStyle');
+      expect(capturedExpression).toContain("querySelector('my-custom-el')?.shadowRoot.querySelector('sy-a')");
+      expect(result.result.value).toEqual({ color: 'rgb(255, 0, 0)', display: 'block' });
+    });
+
+    it('should return null when computed-style target is missing', async () => {
+      await client.connect('page-1');
+
+      mockServer.setHandler('Runtime.evaluate', () => ({ result: { type: 'object', subtype: 'null', value: null } }));
+
+      const expression = buildExpression('#nope', { profile: 'test-dv1', selector: '#nope', computedStyle: true });
+      const result = await client.evaluate(expression);
+
+      expect(result.result.value).toBeNull();
     });
 
     it('should return empty string for non-existent element', async () => {

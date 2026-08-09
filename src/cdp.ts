@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import { CDPMessage, CDPTarget } from './types.js';
+import { buildElementExpression } from './utils.js';
 
 export class CDPClient {
   private ws: WebSocket | null = null;
@@ -233,18 +234,51 @@ export class CDPClient {
     });
   }
 
-  async click(selector: string) {
+  /**
+   * Resolve a selector to a frontend nodeId.
+   *
+   * Supports two forms:
+   *  - Native CSS selectors → `DOM.querySelector` (single document root).
+   *  - Shadow-piercing `>>>` selectors → evaluated to an element handle via
+   *    `Runtime.evaluate`, then converted to a nodeId with `DOM.requestNode`.
+   *
+   * Throws `Element not found: <selector>` if nothing matches (including when a
+   * `>>>` chain hits a missing host and the evaluation yields no element).
+   */
+  async resolveNodeId(selector: string): Promise<number> {
+    if (selector.includes('>>>')) {
+      const expression = buildElementExpression(selector);
+      const evalRes = await this.send('Runtime.evaluate', { expression });
+      const objectId = evalRes?.result?.objectId;
+      if (evalRes?.exceptionDetails || !objectId) {
+        throw new Error(`Element not found: ${selector}`);
+      }
+      try {
+        const { nodeId } = await this.send('DOM.requestNode', { objectId });
+        if (!nodeId) {
+          throw new Error(`Element not found: ${selector}`);
+        }
+        return nodeId;
+      } finally {
+        await this.send('Runtime.releaseObject', { objectId }).catch(() => {});
+      }
+    }
+
     const document = await this.send('DOM.getDocument');
     const node = await this.send('DOM.querySelector', {
       nodeId: document.root.nodeId,
       selector,
     });
-
     if (!node.nodeId) {
       throw new Error(`Element not found: ${selector}`);
     }
+    return node.nodeId;
+  }
 
-    const box = await this.send('DOM.getBoxModel', { nodeId: node.nodeId });
+  async click(selector: string) {
+    const nodeId = await this.resolveNodeId(selector);
+
+    const box = await this.send('DOM.getBoxModel', { nodeId });
 
     const x = (box.model.content[0] + box.model.content[2]) / 2;
     const y = (box.model.content[1] + box.model.content[5]) / 2;
@@ -756,18 +790,11 @@ export class CDPClient {
     });
   }
 
-  /** Hover over an element by CSS selector */
+  /** Hover over an element by CSS or `>>>` shadow-piercing selector */
   async hoverBySelector(selector: string): Promise<void> {
-    const document = await this.send('DOM.getDocument');
-    const node = await this.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
-      selector,
-    });
-    if (!node.nodeId) {
-      throw new Error(`Element not found: ${selector}`);
-    }
-    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: node.nodeId });
-    const { x, y } = await this.getNodeCenter(node.nodeId);
+    const nodeId = await this.resolveNodeId(selector);
+    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId });
+    const { x, y } = await this.getNodeCenter(nodeId);
     await this.send('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
       x,
@@ -794,20 +821,13 @@ export class CDPClient {
     });
   }
 
-  /** Focus an element by CSS selector */
+  /** Focus an element by CSS or `>>>` shadow-piercing selector */
   async focusBySelector(selector: string): Promise<void> {
-    const document = await this.send('DOM.getDocument');
-    const node = await this.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
-      selector,
-    });
-    if (!node.nodeId) {
-      throw new Error(`Element not found: ${selector}`);
-    }
-    const result = await this.send('DOM.resolveNode', { nodeId: node.nodeId });
+    const nodeId = await this.resolveNodeId(selector);
+    const result = await this.send('DOM.resolveNode', { nodeId });
     const objectId = result.object?.objectId;
     if (!objectId) {
-      throw new Error(`Cannot resolve object for node: ${node.nodeId}`);
+      throw new Error(`Cannot resolve object for node: ${nodeId}`);
     }
     await this.send('Runtime.callFunctionOn', {
       functionDeclaration: 'function() { this.focus(); }',
@@ -827,24 +847,22 @@ export class CDPClient {
 
   // ── Scroll ──
 
-  /** Scroll an element into view by CSS selector */
+  /** Scroll an element into view by CSS or `>>>` shadow-piercing selector */
   async scrollIntoView(selector: string): Promise<void> {
-    const document = await this.send('DOM.getDocument');
-    const node = await this.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
-      selector,
-    });
-    if (!node.nodeId) {
-      throw new Error(`Element not found: ${selector}`);
-    }
-    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: node.nodeId });
+    const nodeId = await this.resolveNodeId(selector);
+    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId });
   }
 
-  /** Scroll the window or an element by pixel offset */
+  /** Scroll the window or an element by pixel offset (element may be `>>>` shadow-piercing) */
   async scrollBy(selector: string | null, deltaX: number, deltaY: number): Promise<void> {
-    const expression = selector
-      ? `document.querySelector(${JSON.stringify(selector)}).scrollBy(${deltaX}, ${deltaY})`
-      : `window.scrollBy(${deltaX}, ${deltaY})`;
+    let expression: string;
+    if (!selector) {
+      expression = `window.scrollBy(${deltaX}, ${deltaY})`;
+    } else if (selector.includes('>>>')) {
+      expression = `${buildElementExpression(selector)}.scrollBy(${deltaX}, ${deltaY})`;
+    } else {
+      expression = `document.querySelector(${JSON.stringify(selector)}).scrollBy(${deltaX}, ${deltaY})`;
+    }
     await this.send('Runtime.evaluate', { expression, returnByValue: true });
   }
 
@@ -862,18 +880,11 @@ export class CDPClient {
 
   /** Highlight an element in the browser by CSS selector (uses Overlay) */
   async highlightNode(selector: string, color: { r: number; g: number; b: number; a: number } = { r: 77, g: 144, b: 254, a: 0.6 }): Promise<void> {
-    const document = await this.send('DOM.getDocument');
-    const node = await this.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
-      selector,
-    });
-    if (!node.nodeId) {
-      throw new Error(`Element not found: ${selector}`);
-    }
+    const nodeId = await this.resolveNodeId(selector);
     await this.send('Overlay.enable');
     await this.send('Overlay.highlightNode', {
       highlightConfig: { contentColor: color, showInfo: true },
-      nodeId: node.nodeId,
+      nodeId,
     });
   }
 
@@ -896,18 +907,11 @@ export class CDPClient {
     });
   }
 
-  /** Set files on an <input type=file> element via CSS selector */
+  /** Set files on an <input type=file> element via CSS or `>>>` shadow-piercing selector */
   async setFileInputFilesBySelector(selector: string, files: string[]): Promise<void> {
-    const document = await this.send('DOM.getDocument');
-    const node = await this.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
-      selector,
-    });
-    if (!node.nodeId) {
-      throw new Error(`Element not found: ${selector}`);
-    }
+    const nodeId = await this.resolveNodeId(selector);
     await this.send('DOM.setFileInputFiles', {
-      nodeId: node.nodeId,
+      nodeId,
       files,
     });
   }
@@ -916,28 +920,15 @@ export class CDPClient {
 
   /** Drag an element (source selector) to a target (target selector or x,y) */
   async dragAndDrop(sourceSelector: string, target: string | { x: number; y: number }): Promise<void> {
-    const document = await this.send('DOM.getDocument');
-    const srcNode = await this.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
-      selector: sourceSelector,
-    });
-    if (!srcNode.nodeId) {
-      throw new Error(`Element not found: ${sourceSelector}`);
-    }
-    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: srcNode.nodeId });
-    const srcCenter = await this.getNodeCenter(srcNode.nodeId);
+    const srcNodeId = await this.resolveNodeId(sourceSelector);
+    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: srcNodeId });
+    const srcCenter = await this.getNodeCenter(srcNodeId);
 
     let targetPos: { x: number; y: number };
     if (typeof target === 'string') {
-      const tgtNode = await this.send('DOM.querySelector', {
-        nodeId: document.root.nodeId,
-        selector: target,
-      });
-      if (!tgtNode.nodeId) {
-        throw new Error(`Element not found: ${target}`);
-      }
-      await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: tgtNode.nodeId });
-      targetPos = await this.getNodeCenter(tgtNode.nodeId);
+      const tgtNodeId = await this.resolveNodeId(target);
+      await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: tgtNodeId });
+      targetPos = await this.getNodeCenter(tgtNodeId);
     } else {
       targetPos = target;
     }

@@ -1,6 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
-import { getPortFromProfile, isRef } from '../utils.js';
+import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 
 export interface WaitOptions {
@@ -161,9 +161,8 @@ async function waitForSelector(client: CDPClient, selector: string, maxWait: num
 
   while (Date.now() < deadline) {
     try {
-      const result = await client.evaluate(
-        `!!document.querySelector('${selector.replace(/'/g, "\\'")}')`
-      );
+      // buildElementExpression handles both plain CSS and `>>>` shadow-pierce selectors
+      const result = await client.evaluate(`!!(${buildElementExpression(selector)})`);
       if (result.result?.value === true) return;
     } catch {}
     await sleep(pollInterval);

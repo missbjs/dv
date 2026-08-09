@@ -1,11 +1,13 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
-import { getPortFromProfile, isRef } from '../utils.js';
+import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 export async function getHtml(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
         await client.connect();
+        let html = null;
         if (isRef(options.selector)) {
             // @e ref — resolve via snapshot
             await client.enableAccessibility();
@@ -22,22 +24,21 @@ export async function getHtml(options) {
                 process.exit(1);
             }
             const result = await client.getOuterHTMLByBackendNode(entry.backendDOMNodeId);
-            if (result.outerHTML) {
-                console.log(result.outerHTML);
-            }
-            else {
-                console.log(chalk.gray('Element not found'));
-            }
+            html = result.outerHTML ?? null;
         }
         else {
-            // CSS selector
-            const result = await client.evaluate(`document.querySelector('${options.selector.replace(/'/g, "\\'")}')?.outerHTML || ''`);
-            if (result.result?.value) {
-                console.log(result.result.value);
-            }
-            else {
-                console.log(chalk.gray('Element not found'));
-            }
+            // CSS selector — buildElementExpression handles both plain CSS and `>>>` shadow-pierce
+            const result = await client.evaluate(`${buildElementExpression(options.selector)}?.outerHTML ?? null`);
+            html = result.result?.value ?? null;
+        }
+        if (wantsStructured(options)) {
+            console.log(renderStructured({ html }, options));
+        }
+        else if (html) {
+            console.log(html);
+        }
+        else {
+            console.log(chalk.gray('Element not found'));
         }
     }
     catch (error) {

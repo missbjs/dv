@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPortFromProfile, escapeJsString, buildShadowExpression, buildShadowRectExpression } from '../src/utils.js';
+import { getPortFromProfile, escapeJsString, buildShadowExpression, buildShadowRectExpression, buildElementExpression } from '../src/utils.js';
 import { PROFILES } from '../src/profiles.js';
 
 describe('Utility Functions', () => {
@@ -123,6 +123,35 @@ describe('Utility Functions', () => {
     it('should escape special characters in selector parts', () => {
       const expr = buildShadowExpression("my-comp >>> it's", 'outerHTML');
       expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('it\\'s')?.outerHTML ?? ''");
+    });
+  });
+
+  describe('buildElementExpression', () => {
+    it('should resolve a plain CSS selector to a querySelector call', () => {
+      const expr = buildElementExpression('.btn');
+      expect(expr).toBe("document.querySelector('.btn')");
+    });
+
+    it('should resolve a single-level >>> selector through shadowRoot', () => {
+      const expr = buildElementExpression('my-comp >>> .btn');
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')");
+    });
+
+    it('should resolve a nested >>> selector through multiple shadow roots', () => {
+      const expr = buildElementExpression('outer >>> middle >>> .inner');
+      expect(expr).toBe(
+        "document.querySelector('outer')?.shadowRoot.querySelector('middle')?.shadowRoot.querySelector('.inner')"
+      );
+    });
+
+    it('should trim whitespace around >>> parts', () => {
+      const expr = buildElementExpression('  my-comp   >>>   .btn  ');
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')");
+    });
+
+    it('should escape quotes in selector parts', () => {
+      const expr = buildElementExpression("my-comp >>> it's");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('it\\'s')");
     });
   });
 

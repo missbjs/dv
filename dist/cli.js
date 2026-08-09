@@ -65,6 +65,7 @@ import { frame } from './commands/frame.js';
 import { watch } from './commands/watch.js';
 import { drag } from './commands/drag.js';
 import { highlight } from './commands/highlight.js';
+import { printStructured } from './output.js';
 import chalk from 'chalk';
 const program = new Command();
 // Detect which binary was invoked for help text display
@@ -90,6 +91,8 @@ program
     .command('status')
     .description('Check if Chrome is running and show open tabs')
     .addOption(profileOption)
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(status);
 // Stop Chrome
 program
@@ -115,6 +118,7 @@ program
     .option('-s, --script <script>', 'JavaScript expression to evaluate')
     .option('-f, --file <file>', 'JavaScript file to evaluate')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(evalCommand);
 // Take snapshot
 program
@@ -122,6 +126,7 @@ program
     .description('Take accessibility tree snapshot')
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(snapshot);
 // Take screenshot
 program
@@ -141,6 +146,7 @@ program
     .option('-t, --type <type>', 'Filter by message type (log, warn, error, info, debug)')
     .option('-f, --filter <pattern>', 'Filter messages by pattern')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .option('--tab-id <id>', 'Target specific tab by ID')
     .action(consoleCommand);
 // Reload
@@ -208,6 +214,7 @@ program
     .description('List all open tabs')
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(tabs);
 // Select
 program
@@ -224,6 +231,7 @@ program
     .addOption(profileOption)
     .argument('<url>', 'URL to open')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action((url, options) => {
     newPage({ ...options, url, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -257,8 +265,12 @@ program
 const profilesCmd = program
     .command('profiles')
     .description('List available profiles')
-    .action(() => {
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
+    .action((options) => {
     const profileList = listProfiles();
+    if (printStructured(profileList, options))
+        return;
     console.log(chalk.blue('Available profiles:\n'));
     profileList.forEach(p => {
         console.log(chalk.bold(`  ${p.name}`));
@@ -280,7 +292,10 @@ program
     .option('--attr <name>', 'Get attribute value')
     .option('--count', 'Count matching elements')
     .option('--exists', 'Check if element exists')
+    .option('--computed-style', 'Get computed CSS styles as an object')
+    .option('--props <list>', 'Comma-separated CSS properties to include (with --computed-style)')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action((selector, options) => {
     query({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -291,6 +306,7 @@ program
     .addOption(profileOption)
     .option('-f, --filter <pattern>', 'Filter by URL pattern')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(network);
 program
     .command('intercept')
@@ -307,6 +323,7 @@ program
     .requiredOption('-i, --id <id>', 'Request ID')
     .option('--body', 'Include response body')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(request);
 program
     .command('clear-cache')
@@ -320,6 +337,7 @@ program
     .addOption(profileOption)
     .requiredOption('-s, --selector <selector>', 'CSS selector')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(inspect);
 program
     .command('query-all')
@@ -327,18 +345,23 @@ program
     .addOption(profileOption)
     .requiredOption('-s, --selector <selector>', 'CSS selector')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(queryAll);
 program
     .command('get-text')
     .description('Get element text content')
     .addOption(profileOption)
-    .requiredOption('-s, --selector <selector>', 'CSS selector')
+    .requiredOption('-s, --selector <selector>', 'CSS selector (supports >>> shadow piercing)')
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(getText);
 program
     .command('get-html')
     .description('Get element HTML')
     .addOption(profileOption)
-    .requiredOption('-s, --selector <selector>', 'CSS selector')
+    .requiredOption('-s, --selector <selector>', 'CSS selector (supports >>> shadow piercing)')
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(getHtml);
 program
     .command('set-text')
@@ -406,6 +429,7 @@ program
     .addOption(profileOption)
     .option('--domain <domain>', 'Filter by domain')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(cookies);
 program
     .command('cookies-clear')
@@ -425,6 +449,7 @@ program
     .addOption(profileOption)
     .option('-k, --key <key>', 'Filter by key')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(localStorage);
 program
     .command('session-storage')
@@ -432,16 +457,24 @@ program
     .addOption(profileOption)
     .option('-k, --key <key>', 'Filter by key')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(sessionStorage);
 // Read command
 program
     .command('read')
-    .description('Read page content (accessibility tree, text, or HTTP fetch)')
+    .description('Read page content (HTML, text, accessibility tree, or HTTP fetch)')
     .addOption(profileOption)
+    .argument('[selector]', 'Optional CSS selector (supports >>>) to scope --html / --text output')
     .option('--url <url>', 'Fetch URL via HTTP instead of reading from the page')
     .option('--snapshot', 'Output accessibility snapshot tree')
     .option('--text', 'Output page body text content')
-    .action(read);
+    .option('--html', 'Output HTML (whole document, or the element when a selector is given)')
+    .option('--dom', 'Alias for --html')
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
+    .action((selector, options) => {
+    read({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
+});
 // Wait command
 program
     .command('wait')
@@ -476,6 +509,7 @@ program
     .option('-a, --action <action>', 'Action: click, fill, type, inspect, text, html')
     .option('--action-value <value>', 'Value for fill/type action')
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(find);
 // Diff command
 program
@@ -485,6 +519,8 @@ program
     .option('--files <files...>', 'Two snapshot JSON files to compare')
     .option('--compare <file>', 'Compare current page with a saved snapshot file')
     .option('--output <file>', 'Save diff result to file')
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action((options) => {
     diff({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -494,6 +530,7 @@ program
     .description('Run accessibility audit on the current page')
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action(a11y);
 // Hover command
 program
@@ -519,6 +556,7 @@ program
     .description('Show performance metrics')
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action((options) => {
     perf({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -542,6 +580,8 @@ program
     .option('--forward', 'Go forward one entry')
     .option('--list', 'List navigation history')
     .option('--go <entry>', 'Go to a specific history entry index', parseInt)
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action((options) => {
     history({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -585,6 +625,8 @@ program
     .option('--top', 'Switch to top-level frame')
     .option('--list', 'List all frames')
     .option('--index <index>', 'Switch to frame by child index', parseInt)
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
     .action((options) => {
     frame({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });

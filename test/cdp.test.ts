@@ -845,6 +845,92 @@ describe('CDPClient', () => {
     });
   });
 
+  describe('Shadow-pierce (>>>) selector resolution', () => {
+    beforeEach(async () => {
+      await client.connect('page-1');
+    });
+
+    afterEach(async () => {
+      await client.close();
+    });
+
+    it('should resolve a >>> selector via Runtime.evaluate + DOM.requestNode', async () => {
+      const nodeId = await client.resolveNodeId('my-comp >>> .btn');
+      expect(nodeId).toBe(4);
+      const evalCall = mockServer.getCallParams('Runtime.evaluate');
+      expect(evalCall.expression).toContain('.shadowRoot');
+      expect(evalCall.expression).toContain("querySelector('my-comp')");
+      expect(evalCall.expression).toContain("querySelector('.btn')");
+      // requestNode bridges the retained object to a frontend nodeId
+      expect(mockServer.getCallParams('DOM.requestNode').objectId).toBe('mock-shadow-object-1');
+      // the retained object is released afterwards
+      expect(mockServer.getCalls('Runtime.releaseObject')).toHaveLength(1);
+    });
+
+    it('should resolve a plain CSS selector via DOM.querySelector (no shadow eval)', async () => {
+      const nodeId = await client.resolveNodeId('#test-element');
+      expect(nodeId).toBe(4);
+      expect(mockServer.getCalls('DOM.requestNode')).toHaveLength(0);
+    });
+
+    it('should throw when a >>> selector matches nothing', async () => {
+      await expect(client.resolveNodeId('my-comp >>> #nonexistent')).rejects.toThrow(
+        'Element not found'
+      );
+    });
+
+    it('should click an element inside shadow DOM via >>>', async () => {
+      await client.click('my-comp >>> .btn');
+      expect(mockServer.getCallParams('DOM.getBoxModel').nodeId).toBe(4);
+      const mouse = mockServer.getCalls('Input.dispatchMouseEvent').map((c) => c.params);
+      expect(mouse[0]).toMatchObject({ type: 'mousePressed', button: 'left', x: 50, y: 50 });
+      expect(mouse[mouse.length - 1]).toMatchObject({ type: 'mouseReleased', button: 'left' });
+    });
+
+    it('should hover an element inside shadow DOM via >>>', async () => {
+      await client.hoverBySelector('my-comp >>> .btn');
+      expect(mockServer.getCallParams('DOM.scrollIntoViewIfNeeded').nodeId).toBe(4);
+      expect(mockServer.getCallParams('Input.dispatchMouseEvent')).toMatchObject({
+        type: 'mouseMoved',
+        button: 'none',
+      });
+    });
+
+    it('should focus an element inside shadow DOM via >>>', async () => {
+      await client.focusBySelector('my-comp >>> input');
+      expect(mockServer.getCallParams('DOM.resolveNode').nodeId).toBe(4);
+      expect(mockServer.getCallParams('Runtime.callFunctionOn').functionDeclaration).toContain(
+        'focus'
+      );
+    });
+
+    it('should highlight an element inside shadow DOM via >>>', async () => {
+      await client.highlightNode('my-comp >>> .btn');
+      expect(mockServer.getCallParams('Overlay.highlightNode').nodeId).toBe(4);
+    });
+
+    it('should upload files to an input inside shadow DOM via >>>', async () => {
+      await client.setFileInputFilesBySelector('my-comp >>> input[type=file]', ['/tmp/a.png']);
+      expect(mockServer.getCallParams('DOM.setFileInputFiles')).toEqual({
+        nodeId: 4,
+        files: ['/tmp/a.png'],
+      });
+    });
+
+    it('should scroll an element inside shadow DOM into view via >>>', async () => {
+      await client.scrollIntoView('my-comp >>> .btn');
+      expect(mockServer.getCallParams('DOM.scrollIntoViewIfNeeded').nodeId).toBe(4);
+    });
+
+    it('should drag between elements inside shadow DOM via >>>', async () => {
+      await client.dragAndDrop('my-comp >>> .src', 'my-comp >>> .dst');
+      const moves = mockServer
+        .getCalls('Input.dispatchMouseEvent')
+        .filter((c) => c.params.type === 'mouseMoved');
+      expect(moves).toHaveLength(8);
+    });
+  });
+
   describe('DOM storage', () => {
     beforeEach(async () => {
       await client.connect('page-1');

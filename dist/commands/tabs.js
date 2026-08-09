@@ -1,13 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function tabs(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
         const targets = await client.getTargets();
         const tabTargets = targets.filter(t => t.type === 'page');
-        if (options.json) {
-            console.log(JSON.stringify(tabTargets, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(tabTargets, options));
         }
         else {
             if (tabTargets.length === 0) {

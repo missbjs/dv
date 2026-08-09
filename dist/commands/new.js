@@ -1,13 +1,14 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function newPage(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
         console.log(chalk.blue(`Creating new tab: ${options.url}...`));
         const tab = await client.newTab(options.url);
-        if (options.json) {
-            console.log(JSON.stringify(tab, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(tab, options));
         }
         else {
             console.log(chalk.green('New tab created'));

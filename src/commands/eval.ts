@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { promises as fs } from 'fs';
 import { getPortFromProfile } from '../utils.js';
 
@@ -8,6 +9,7 @@ export interface EvalOptions {
   script?: string;
   file?: string;
   json?: boolean;
+  yaml?: boolean;
 }
 
 export async function evalCommand(options: EvalOptions) {
@@ -30,8 +32,8 @@ export async function evalCommand(options: EvalOptions) {
 
     const result = await client.evaluate(expression);
 
-    if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+    if (wantsStructured(options)) {
+      console.log(renderStructured(result, options));
     } else {
       if (result.result?.value !== undefined) {
         console.log(result.result.value);

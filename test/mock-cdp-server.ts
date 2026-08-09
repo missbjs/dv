@@ -92,12 +92,31 @@ export class MockCDPServer {
     }));
 
     // Runtime.evaluate
-    this.messageHandlers.set('Runtime.evaluate', (params: any) => ({
-      result: {
-        type: 'string',
-        value: `Evaluated: ${params.expression}`,
-      },
-    }));
+    // For shadow-pierce element resolution (resolveNodeId), the client evaluates a
+    // `...shadowRoot.querySelector(...)` expression WITHOUT returnByValue and expects
+    // back an objectId it can hand to DOM.requestNode. Emulate that here; a
+    // '#nonexistent' selector in the expression yields no object (element not found).
+    this.messageHandlers.set('Runtime.evaluate', (params: any) => {
+      const expr: string = params.expression || '';
+      if (!params.returnByValue && expr.includes('.shadowRoot')) {
+        if (expr.includes('#nonexistent')) {
+          return { result: { type: 'object', subtype: 'null', value: null } };
+        }
+        return { result: { type: 'object', objectId: 'mock-shadow-object-1' } };
+      }
+      return {
+        result: {
+          type: 'string',
+          value: `Evaluated: ${params.expression}`,
+        },
+      };
+    });
+
+    // DOM.requestNode — maps a Runtime objectId to a frontend nodeId (used by resolveNodeId)
+    this.messageHandlers.set('DOM.requestNode', () => ({ nodeId: 4 }));
+
+    // Runtime.releaseObject — release a retained Runtime object
+    this.messageHandlers.set('Runtime.releaseObject', () => ({}));
 
     // Page.navigate
     this.messageHandlers.set('Page.navigate', (params: any) => ({

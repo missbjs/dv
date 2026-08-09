@@ -44,6 +44,32 @@ export function buildShadowExpression(selector: string, accessor: string): strin
 }
 
 /**
+ * Build a JS expression that resolves to an element node (no accessor tail).
+ *
+ * Non-shadow: `document.querySelector('sel')`
+ * Shadow `"host >>> .inner"`: `document.querySelector('host')?.shadowRoot.querySelector('.inner')`
+ *
+ * The result may be `null` at runtime if any step misses; callers must guard.
+ */
+export function buildElementExpression(selector: string): string {
+  if (!selector.includes('>>>')) {
+    return `document.querySelector('${escapeJsString(selector)}')`;
+  }
+
+  const parts = selector.split('>>>').map(s => s.trim());
+  let expr = 'document';
+
+  for (let i = 0; i < parts.length; i++) {
+    expr += `.querySelector('${escapeJsString(parts[i])}')`;
+    if (i < parts.length - 1) {
+      expr += '?.shadowRoot';
+    }
+  }
+
+  return expr;
+}
+
+/**
  * Build a JS expression that returns the center coordinates and dimensions
  * of an element selected via shadow-piercing `>>>` syntax.
  *

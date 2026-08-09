@@ -45,5 +45,11 @@ export declare function formatSnapshotLines(result: SnapshotResult): string;
 /**
  * Format snapshot as JSON for programmatic consumption.
  */
+/**
+ * Build the plain-object form of a snapshot result, suitable for feeding to
+ * any structured serializer (JSON or YAML). Kept separate from
+ * `formatSnapshotJSON` so `--yaml` and `--json` render the exact same shape.
+ */
+export declare function buildSnapshotJSONObject(result: SnapshotResult): Record<string, any>;
 export declare function formatSnapshotJSON(result: SnapshotResult): string;
 //# sourceMappingURL=snapshot.d.ts.map

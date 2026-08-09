@@ -1,7 +1,8 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
-import { buildSnapshotLines, anchorRefs, formatSnapshotLines, formatSnapshotJSON, } from '../snapshot.js';
+import { buildSnapshotLines, anchorRefs, formatSnapshotLines, buildSnapshotJSONObject, } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 export async function snapshot(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
@@ -18,8 +19,8 @@ export async function snapshot(options) {
         const existingRefs = await anchorRefs(client, axResult.nodes);
         // Build snapshot lines from the anchored tree
         const result = buildSnapshotLines(axResult.nodes, existingRefs);
-        if (options.json) {
-            console.log(formatSnapshotJSON(result));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(buildSnapshotJSONObject(result), options));
         }
         else {
             console.log(formatSnapshotLines(result));

@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function network(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
@@ -14,8 +15,8 @@ export async function network(options) {
             const regex = new RegExp(options.filter, 'i');
             filtered = requests.filter(r => regex.test(r.url));
         }
-        if (options.json) {
-            console.log(JSON.stringify(filtered, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(filtered, options));
         }
         else {
             if (filtered.length === 0) {

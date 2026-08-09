@@ -3,6 +3,7 @@ export interface ConsoleOptions {
     type?: string;
     filter?: string;
     json?: boolean;
+    yaml?: boolean;
     tabId?: string;
 }
 export declare function consoleCommand(options: ConsoleOptions): Promise<void>;

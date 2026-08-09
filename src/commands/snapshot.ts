@@ -5,12 +5,14 @@ import {
   buildSnapshotLines,
   anchorRefs,
   formatSnapshotLines,
-  formatSnapshotJSON,
+  buildSnapshotJSONObject,
 } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 
 export interface SnapshotOptions {
   profile: string;
   json?: boolean;
+  yaml?: boolean;
 }
 
 export async function snapshot(options: SnapshotOptions) {
@@ -36,8 +38,8 @@ export async function snapshot(options: SnapshotOptions) {
     // Build snapshot lines from the anchored tree
     const result = buildSnapshotLines(axResult.nodes, existingRefs);
 
-    if (options.json) {
-      console.log(formatSnapshotJSON(result));
+    if (wantsStructured(options)) {
+      console.log(renderStructured(buildSnapshotJSONObject(result), options));
     } else {
       console.log(formatSnapshotLines(result));
     }

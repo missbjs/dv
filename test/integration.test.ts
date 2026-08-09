@@ -133,6 +133,37 @@ describe('Integration Tests', () => {
       const output = stdout + stderr;
       expect(output).toContain('--json');
     });
+
+    it('should expose both --json and --yaml on every data-returning command', async () => {
+      const commands = [
+        'status', 'snapshot', 'network', 'cookies', 'console', 'eval',
+        'local-storage', 'session-storage', 'tabs', 'new', 'request',
+        'query', 'query-all', 'inspect', 'get-text', 'get-html', 'read',
+        'find', 'diff', 'history', 'frame', 'a11y', 'perf', 'profiles',
+      ];
+
+      for (const cmd of commands) {
+        const { stdout, stderr } = await runCLIAsync([cmd, '--help']);
+        const output = stdout + stderr;
+        expect(output, `${cmd} should offer --json`).toContain('--json');
+        expect(output, `${cmd} should offer --yaml`).toContain('--yaml');
+      }
+    });
+
+    it('should expose --html and --dom on the read command', async () => {
+      const { stdout, stderr } = await runCLIAsync(['read', '--help']);
+      const output = stdout + stderr;
+      expect(output).toContain('--html');
+      expect(output).toContain('--dom');
+    });
+
+    it('should document >>> shadow piercing on get-text and get-html', async () => {
+      for (const cmd of ['get-text', 'get-html']) {
+        const { stdout, stderr } = await runCLIAsync([cmd, '--help']);
+        const output = stdout + stderr;
+        expect(output, `${cmd} help should mention >>>`).toContain('>>>');
+      }
+    });
   });
 
   describe('Error Recovery Tests', () => {

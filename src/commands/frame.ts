@@ -1,6 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { wantsStructured, renderStructured } from '../output.js';
 
 export interface FrameOptions {
   profile: string;
@@ -9,6 +10,8 @@ export interface FrameOptions {
   top?: boolean;
   list?: boolean;
   index?: number;
+  json?: boolean;
+  yaml?: boolean;
 }
 
 export async function frame(options: FrameOptions) {
@@ -35,6 +38,11 @@ export async function frame(options: FrameOptions) {
 
       if (result.frameTree) {
         walk(result.frameTree);
+      }
+
+      if (wantsStructured(options)) {
+        console.log(renderStructured({ frames }, options));
+        return;
       }
 
       console.log(chalk.blue('Frame Tree\n'));

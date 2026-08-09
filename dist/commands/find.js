@@ -2,6 +2,7 @@ import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { buildSnapshotLines, anchorRefs } from '../snapshot.js';
+import { wantsStructured, renderStructured } from '../output.js';
 export async function find(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
@@ -23,8 +24,8 @@ export async function find(options) {
         }
         // If no action, just list matches
         if (!options.action) {
-            if (options.json) {
-                console.log(JSON.stringify(matches.map(m => ({ ref: m.ref, role: m.role, name: m.name, backendDOMNodeId: m.backendDOMNodeId })), null, 2));
+            if (wantsStructured(options)) {
+                console.log(renderStructured(matches.map(m => ({ ref: m.ref, role: m.role, name: m.name, backendDOMNodeId: m.backendDOMNodeId })), options));
             }
             else {
                 console.log(chalk.blue(`Found ${matches.length} matching element(s):\n`));

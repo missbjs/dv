@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function queryAll(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
@@ -7,8 +8,8 @@ export async function queryAll(options) {
         await client.connect();
         console.log(chalk.blue(`Querying: ${options.selector}`));
         const nodeIds = await client.querySelectorAll(options.selector);
-        if (options.json) {
-            console.log(JSON.stringify({ count: nodeIds.length, nodeIds }, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured({ count: nodeIds.length, nodeIds }, options));
         }
         else {
             console.log(chalk.green(`\n✓ Found ${nodeIds.length} element(s)`));

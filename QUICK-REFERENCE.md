@@ -1,6 +1,6 @@
 # DV CLI Quick Reference
 
-## Total Commands: 50
+## Total Commands: 59
 
 ### Browser Management
 ```bash
@@ -16,8 +16,17 @@ dv1 stop
 ```bash
 dv1 goto https://example.com
 dv1 new https://example.com
+dv1 reload
+dv1 history --back
+dv1 history --forward
 dv1 eval --script "document.title"
 dv1 eval --file script.js
+dv1 read --text                # page body text
+dv1 read --snapshot            # accessibility tree
+dv1 read --html                # full document HTML
+dv1 read --dom                 # alias for --html
+dv1 read --html "app >>> .card"  # outerHTML of one element (>>> ok)
+dv1 read --url https://x.com   # HTTP fetch (no page)
 ```
 
 ### Element Interaction
@@ -26,6 +35,19 @@ dv1 click #button
 dv1 fill #input "text"
 dv1 type #input "more"
 dv1 key --key Enter
+dv1 hover #menu
+dv1 focus #input
+dv1 drag --source "#a" --target "#b"
+dv1 drag --source "#a" --target "x=100,y=200"
+dv1 upload --selector "input[type=file]" --files ./photo.png
+dv1 find --mode text --value "Submit" --action click   # semantic locator
+
+# Shadow DOM: >>> works on interaction commands too
+dv1 click "my-comp >>> .inner-btn"
+dv1 hover "my-menu >>> .item"
+dv1 focus "x-input >>> input"
+dv1 drag --source "board >>> .card" --target "board >>> .column"
+dv1 upload --selector "uploader >>> input[type=file]" --files ./photo.png
 ```
 
 ### DOM Manipulation
@@ -37,11 +59,17 @@ dv1 query "my-comp >>> .title" --text
 dv1 query "my-comp >>> input" --attr placeholder
 dv1 query ".list-item" --count
 dv1 query ".modal" --exists
+dv1 query "my-comp >>> sy-a" --computed-style --json
+dv1 query "my-comp >>> sy-a" --computed-style --props color,font-size
 dv1 get-text --selector "#title"
+dv1 get-text --selector "app >>> .title"   # >>> shadow piercing supported
 dv1 get-html --selector "#container"
+dv1 get-html --selector "app >>> .inner" --json
 dv1 set-text --selector "#title" --value "New"
 dv1 set-html --selector "#div" --value "<p>HTML</p>"
 dv1 set-attribute --selector "#btn" --attr disabled --value "true"
+dv1 highlight --selector "#btn"
+dv1 watch                       # watch DOM mutations in real-time
 ```
 
 ### Network Monitoring
@@ -51,6 +79,7 @@ dv1 network --filter "api" --json
 dv1 intercept --url "api.example.com" --action block
 dv1 request --id <id> --body
 dv1 clear-cache
+dv1 har session.har            # export network activity as HAR
 ```
 
 ### Device Emulation
@@ -82,16 +111,36 @@ dv1 screenshot page.png
 dv1 snapshot --json
 ```
 
-### Console & Monitoring
+### Console & Diagnostics
 ```bash
 dv1 console
 dv1 console --type error
 dv1 monitor --types error,warn
+dv1 perf                        # performance metrics
+dv1 dialog --accept             # handle alert/confirm/prompt
+dv1 dialog --dismiss
+dv1 dialog --text "input"       # answer a prompt()
 ```
 
-### Viewport Control
+### Page Control
 ```bash
 dv1 resize 1920 1080
+dv1 scroll -y 500               # scroll window down 500px
+dv1 scroll --selector "#panel" -y 200
+dv1 frame --selector "iframe#checkout"
+dv1 frame --list
+dv1 wait --selector "#done"     # wait for element
+dv1 wait --selector "my-dialog >>> .ready"   # shadow-pierce supported
+dv1 wait --networkidle
+dv1 wait --ms 1000
+```
+
+### Comparison & Batch
+```bash
+dv1 snapshot --json > before.json
+dv1 diff --compare before.json           # current page vs saved snapshot
+dv1 diff --files before.json after.json  # two saved snapshots
+dv1 batch "navigate https://x.com" "snapshot"   # run commands sequentially
 ```
 
 ### Profile Management
@@ -128,13 +177,22 @@ dv6 → port 9235
 (no flags)     No throttling
 ```
 
-## JSON Output
-Most commands support `--json` flag for programmatic use:
+## Structured Output (`--json` / `--yaml`)
+Every data-returning command supports both `--json` and `--yaml` (human-readable is the default):
 ```bash
 dv1 network --json
-dv1 cookies --json
+dv1 cookies --yaml
 dv1 inspect --selector "#btn" --json
+dv1 snapshot --yaml
+dv1 query "app >>> .price" --text --yaml
+dv1 status --json
 ```
+Covered: status, snapshot, network, cookies, console, eval, local-storage,
+session-storage, tabs, new, request, query, query-all, inspect, get-text,
+get-html, read, find, diff, history --list, frame --list, a11y, perf, profiles.
+
+Action commands (click, fill, type, hover, drag, upload, navigate, …) report a
+status line and do not take --json/--yaml. `har` is JSON-only (writes a HAR file).
 
 ## Common Patterns
 

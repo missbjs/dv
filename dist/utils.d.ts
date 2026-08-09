@@ -11,6 +11,15 @@ export declare function escapeJsString(str: string): string;
  */
 export declare function buildShadowExpression(selector: string, accessor: string): string;
 /**
+ * Build a JS expression that resolves to an element node (no accessor tail).
+ *
+ * Non-shadow: `document.querySelector('sel')`
+ * Shadow `"host >>> .inner"`: `document.querySelector('host')?.shadowRoot.querySelector('.inner')`
+ *
+ * The result may be `null` at runtime if any step misses; callers must guard.
+ */
+export declare function buildElementExpression(selector: string): string;
+/**
  * Build a JS expression that returns the center coordinates and dimensions
  * of an element selected via shadow-piercing `>>>` syntax.
  *

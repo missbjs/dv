@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile, isRef } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 
@@ -7,6 +8,7 @@ export interface InspectOptions {
   profile: string;
   selector: string;
   json?: boolean;
+  yaml?: boolean;
 }
 
 export async function inspect(options: InspectOptions) {
@@ -35,8 +37,8 @@ export async function inspect(options: InspectOptions) {
       console.log(chalk.blue(`Inspecting: ${options.selector} (${entry.role} "${entry.name}")`));
       const element = await client.inspectBackendNode(entry.backendDOMNodeId);
 
-      if (options.json) {
-        console.log(JSON.stringify({ ...element, ref: options.selector, role: entry.role, name: entry.name }, null, 2));
+      if (wantsStructured(options)) {
+        console.log(renderStructured({ ...element, ref: options.selector, role: entry.role, name: entry.name }, options));
       } else {
         console.log(chalk.green('\n✓ Element found'));
         console.log(chalk.gray(`Ref: ${options.selector}`));
@@ -64,8 +66,8 @@ export async function inspect(options: InspectOptions) {
       console.log(chalk.blue(`Inspecting: ${options.selector}`));
       const element = await client.inspectElement(options.selector);
 
-      if (options.json) {
-        console.log(JSON.stringify(element, null, 2));
+      if (wantsStructured(options)) {
+        console.log(renderStructured(element, options));
       } else {
         console.log(chalk.green('\n✓ Element found'));
         console.log(chalk.gray(`Node ID: ${element.nodeId}`));

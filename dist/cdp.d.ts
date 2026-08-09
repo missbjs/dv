@@ -38,6 +38,18 @@ export declare class CDPClient {
     clearConsoleMessages(): Promise<void>;
     takeSnapshot(): Promise<any>;
     takeScreenshot(): Promise<any>;
+    /**
+     * Resolve a selector to a frontend nodeId.
+     *
+     * Supports two forms:
+     *  - Native CSS selectors → `DOM.querySelector` (single document root).
+     *  - Shadow-piercing `>>>` selectors → evaluated to an element handle via
+     *    `Runtime.evaluate`, then converted to a nodeId with `DOM.requestNode`.
+     *
+     * Throws `Element not found: <selector>` if nothing matches (including when a
+     * `>>>` chain hits a missing host and the evaluation yields no element).
+     */
+    resolveNodeId(selector: string): Promise<number>;
     click(selector: string): Promise<void>;
     fill(selector: string, value: string): Promise<void>;
     type(selector: string, text: string): Promise<void>;
@@ -148,17 +160,17 @@ export declare class CDPClient {
     private getNodeCenter;
     /** Hover over an element by backend DOM node ID */
     hoverBackendNode(backendNodeId: number): Promise<void>;
-    /** Hover over an element by CSS selector */
+    /** Hover over an element by CSS or `>>>` shadow-piercing selector */
     hoverBySelector(selector: string): Promise<void>;
     /** Focus an element by backend DOM node ID */
     focusBackendNode(backendNodeId: number): Promise<void>;
-    /** Focus an element by CSS selector */
+    /** Focus an element by CSS or `>>>` shadow-piercing selector */
     focusBySelector(selector: string): Promise<void>;
     enablePerformance(): Promise<void>;
     getPerformanceMetrics(): Promise<any>;
-    /** Scroll an element into view by CSS selector */
+    /** Scroll an element into view by CSS or `>>>` shadow-piercing selector */
     scrollIntoView(selector: string): Promise<void>;
-    /** Scroll the window or an element by pixel offset */
+    /** Scroll the window or an element by pixel offset (element may be `>>>` shadow-piercing) */
     scrollBy(selector: string | null, deltaX: number, deltaY: number): Promise<void>;
     getNavigationHistory(): Promise<any>;
     navigateToHistoryEntry(entryId: number): Promise<void>;
@@ -173,7 +185,7 @@ export declare class CDPClient {
     hideHighlight(): Promise<void>;
     /** Set files on an <input type=file> element via backend node ID */
     setFileInputFiles(backendNodeId: number, files: string[]): Promise<void>;
-    /** Set files on an <input type=file> element via CSS selector */
+    /** Set files on an <input type=file> element via CSS or `>>>` shadow-piercing selector */
     setFileInputFilesBySelector(selector: string, files: string[]): Promise<void>;
     /** Drag an element (source selector) to a target (target selector or x,y) */
     dragAndDrop(sourceSelector: string, target: string | {

@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 
 export interface RequestOptions {
@@ -7,6 +8,7 @@ export interface RequestOptions {
   id: string;
   body?: boolean;
   json?: boolean;
+  yaml?: boolean;
 }
 
 export async function request(options: RequestOptions) {
@@ -23,8 +25,8 @@ export async function request(options: RequestOptions) {
       process.exit(1);
     }
 
-    if (options.json) {
-      console.log(JSON.stringify(req, null, 2));
+    if (wantsStructured(options)) {
+      console.log(renderStructured(req, options));
     } else {
       console.log(chalk.bold(`\n${req.method} ${req.url}`));
       console.log(chalk.gray(`Type: ${req.type}`));

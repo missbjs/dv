@@ -1,11 +1,13 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 
 export interface LocalStorageOptions {
   profile: string;
   key?: string;
   json?: boolean;
+  yaml?: boolean;
 }
 
 export async function localStorage(options: LocalStorageOptions) {
@@ -34,8 +36,8 @@ export async function localStorage(options: LocalStorageOptions) {
       // no items
     }
 
-    if (options.json) {
-      console.log(JSON.stringify(items, null, 2));
+    if (wantsStructured(options)) {
+      console.log(renderStructured(items, options));
     } else {
       if (!items || items.length === 0) {
         console.log(chalk.gray('No localStorage items found'));

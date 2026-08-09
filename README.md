@@ -39,23 +39,23 @@ dv1 screenshot screenshot.png
 
 ## Features
 
-### 🚀 49 Commands Across 11 CDP Domains
+### 🚀 59 Commands Across 11 CDP Domains
 
-**Browser Management (6)**
-- `start`, `status`, `tabs`, `select`, `new`, `close`
+**Browser Management (7)**
+- `start`, `stop`, `status`, `tabs`, `select`, `new`, `close`
 
-**Navigation & Execution (4)**
-- `navigate`, `eval`, `snapshot`, `screenshot`
+**Navigation & Execution (7)**
+- `navigate`, `reload`, `history`, `eval`, `snapshot`, `screenshot`, `read`
 
-**Element Interaction (4)**
-- `click`, `fill`, `type`, `key`
+**Element Interaction (9)**
+- `click`, `fill`, `type`, `key`, `hover`, `focus`, `drag`, `upload`, `find`
 
-**DOM Manipulation (8)**
-- `inspect`, `query-all`, `query`, `get-text`, `get-html`
-- `set-text`, `set-html`, `set-attribute`
+**DOM Manipulation (10)**
+- `inspect`, `query`, `query-all`, `get-text`, `get-html`
+- `set-text`, `set-html`, `set-attribute`, `highlight`, `watch`
 
-**Network Monitoring (4)**
-- `network`, `intercept`, `request`, `clear-cache`
+**Network Monitoring (5)**
+- `network`, `intercept`, `request`, `clear-cache`, `har`
 
 **Device Emulation (5)**
 - `emulate`, `location`, `user-agent`, `timezone`, `throttle`
@@ -64,11 +64,14 @@ dv1 screenshot screenshot.png
 - `cookies`, `cookies-clear`, `storage-clear`
 - `local-storage`, `session-storage`
 
-**Console & Monitoring (2)**
-- `console`, `monitor`
+**Console & Diagnostics (4)**
+- `console`, `monitor`, `perf`, `dialog`
 
-**Viewport Control (1)**
-- `resize`
+**Page Control (4)**
+- `resize`, `scroll`, `frame`, `wait`
+
+**Comparison & Batch (2)**
+- `diff`, `batch`
 
 **Profile Management (1)**
 - `profiles`
@@ -135,6 +138,80 @@ dv3 query "my-comp >>> .data" --html --json
 ```
 
 The `>>>` operator is syntactic sugar that compiles to standard `element.shadowRoot.querySelector()` calls at runtime — no non-standard CSS involved.
+
+**`>>>` also works on the interaction commands**, so you can drive elements that live inside Shadow DOM directly:
+
+```bash
+dv3 click "my-comp >>> .inner-btn"
+dv3 hover "my-menu >>> .item"
+dv3 focus "x-input >>> input"
+dv3 drag --source "board >>> .card" --target "board >>> .column"
+dv3 upload --selector "uploader >>> input[type=file]" --files ./photo.png
+dv3 highlight "my-comp >>> .badge"
+dv3 scroll --selector "my-list >>> .footer" -y 200
+dv3 wait --selector "my-dialog >>> .ready"
+```
+
+Commands that accept a selector and act on the element — `click`, `hover`, `focus`, `drag`, `upload`, `highlight`, `scroll`, and `wait` — all resolve `>>>` through the same shadow-piercing path as `query`.
+
+### ✅ Computed CSS Styles as JSON
+
+Read the resolved computed styles of any element (including deep inside Shadow DOM) as a JSON object with `--computed-style`:
+
+```bash
+# All computed properties of a shadow-nested element, as JSON
+dv3 query "my-custom-el >>> sy-a" --computed-style --json
+
+# Only specific properties
+dv3 query "my-custom-el >>> sy-a" --computed-style --props color,font-size,display --json
+
+# Works on plain selectors too (human-readable output)
+dv3 query ".btn" --computed-style
+```
+
+Returns `null` if the element isn't found. `--props` accepts a comma-separated list; omit it to dump every longhand property from the element's `CSSStyleDeclaration`.
+
+### ✅ Structured Output: `--json` and `--yaml`
+
+Every data-returning command prints human-readable output by default, and accepts **both** `--json` and `--yaml` for programmatic use:
+
+```bash
+dv1 snapshot --json
+dv1 snapshot --yaml
+dv1 cookies --yaml
+dv1 network --filter "/api" --json
+dv1 query "my-comp >>> .price" --text --yaml
+dv1 status --json
+dv1 diff --compare before.json --yaml
+```
+
+Both formats serialize the identical data shape (JSON output is unchanged from previous releases). Commands covered: `status`, `snapshot`, `network`, `cookies`, `console`, `eval`, `local-storage`, `session-storage`, `tabs`, `new`, `request`, `query`, `query-all`, `inspect`, `get-text`, `get-html`, `read`, `find`, `diff`, `history --list`, `frame --list`, `a11y`, `perf`, and `profiles`.
+
+> Action commands that only report success (`click`, `fill`, `type`, `key`, `hover`, `focus`, `drag`, `upload`, `navigate`, `reload`, …) print a status line and do not take `--json` / `--yaml`. `har` writes a HAR file, which is JSON by definition.
+
+### ✅ Reading Page Content & HTML
+
+`read` extracts content from the current page (or fetches a URL over HTTP):
+
+```bash
+dv1 read                          # readable text (article/main/body heuristics)
+dv1 read --text                   # raw page body text
+dv1 read --snapshot               # accessibility tree
+dv1 read --html                   # full document HTML (document.documentElement.outerHTML)
+dv1 read --dom                    # alias for --html
+dv1 read --html "my-comp >>> .card"   # outerHTML of one element (>>> supported)
+dv1 read --text "#article"        # textContent of one element
+dv1 read --url https://x.com      # HTTP fetch, no page needed
+dv1 read --html --json            # any of the above as JSON/YAML
+```
+
+Element-level HTML/text is also available via `get-html` / `get-text`, both of which now support `>>>` shadow piercing and `--json` / `--yaml`:
+
+```bash
+dv1 get-html --selector "my-comp >>> .inner"
+dv1 get-text --selector "my-comp >>> .title" --json
+```
+
 Each profile has its own command (`dv1`–`dv6`) to prevent AI agent collisions:
 ```bash
 # Each agent uses a different command
@@ -205,7 +282,7 @@ dv1 cookies
 - **Runtime:** Node.js ≥18.0.0
 - **Build:** tsc + tsx (ESM output)
 - **Protocol:** Chrome DevTools Protocol via WebSocket
-- **Dependencies:** ws, axios, commander, chalk
+- **Dependencies:** ws, axios, commander, chalk, yaml
 
 ## CDP Coverage
 

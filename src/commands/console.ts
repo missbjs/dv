@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 
 export interface ConsoleOptions {
@@ -7,6 +8,7 @@ export interface ConsoleOptions {
   type?: string;
   filter?: string;
   json?: boolean;
+  yaml?: boolean;
   tabId?: string;
 }
 
@@ -40,8 +42,8 @@ export async function consoleCommand(options: ConsoleOptions) {
       filtered = filtered.filter(m => regex.test(m.text));
     }
 
-    if (options.json) {
-      console.log(JSON.stringify(filtered, null, 2));
+    if (wantsStructured(options)) {
+      console.log(renderStructured(filtered, options));
     } else {
       if (filtered.length === 0) {
         console.log(chalk.gray('No console messages'));

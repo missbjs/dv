@@ -1,6 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { wantsStructured, renderStructured } from '../output.js';
 export async function history(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
@@ -9,6 +10,10 @@ export async function history(options) {
             const hist = await client.getNavigationHistory();
             const entries = hist.entries || [];
             const currentIndex = hist.currentIndex;
+            if (wantsStructured(options)) {
+                console.log(renderStructured({ entries, currentIndex }, options));
+                return;
+            }
             console.log(chalk.blue('Navigation History\n'));
             entries.forEach((entry, i) => {
                 const marker = i === currentIndex ? chalk.green('>') : ' ';

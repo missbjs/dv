@@ -1,6 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { wantsStructured, renderStructured } from '../output.js';
 export async function frame(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
@@ -21,6 +22,10 @@ export async function frame(options) {
             }
             if (result.frameTree) {
                 walk(result.frameTree);
+            }
+            if (wantsStructured(options)) {
+                console.log(renderStructured({ frames }, options));
+                return;
             }
             console.log(chalk.blue('Frame Tree\n'));
             for (const f of frames) {

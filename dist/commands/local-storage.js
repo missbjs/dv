@@ -1,5 +1,6 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
+import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function localStorage(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
@@ -23,8 +24,8 @@ export async function localStorage(options) {
         catch {
             // no items
         }
-        if (options.json) {
-            console.log(JSON.stringify(items, null, 2));
+        if (wantsStructured(options)) {
+            console.log(renderStructured(items, options));
         }
         else {
             if (!items || items.length === 0) {
