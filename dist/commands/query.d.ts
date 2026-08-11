@@ -7,6 +7,7 @@ export interface QueryOptions {
     count?: boolean;
     exists?: boolean;
     computedStyle?: boolean;
+    style?: boolean;
     props?: string;
     json?: boolean;
     yaml?: boolean;

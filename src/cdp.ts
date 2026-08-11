@@ -966,6 +966,207 @@ export class CDPClient {
     });
   }
 
+  // ── Double Click ──
+
+  /** Double-click an element by CSS or `>>>` shadow-piercing selector */
+  async dblclick(selector: string) {
+    const nodeId = await this.resolveNodeId(selector);
+    const box = await this.send('DOM.getBoxModel', { nodeId });
+    const x = (box.model.content[0] + box.model.content[2]) / 2;
+    const y = (box.model.content[1] + box.model.content[5]) / 2;
+
+    await this.send('Input.dispatchMouseEvent', {
+      type: 'mousePressed', x, y, button: 'left', clickCount: 2,
+    });
+    await this.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x, y, button: 'left', clickCount: 2,
+    });
+  }
+
+  /** Double-click an element by backend node ID */
+  async dblclickBackendNode(backendNodeId: number): Promise<void> {
+    const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+    if (!nodeIds || nodeIds.length === 0) {
+      throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+    }
+    const nodeId = nodeIds[0];
+    const box = await this.send('DOM.getBoxModel', { nodeId });
+    const x = (box.model.content[0] + box.model.content[2]) / 2;
+    const y = (box.model.content[1] + box.model.content[5]) / 2;
+
+    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId });
+
+    await this.send('Input.dispatchMouseEvent', {
+      type: 'mousePressed', x, y, button: 'left', clickCount: 2,
+    });
+    await this.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x, y, button: 'left', clickCount: 2,
+    });
+  }
+
+  // ── PDF ──
+
+  /** Print the page to PDF, returns base64-encoded PDF data */
+  async printToPDF(options?: {
+    landscape?: boolean;
+    printBackground?: boolean;
+    paperWidth?: number;
+    paperHeight?: number;
+    marginTop?: number;
+    marginBottom?: number;
+    marginLeft?: number;
+    marginRight?: number;
+    pageRanges?: string;
+    preferCSSPageSize?: boolean;
+  }): Promise<string> {
+    const result = await this.send('Page.printToPDF', {
+      landscape: false,
+      printBackground: true,
+      paperWidth: 8.5,
+      paperHeight: 11,
+      marginTop: 0.4,
+      marginBottom: 0.4,
+      marginLeft: 0.4,
+      marginRight: 0.4,
+      ...options,
+    });
+    return result.data as string;
+  }
+
+  // ── Clipboard ──
+
+  /** Grant clipboard read/write permissions to the current page origin */
+  async grantClipboardPermission(): Promise<void> {
+    try {
+      // Derive origin from current URL
+      const result = await this.evaluate('location.origin');
+      const origin = (result.result?.value as string) ?? '';
+      if (origin) {
+        await this.send('Browser.grantPermissions', {
+          origin,
+          permissions: ['clipboardRead', 'clipboardWrite'],
+        });
+      }
+    } catch {
+      // Silently ignore — permissions may already be granted
+    }
+  }
+
+  /** Write text to the system clipboard via navigator.clipboard.writeText */
+  async clipboardWriteText(text: string): Promise<void> {
+    await this.grantClipboardPermission();
+    await this.evaluate(
+      `navigator.clipboard.writeText(${JSON.stringify(text)})`
+    );
+  }
+
+  /** Read text from the system clipboard via navigator.clipboard.readText */
+  async clipboardReadText(): Promise<string> {
+    await this.grantClipboardPermission();
+    const result = await this.evaluate(
+      `(async () => { try { return await navigator.clipboard.readText(); } catch { return ''; } })()`
+    );
+    return (result.result?.value as string) ?? '';
+  }
+
+  /** Send Ctrl+C (copy) to the active element */
+  async clipboardCopy(): Promise<void> {
+    await this.send('Input.dispatchKeyEvent', {
+      type: 'rawKeyDown', key: 'c', code: 'KeyC',
+      windowsVirtualKeyCode: 67, modifiers: 2,
+    });
+    await this.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'c', code: 'KeyC', modifiers: 2,
+    });
+  }
+
+  /** Send Ctrl+V (paste) to the active element */
+  async clipboardPaste(): Promise<void> {
+    await this.send('Input.dispatchKeyEvent', {
+      type: 'rawKeyDown', key: 'v', code: 'KeyV',
+      windowsVirtualKeyCode: 86, modifiers: 2,
+    });
+    await this.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'v', code: 'KeyV', modifiers: 2,
+    });
+  }
+
+  // ── Element State Queries (via evaluate) ──
+
+  /** Check if an element is visible (not display:none, visibility:visible, has offsetParent) */
+  async isVisible(selector: string): Promise<boolean> {
+    const result = await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; if (!el) return null; const style = getComputedStyle(el); return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'; })()`
+    );
+    return result.result?.value ?? false;
+  }
+
+  /** Check if an element is enabled (not disabled) */
+  async isEnabled(selector: string): Promise<boolean> {
+    const result = await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; return el ? !el.disabled : null; })()`
+    );
+    return result.result?.value ?? false;
+  }
+
+  /** Check if a checkbox/radio element is checked */
+  async isChecked(selector: string): Promise<boolean> {
+    const result = await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; return el ? !!(el.checked ?? el.getAttribute('aria-checked') === 'true') : null; })()`
+    );
+    return result.result?.value ?? false;
+  }
+
+  /** Get the value property of an input element */
+  async getElementValue(selector: string): Promise<string | null> {
+    const result = await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; return el ? (el.value ?? '') : null; })()`
+    );
+    return (result.result?.value as string) ?? null;
+  }
+
+  /** Get an attribute of an element */
+  async getElementAttribute(selector: string, attr: string): Promise<string | null> {
+    const result = await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; return el ? el.getAttribute(${JSON.stringify(attr)}) : null; })()`
+    );
+    return (result.result?.value as string) ?? null;
+  }
+
+  /** Check a checkbox/radio element by CSS selector */
+  async check(selector: string): Promise<void> {
+    await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; if (!el) return; el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); })()`
+    );
+  }
+
+  /** Uncheck a checkbox/radio element by CSS selector */
+  async uncheck(selector: string): Promise<void> {
+    await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; if (!el) return; el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); })()`
+    );
+  }
+
+  /** Scroll an element into view by backend node ID */
+  async scrollIntoViewByBackendNode(backendNodeId: number): Promise<void> {
+    const { nodeIds } = await this.pushNodesByBackendIdsToFrontend([backendNodeId]);
+    if (!nodeIds || nodeIds.length === 0) {
+      throw new Error(`Cannot resolve backend DOM node: ${backendNodeId}`);
+    }
+    await this.send('DOM.scrollIntoViewIfNeeded', { nodeId: nodeIds[0] });
+  }
+
+  /** Get computed styles of an element (optionally filter to specific properties) */
+  async getElementStyles(selector: string, props?: string[]): Promise<Record<string, string> | null> {
+    const propsExpr = props && props.length > 0
+      ? JSON.stringify(props)
+      : '[...cs]';
+    const result = await this.evaluate(
+      `(() => { const el = ${buildElementExpression(selector)}; if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries(${propsExpr}.map(p => [p, cs.getPropertyValue(p)])); })()`
+    );
+    return result.result?.value as Record<string, string> | null;
+  }
+
   // ── DOM Watch (MutationObserver) ──
 
   /** Install a MutationObserver that records mutations to window.__dvMutations */

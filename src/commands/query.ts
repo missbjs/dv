@@ -12,6 +12,7 @@ export interface QueryOptions {
   count?: boolean;
   exists?: boolean;
   computedStyle?: boolean;
+  style?: boolean;
   props?: string;
   json?: boolean;
   yaml?: boolean;
@@ -36,7 +37,7 @@ export function buildExpression(selector: string, options: QueryOptions): string
   // Computed styles — works for both native and shadow-piercing selectors.
   // Returns a plain object of { property: value } (or null if not found),
   // which Runtime.evaluate serializes via returnByValue.
-  if (options.computedStyle) {
+  if (options.computedStyle || options.style) {
     const el = buildElementExpression(selector);
     const propsList = parseProps(options.props);
     // When specific props are requested, embed them safely; otherwise
@@ -98,7 +99,7 @@ function formatOutput(value: unknown, options: QueryOptions): void {
     return;
   }
 
-  if (options.computedStyle) {
+  if (options.computedStyle || options.style) {
     if (value === null || value === undefined) {
       if (wantsStructured(options)) {
         console.log(renderStructured(null, options));

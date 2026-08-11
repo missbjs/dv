@@ -66,6 +66,17 @@ import { frame } from './commands/frame.js';
 import { watch } from './commands/watch.js';
 import { drag } from './commands/drag.js';
 import { highlight } from './commands/highlight.js';
+// Agent-browser parity commands
+import { dblclick } from './commands/dblclick.js';
+import { check, uncheck } from './commands/check.js';
+import { scrollIntoView } from './commands/scroll-into-view.js';
+import { clipboard } from './commands/clipboard.js';
+import { pdf } from './commands/pdf.js';
+import { isVisible, isEnabled, isChecked } from './commands/is-state.js';
+import { getValue } from './commands/get-value.js';
+import { getAttr } from './commands/get-attr.js';
+import { getBox } from './commands/get-box.js';
+import { getStyles } from './commands/get-styles.js';
 import { printStructured } from './output.js';
 import chalk from 'chalk';
 import { createRequire } from 'node:module';
@@ -319,8 +330,9 @@ program
   .option('--attr <name>', 'Get attribute value')
   .option('--count', 'Count matching elements')
   .option('--exists', 'Check if element exists')
-  .option('--computed-style', 'Get computed CSS styles as an object')
-  .option('--props <list>', 'Comma-separated CSS properties to include (with --computed-style)')
+  .option('--style', 'Get computed CSS styles as an object')
+  .option('--computed-style', 'Alias for --style (deprecated)')
+  .option('--props <list>', 'Comma-separated CSS properties to include (with --style)')
   .option('--json', 'Output as JSON')
   .option('--yaml', 'Output as YAML')
   .action((selector: string, options: Record<string, any>) => {
@@ -726,6 +738,153 @@ program
   .option('--hide', 'Hide the highlight')
   .action((options: Record<string, any>) => {
     highlight({ ...options, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+// Agent-browser parity commands
+program
+  .command('dblclick')
+  .description('Double-click an element')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .action((selector: string, options: Record<string, any>) => {
+    dblclick({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('check')
+  .description('Check a checkbox or radio button')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .action((selector: string, options: Record<string, any>) => {
+    check({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('uncheck')
+  .description('Uncheck a checkbox or radio button')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .action((selector: string, options: Record<string, any>) => {
+    uncheck({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('scroll-into-view')
+  .description('Scroll an element into view')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .action((selector: string, options: Record<string, any>) => {
+    scrollIntoView({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('clipboard')
+  .description('Read, write, copy, or paste clipboard content')
+  .addOption(profileOption)
+  .argument('<action>', 'Action: read, write, copy, paste')
+  .argument('[text]', 'Text to write (required for write action)')
+  .option('--json', 'Output as JSON (read action only)')
+  .option('--yaml', 'Output as YAML (read action only)')
+  .action((action: string, text: string | undefined, options: Record<string, any>) => {
+    clipboard({ ...options, action: action as 'read' | 'write' | 'copy' | 'paste', text, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('pdf')
+  .description('Print page to PDF')
+  .addOption(profileOption)
+  .option('-o, --output <file>', 'Output file path', 'page.pdf')
+  .option('--landscape', 'Landscape orientation')
+  .option('--print-background', 'Print background graphics')
+  .option('--paper-width <width>', 'Paper width in inches', parseFloat)
+  .option('--paper-height <height>', 'Paper height in inches', parseFloat)
+  .option('--margin-top <margin>', 'Top margin in inches', parseFloat)
+  .option('--margin-bottom <margin>', 'Bottom margin in inches', parseFloat)
+  .option('--margin-left <margin>', 'Left margin in inches', parseFloat)
+  .option('--margin-right <margin>', 'Right margin in inches', parseFloat)
+  .option('--page-ranges <ranges>', 'Page ranges to print, e.g. "1-5,8"')
+  .option('--prefer-css-page-size', 'Prefer CSS-defined page size')
+  .action((options: Record<string, any>) => {
+    pdf({ ...options, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('is-visible')
+  .description('Check if an element is visible')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, options: Record<string, any>) => {
+    isVisible({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('is-enabled')
+  .description('Check if an element is enabled')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, options: Record<string, any>) => {
+    isEnabled({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('is-checked')
+  .description('Check if a checkbox or radio button is checked')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, options: Record<string, any>) => {
+    isChecked({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('get-value')
+  .description('Get the value of an input element')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, options: Record<string, any>) => {
+    getValue({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('get-attr')
+  .description('Get an attribute value from an element')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .argument('<attr>', 'Attribute name')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, attr: string, options: Record<string, any>) => {
+    getAttr({ ...options, selector, attr, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('get-box')
+  .description('Get the box model of an element')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, options: Record<string, any>) => {
+    getBox({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
+  });
+
+program
+  .command('get-styles')
+  .description('Get computed CSS styles of an element')
+  .addOption(profileOption)
+  .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('--props <list>', 'Comma-separated CSS property names to filter')
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action((selector: string, options: Record<string, any>) => {
+    getStyles({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
   });
 
 program.parse();

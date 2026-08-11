@@ -192,6 +192,51 @@ export declare class CDPClient {
         x: number;
         y: number;
     }): Promise<void>;
+    /** Double-click an element by CSS or `>>>` shadow-piercing selector */
+    dblclick(selector: string): Promise<void>;
+    /** Double-click an element by backend node ID */
+    dblclickBackendNode(backendNodeId: number): Promise<void>;
+    /** Print the page to PDF, returns base64-encoded PDF data */
+    printToPDF(options?: {
+        landscape?: boolean;
+        printBackground?: boolean;
+        paperWidth?: number;
+        paperHeight?: number;
+        marginTop?: number;
+        marginBottom?: number;
+        marginLeft?: number;
+        marginRight?: number;
+        pageRanges?: string;
+        preferCSSPageSize?: boolean;
+    }): Promise<string>;
+    /** Grant clipboard read/write permissions to the current page origin */
+    grantClipboardPermission(): Promise<void>;
+    /** Write text to the system clipboard via navigator.clipboard.writeText */
+    clipboardWriteText(text: string): Promise<void>;
+    /** Read text from the system clipboard via navigator.clipboard.readText */
+    clipboardReadText(): Promise<string>;
+    /** Send Ctrl+C (copy) to the active element */
+    clipboardCopy(): Promise<void>;
+    /** Send Ctrl+V (paste) to the active element */
+    clipboardPaste(): Promise<void>;
+    /** Check if an element is visible (not display:none, visibility:visible, has offsetParent) */
+    isVisible(selector: string): Promise<boolean>;
+    /** Check if an element is enabled (not disabled) */
+    isEnabled(selector: string): Promise<boolean>;
+    /** Check if a checkbox/radio element is checked */
+    isChecked(selector: string): Promise<boolean>;
+    /** Get the value property of an input element */
+    getElementValue(selector: string): Promise<string | null>;
+    /** Get an attribute of an element */
+    getElementAttribute(selector: string, attr: string): Promise<string | null>;
+    /** Check a checkbox/radio element by CSS selector */
+    check(selector: string): Promise<void>;
+    /** Uncheck a checkbox/radio element by CSS selector */
+    uncheck(selector: string): Promise<void>;
+    /** Scroll an element into view by backend node ID */
+    scrollIntoViewByBackendNode(backendNodeId: number): Promise<void>;
+    /** Get computed styles of an element (optionally filter to specific properties) */
+    getElementStyles(selector: string, props?: string[]): Promise<Record<string, string> | null>;
     /** Install a MutationObserver that records mutations to window.__dvMutations */
     installMutationObserver(): Promise<void>;
     /** Read accumulated mutations since last read (returns array and clears) */

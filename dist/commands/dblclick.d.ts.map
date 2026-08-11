@@ -1,0 +1,1 @@
+{"version":3,"file":"dblclick.d.ts","sourceRoot":"","sources":["../../src/commands/dblclick.ts"],"names":[],"mappings":"AAKA,MAAM,WAAW,eAAe;IAC9B,OAAO,EAAE,MAAM,CAAC;IAChB,QAAQ,EAAE,MAAM,CAAC;CAClB;AAED,wBAAsB,QAAQ,CAAC,OAAO,EAAE,eAAe,iBAoCtD"}
