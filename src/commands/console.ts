@@ -9,7 +9,8 @@ export interface ConsoleOptions {
   filter?: string;
   json?: boolean;
   yaml?: boolean;
-  tabId?: string;
+  tab?: string;
+  tabId?: string; // deprecated, use tab
 }
 
 // Map user-friendly short type names to CDP Console level values
@@ -25,7 +26,7 @@ export async function consoleCommand(options: ConsoleOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect(options.tabId);
+    await client.connect(options.tab ?? options.tabId);
     await client.enableConsole();
 
     const messages = await client.getConsoleMessages();

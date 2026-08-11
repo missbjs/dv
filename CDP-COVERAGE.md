@@ -6,7 +6,7 @@ Chrome DevTools Protocol CLI
 
 ## Current Implementation
 
-### Implemented CDP Domains (11/56 = 19.6%)
+### Implemented CDP Domains (13/56 = 23.2%)
 
 | Domain | CDP Method | CLI Command | Status |
 |--------|-----------|-------------|--------|
@@ -18,6 +18,7 @@ Chrome DevTools Protocol CLI
 | Page | `Page.enable` | Internal | ✅ Implemented |
 | Page | `Page.navigate` | `navigate` | ✅ Implemented |
 | Page | `Page.captureScreenshot` | `screenshot` | ✅ Implemented |
+| Page | `Page.printToPDF` | `pdf` | ✅ Implemented |
 | **Runtime** | | | |
 | Runtime | `Runtime.enable` | Internal | ✅ Implemented |
 | Runtime | `Runtime.evaluate` | `eval` | ✅ Implemented |
@@ -25,18 +26,22 @@ Chrome DevTools Protocol CLI
 | Console | `Console.enable` | Internal | ✅ Implemented |
 | Console | Console events | `console`, `monitor` | ✅ Implemented |
 | **Input** | | | |
-| Input | `Input.dispatchMouseEvent` | `click` | ✅ Implemented |
+| Input | `Input.dispatchMouseEvent` | `click`, `dblclick`, `hover`, `drag` | ✅ Implemented |
 | Input | `Input.dispatchKeyEvent` | `type`, `fill`, `key` | ✅ Implemented |
 | **DOM** | | | |
 | DOM | `DOM.getDocument` | Internal | ✅ Implemented |
 | DOM | `DOM.querySelector` | Internal | ✅ Implemented |
 | DOM | `DOM.querySelectorAll` | `query-all` | ✅ Implemented |
-| DOM | `DOM.getBoxModel` | `inspect` | ✅ Implemented |
-| DOM | `DOM.getAttributes` | `inspect` | ✅ Implemented |
+| DOM | `DOM.getBoxModel` | `inspect`, `box` | ✅ Implemented |
+| DOM | `DOM.getAttributes` | `inspect`, `attr` | ✅ Implemented |
 | DOM | `DOM.getOuterHTML` | `get-html` | ✅ Implemented |
 | DOM | `DOM.setOuterHTML` | `set-html` | ✅ Implemented |
 | DOM | `DOM.setAttributeValue` | `set-attribute` | ✅ Implemented |
 | DOM | `DOM.setNodeValue` | `set-text` | ✅ Implemented |
+| DOM | `DOM.markUndoableState` | Internal | ✅ Implemented |
+| DOM | `DOM.getNodeForLocation` | `inspect` | ✅ Implemented |
+| DOM | `DOM.scrollIntoViewIfNeeded` | `scroll-into-view` | ✅ Implemented |
+| DOM | `DOM.getContentQuads` | `box` | ✅ Implemented |
 | **DOMSnapshot** | | | |
 | DOMSnapshot | `DOMSnapshot.captureSnapshot` | `snapshot` | ✅ Implemented |
 | **Network** | | | |
@@ -63,6 +68,9 @@ Chrome DevTools Protocol CLI
 | DOMStorage | `DOMStorage.getDOMStorageItems` | `local-storage`, `session-storage` | ✅ Implemented |
 | DOMStorage | `DOMStorage.setDOMStorageItem` | Internal | ✅ Implemented |
 | DOMStorage | `DOMStorage.removeDOMStorageItem` | Internal | ✅ Implemented |
+| **Clipboard** | | | |
+| Clipboard | `Clipboard.readText` | `clipboard read` | ✅ Implemented |
+| Clipboard | `Clipboard.writeText` | `clipboard write` | ✅ Implemented |
 
 ---
 
@@ -96,9 +104,9 @@ These CDP domains are not relevant for browser automation/testing CLI:
 
 | Category | Count |
 |----------|-------|
-| Implemented domains | 11 |
+| Implemented domains | 13 |
 | Total CDP domains | 56 |
-| Coverage percentage | 19.6% |
+| Coverage percentage | 23.2% |
 
 **Focus**: Browser automation, testing, and debugging use cases.
 
@@ -121,26 +129,53 @@ These CDP domains are not relevant for browser automation/testing CLI:
 - `snapshot` - Accessibility snapshot
 - `screenshot` - Take screenshot
 
-### Element Interaction (4)
+### Element Interaction (13)
 - `click` - Click element
+- `dblclick` - Double-click element
+- `check` - Check a checkbox / radio
+- `uncheck` - Uncheck a checkbox
+- `scroll-into-view` - Scroll element into viewport
 - `fill` - Fill input (clears existing)
 - `type` - Type text (appends)
 - `key` - Press key
+- `hover` - Hover element
+- `focus` - Focus element
+- `drag` - Drag element
+- `upload` - Upload file
+- `find` - Semantic locator
 
-### DOM Manipulation (7)
+### DOM Manipulation (10)
 - `inspect` - Inspect element details
+- `query` - Query single element
 - `query-all` - Query all matching elements
 - `get-text` - Get element text
 - `get-html` - Get element HTML
 - `set-text` - Set element text
 - `set-html` - Set element HTML
 - `set-attribute` - Set element attribute
+- `highlight` - Highlight element
+- `watch` - Watch DOM mutations
 
-### Network Monitoring (4)
+### Element State & Box Model (7)
+- `is-visible` - Check element visibility
+- `is-enabled` - Check element enabled state
+- `is-checked` - Check checkbox state
+- `value` - Get input value
+- `attr` - Get element attribute
+- `box` - Get element box model
+- `style` - Get computed styles
+
+### Clipboard & PDF (2)
+- `clipboard` - Read/write/copy/paste clipboard
+- `pdf` - Export page as PDF
+
+### Network Monitoring (5)
 - `network` - List network requests
 - `intercept` - Block/mock requests
 - `request` - Get request details
 - `clear-cache` - Clear browser cache
+- `har` - Export network activity as HAR
+
 
 ### Device Emulation (5)
 - `emulate` - Device emulation
@@ -156,17 +191,26 @@ These CDP domains are not relevant for browser automation/testing CLI:
 - `local-storage` - List localStorage
 - `session-storage` - List sessionStorage
 
-### Console & Monitoring (2)
+### Console & Monitoring (4)
 - `console` - List console messages
 - `monitor` - Real-time monitoring
+- `perf` - Performance metrics
+- `dialog` - Handle dialogs
 
-### Viewport Control (1)
+### Page Control (4)
 - `resize` - Resize viewport
+- `scroll` - Scroll page
+- `frame` - Set/switch frame
+- `wait` - Wait for element/network
+
+### Comparison & Batch (2)
+- `diff` - Compare snapshots
+- `batch` - Run commands sequentially
 
 ### Profile Management (1)
 - `profiles` - List profiles
 
-**Total: 49 commands**
+**Total: 73 commands**
 
 ---
 

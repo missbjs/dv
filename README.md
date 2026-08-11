@@ -39,7 +39,7 @@ dv1 screenshot screenshot.png
 
 ## Features
 
-### 🚀 59 Commands Across 11 CDP Domains
+### 🚀 73 Commands Across 13 CDP Domains
 
 **Browser Management (7)**
 - `start`, `stop`, `status`, `tabs`, `select`, `new`, `close`
@@ -47,12 +47,18 @@ dv1 screenshot screenshot.png
 **Navigation & Execution (7)**
 - `navigate`, `reload`, `history`, `eval`, `snapshot`, `screenshot`, `read`
 
-**Element Interaction (9)**
-- `click`, `fill`, `type`, `key`, `hover`, `focus`, `drag`, `upload`, `find`
+**Element Interaction (13)**
+- `click`, `dblclick`, `check`, `uncheck`, `scroll-into-view`, `fill`, `type`, `key`, `hover`, `focus`, `drag`, `upload`, `find`
 
 **DOM Manipulation (10)**
 - `inspect`, `query`, `query-all`, `get-text`, `get-html`
 - `set-text`, `set-html`, `set-attribute`, `highlight`, `watch`
+
+**Element State & Box Model (7)**
+- `is-visible`, `is-enabled`, `is-checked`, `value`, `attr`, `box`, `style`
+
+**Clipboard & PDF (2)**
+- `clipboard`, `pdf`
 
 **Network Monitoring (5)**
 - `network`, `intercept`, `request`, `clear-cache`, `har`
@@ -64,8 +70,8 @@ dv1 screenshot screenshot.png
 - `cookies`, `cookies-clear`, `storage-clear`
 - `local-storage`, `session-storage`
 
-**Console & Diagnostics (4)**
-- `console`, `monitor`, `perf`, `dialog`
+**Console & Diagnostics (5)**
+- `console`, `monitor`, `perf`, `dialog`, `a11y`
 
 **Page Control (4)**
 - `resize`, `scroll`, `frame`, `wait`
@@ -152,24 +158,66 @@ dv3 scroll --selector "my-list >>> .footer" -y 200
 dv3 wait --selector "my-dialog >>> .ready"
 ```
 
-Commands that accept a selector and act on the element — `click`, `hover`, `focus`, `drag`, `upload`, `highlight`, `scroll`, and `wait` — all resolve `>>>` through the same shadow-piercing path as `query`.
+Commands that accept a selector and act on the element — `click`, `hover`, `focus`, `drag`, `upload`, `highlight`, `scroll`, `wait`, `dblclick`, `check`, `uncheck`, `scroll-into-view`, `get-html`, `get-text`, `value`, `attr`, `box`, and `style` — all resolve `>>>` through the same shadow-piercing path as `query`.
+
+### ✅ Extended Element Interaction
+
+Double-click, toggle and scroll-past-the-fold without writing JS:
+
+```bash
+dv1 dblclick #card            # double-click
+dv1 check #agree              # tick a checkbox / radio
+dv1 uncheck #opt-in           # untick it
+dv1 scroll-into-view #footer  # scroll element into viewport
+dv1 check "form >>> #agree"   # >>> shadow piercing supported
+```
+
+### ✅ Element State & Box Model
+
+Inspect whether an element is visible, enabled or checked, and read its value, attributes, box metrics or computed styles:
+
+```bash
+dv1 is-visible --selector "#modal"
+dv1 is-enabled --selector "#submit"
+dv1 is-checked --selector "#agree"
+dv1 value --selector "#email"
+dv1 attr --selector "#btn" href
+dv1 box --selector "#card" --json            # x, y, width, height + viewport coords
+dv1 style --selector "#btn" --props color,display
+```
+
+All take `--json` / `--yaml`, and every selector accepts `>>>` for Shadow DOM piercing.
+
+### ✅ Clipboard & PDF
+
+Read, write, copy and paste the clipboard, or save the page as a PDF:
+
+```bash
+dv1 clipboard read
+dv1 clipboard write "Hello"
+dv1 clipboard copy --selector "#content"
+dv1 clipboard paste --selector "#input"
+dv1 pdf --output page.pdf
+dv1 pdf --landscape --print-background
+dv1 pdf --paper-width 8.5 --paper-height 11 --margin-top 0.5
+```
 
 ### ✅ Computed CSS Styles as JSON
 
-Read the resolved computed styles of any element (including deep inside Shadow DOM) as a JSON object with `--computed-style`:
+Read the resolved computed styles of any element (including deep inside Shadow DOM) as a JSON object with `--style`:
 
 ```bash
 # All computed properties of a shadow-nested element, as JSON
-dv3 query "my-custom-el >>> sy-a" --computed-style --json
+dv3 query "my-custom-el >>> sy-a" --style --json
 
 # Only specific properties
-dv3 query "my-custom-el >>> sy-a" --computed-style --props color,font-size,display --json
+dv3 query "my-custom-el >>> sy-a" --style --props color,font-size,display --json
 
 # Works on plain selectors too (human-readable output)
-dv3 query ".btn" --computed-style
+dv3 query ".btn" --style
 ```
 
-Returns `null` if the element isn't found. `--props` accepts a comma-separated list; omit it to dump every longhand property from the element's `CSSStyleDeclaration`.
+Returns `null` if the element isn't found. `--props` accepts a comma-separated list; omit it to dump every longhand property from the element's `CSSStyleDeclaration`. (`--computed-style` is still accepted as a deprecated alias.)
 
 ### ✅ Structured Output: `--json` and `--yaml`
 
@@ -185,7 +233,7 @@ dv1 status --json
 dv1 diff --compare before.json --yaml
 ```
 
-Both formats serialize the identical data shape (JSON output is unchanged from previous releases). Commands covered: `status`, `snapshot`, `network`, `cookies`, `console`, `eval`, `local-storage`, `session-storage`, `tabs`, `new`, `request`, `query`, `query-all`, `inspect`, `get-text`, `get-html`, `read`, `find`, `diff`, `history --list`, `frame --list`, `a11y`, `perf`, and `profiles`.
+Both formats serialize the identical data shape (JSON output is unchanged from previous releases). Commands covered: `status`, `snapshot`, `network`, `cookies`, `console`, `eval`, `local-storage`, `session-storage`, `tabs`, `new`, `request`, `query`, `query-all`, `inspect`, `get-text`, `get-html`, `read`, `find`, `diff`, `history --list`, `frame --list`, `a11y`, `perf`, `profiles`, `is-visible`, `is-enabled`, `is-checked`, `value`, `attr`, `box`, and `style`.
 
 > Action commands that only report success (`click`, `fill`, `type`, `key`, `hover`, `focus`, `drag`, `upload`, `navigate`, `reload`, …) print a status line and do not take `--json` / `--yaml`. `har` writes a HAR file, which is JSON by definition.
 
@@ -286,7 +334,7 @@ dv1 cookies
 
 ## CDP Coverage
 
-11/56 domains (19.6% coverage):
+13/56 domains (23.2% coverage):
 
 - ✅ Browser HTTP API
 - ✅ Page
@@ -296,6 +344,7 @@ dv1 cookies
 - ✅ DOM
 - ✅ DOMSnapshot
 - ✅ DOMStorage
+- ✅ Clipboard
 - ✅ Emulation
 - ✅ Network
 - ✅ Storage

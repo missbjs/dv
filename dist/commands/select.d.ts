@@ -1,5 +1,6 @@
 export interface SelectOptions {
     profile: string;
+    tab?: string;
     tabId?: string;
     index?: number;
 }

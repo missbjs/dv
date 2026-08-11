@@ -119,7 +119,7 @@ program
 // Stop Chrome
 program
   .command('stop')
-  .description('Stop Chrome process on specified port')
+  .description('Stop Chrome process for the current profile')
   .addOption(profileOption)
   .action(stop);
 
@@ -174,7 +174,8 @@ program
   .option('-f, --filter <pattern>', 'Filter messages by pattern')
   .option('--json', 'Output as JSON')
   .option('--yaml', 'Output as YAML')
-  .option('--tab-id <id>', 'Target specific tab by ID')
+  .option('--tab <id>', 'Target specific tab by ID')
+  .option('--tab-id <id>', 'Deprecated: use --tab instead')
   .action(consoleCommand);
 
 // Reload
@@ -253,7 +254,8 @@ program
   .command('select')
   .description('Select a tab by ID or index')
   .addOption(profileOption)
-  .option('--tab-id <id>', 'Tab ID')
+  .option('--tab <id>', 'Tab ID')
+  .option('--tab-id <id>', 'Deprecated: use --tab instead')
   .option('-i, --index <index>', 'Tab index (1-based)', parseInt)
   .action(select);
 
@@ -274,9 +276,9 @@ program
   .command('close')
   .description('Close a tab')
   .addOption(profileOption)
-  .argument('<tab-id>', 'Tab ID to close')
+  .argument('<tab>', 'Tab ID to close')
   .action((tabId: string, options: Record<string, any>) => {
-    close({ ...options, tabId, profile: options.profile || process.env.DV_PROFILE! });
+    close({ ...options, tab: tabId, profile: options.profile || process.env.DV_PROFILE! });
   });
 
 // Resize
@@ -386,12 +388,25 @@ program
 
 program
   .command('query-all')
-  .description('Query all matching elements')
+  .description('Query all matching elements (supports >>> shadow piercing with --text/--html/--attr/--style)')
   .addOption(profileOption)
-  .requiredOption('-s, --selector <selector>', 'CSS selector')
+  .argument('[selector]', 'CSS selector (use >>> to pierce shadow roots)')
+  .option('-s, --selector <selector>', 'CSS selector (alternative to positional argument)')
+  .option('--text', 'Get textContent of each match')
+  .option('--html', 'Get outerHTML of each match')
+  .option('--attr <name>', 'Get attribute value of each match')
+  .option('--style', 'Get computed CSS styles of each match')
+  .option('--props <list>', 'Comma-separated CSS properties to include (with --style)')
   .option('--json', 'Output as JSON')
   .option('--yaml', 'Output as YAML')
-  .action(queryAll);
+  .action((selector: string | undefined, options: Record<string, any>) => {
+    const sel = options.selector || selector;
+    if (!sel) {
+      console.error('Error: selector is required. Provide as positional argument or via --selector/-s.');
+      process.exit(1);
+    }
+    queryAll({ ...options, selector: sel, profile: options.profile || process.env.DV_PROFILE! });
+  });
 
 program
   .command('get-text')
@@ -842,7 +857,8 @@ program
   });
 
 program
-  .command('get-value')
+  .command('value')
+  .alias('get-value')
   .description('Get the value of an input element')
   .addOption(profileOption)
   .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
@@ -853,7 +869,8 @@ program
   });
 
 program
-  .command('get-attr')
+  .command('attr')
+  .alias('get-attr')
   .description('Get an attribute value from an element')
   .addOption(profileOption)
   .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
@@ -865,7 +882,8 @@ program
   });
 
 program
-  .command('get-box')
+  .command('box')
+  .alias('get-box')
   .description('Get the box model of an element')
   .addOption(profileOption)
   .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
@@ -876,7 +894,8 @@ program
   });
 
 program
-  .command('get-styles')
+  .command('style')
+  .alias('get-styles')
   .description('Get computed CSS styles of an element')
   .addOption(profileOption)
   .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')

@@ -1,12 +1,10 @@
 # Implemented Commands Summary
 
-All critical features have been successfully implemented!
-
 ## Package: @missbjs/dv
 
 Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser automation, testing, and debugging.
 
-## Total Commands: 49
+## Total Commands: 73
 
 ### Browser Management (7)
 - `start` - Start Chrome with remote debugging
@@ -17,32 +15,61 @@ Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser a
 - `new` - Open new tab
 - `close` - Close tab
 
-### Navigation & Execution (4)
-- `navigate` - Navigate to URL
+### Navigation & Execution (7)
+- `goto` - Navigate to URL
+- `reload` - Reload the current page
+- `history` - Browser history navigation (back/forward/list)
 - `eval` - Evaluate JavaScript
 - `snapshot` - Take accessibility snapshot
 - `screenshot` - Take screenshot
+- `read` - Read page content (text, HTML, snapshot, or fetch URL)
 
-### Element Interaction (4)
+### Element Interaction (13)
 - `click` - Click element
+- `dblclick` - Double-click element
+- `check` - Check a checkbox / radio button
+- `uncheck` - Uncheck a checkbox
+- `scroll-into-view` - Scroll element into viewport
 - `fill` - Fill input (clears existing value)
 - `type` - Type text (appends to existing)
 - `key` - Press a key
+- `hover` - Hover element
+- `focus` - Focus element
+- `drag` - Drag element to target
+- `upload` - Upload file(s)
+- `find` - Semantic locator (find by text, then click/focus)
 
-### DOM Manipulation (7)
+### DOM Manipulation (10)
 - `inspect` - Inspect element details
+- `query` - Query single element (supports `>>>` shadow piercing, `--text`, `--html`, `--attr`, `--count`, `--exists`, `--style`)
 - `query-all` - Query all matching elements
 - `get-text` - Get element text content
 - `get-html` - Get element HTML
 - `set-text` - Set element text content
 - `set-html` - Set element HTML
 - `set-attribute` - Set element attribute
+- `highlight` - Highlight element
+- `watch` - Watch DOM mutations in real-time
 
-### Network Monitoring (4)
+### Element State & Box Model (7)
+- `is-visible` - Check element visibility
+- `is-enabled` - Check element enabled state
+- `is-checked` - Check checkbox/radio state
+- `value` - Get input value (alias: `get-value`)
+- `attr` - Get element attribute (alias: `get-attr`)
+- `box` - Get element box model (x, y, width, height, center) (alias: `get-box`)
+- `style` - Get computed CSS styles (alias: `get-styles`)
+
+### Clipboard & PDF (2)
+- `clipboard` - Read/write/copy/paste clipboard
+- `pdf` - Export page as PDF
+
+### Network Monitoring (5)
 - `network` - List network requests
 - `intercept` - Intercept/block/mock requests
 - `request` - Get request/response details
 - `clear-cache` - Clear browser cache
+- `har` - Export network activity as HAR
 
 ### Device Emulation (5)
 - `emulate` - Emulate device (iPhone, Pixel, etc.)
@@ -58,12 +85,22 @@ Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser a
 - `local-storage` - List localStorage items
 - `session-storage` - List sessionStorage items
 
-### Console & Monitoring (2)
+### Console & Diagnostics (5)
 - `console` - List console messages
 - `monitor` - Monitor console in real-time
+- `perf` - Performance metrics
+- `dialog` - Handle alert/confirm/prompt dialogs
+- `a11y` - Accessibility info
 
-### Viewport Control (1)
+### Page Control (4)
 - `resize` - Resize viewport
+- `scroll` - Scroll page
+- `frame` - Set/switch frame
+- `wait` - Wait for element or network idle
+
+### Comparison & Batch (2)
+- `diff` - Compare snapshots
+- `batch` - Run commands sequentially
 
 ### Profile Management (1)
 - `profiles` - List available profiles
@@ -106,6 +143,13 @@ dv1 clear-cache
 - Clears all browser cache
 - Useful for testing cache behavior
 
+**har** - Export network activity as HAR
+```bash
+dv1 har session.har
+```
+- Writes standard HAR file
+- Complete request/response archive
+
 ---
 
 ## Enhanced DOM Commands
@@ -118,6 +162,18 @@ dv1 inspect --selector ".container" --json
 - Shows element attributes
 - Shows box model
 - Node ID information
+
+**query** - Query single element
+```bash
+dv1 query "my-comp >>> .btn" --html
+dv1 query "my-comp >>> .title" --text
+dv1 query "my-comp >>> input" --attr placeholder
+dv1 query ".list-item" --count
+dv1 query ".modal" --exists
+dv1 query "my-comp >>> sy-a" --style --json
+```
+- Supports `>>>` shadow DOM piercing
+- Options: `--text`, `--html`, `--attr`, `--count`, `--exists`, `--style`, `--json`, `--yaml`
 
 **query-all** - Query all matching elements
 ```bash
@@ -161,6 +217,86 @@ dv1 set-attribute --selector "#button" --attr disabled --value "true"
 ```
 - Set any attribute
 - Modify element properties
+
+---
+
+## Element State & Box Model
+
+**is-visible** - Check element visibility
+```bash
+dv1 is-visible --selector "#modal"
+dv1 is-visible --selector "my-comp >>> .inner" --json
+```
+- Uses `el.checkVisibility()`
+- Returns true/false
+
+**is-enabled** - Check element enabled state
+```bash
+dv1 is-enabled --selector "#submit"
+```
+- Checks `el.disabled` property
+- Returns true/false
+
+**is-checked** - Check checkbox/radio state
+```bash
+dv1 is-checked --selector "#agree"
+```
+- Checks `el.checked` property
+- Returns true/false
+
+**value** - Get input value
+```bash
+dv1 value --selector "#email"
+dv1 value --selector "my-comp >>> input" --json
+```
+- Returns `el.value`
+- Supports `>>>` shadow piercing
+
+**attr** - Get element attribute
+```bash
+dv1 attr --selector "#btn" href
+dv1 attr --selector "my-comp >>> a" target --json
+```
+- Returns attribute value or null
+- Supports `>>>` shadow piercing
+
+**box** - Get element box model
+```bash
+dv1 box --selector "#card" --json
+```
+- Returns x, y, width, height, center (viewport coords)
+- Uses `DOM.getBoxModel` + `DOM.getContentQuads`
+
+**style** - Get computed CSS styles
+```bash
+dv1 style --selector "#btn" --props color,display
+dv1 style --selector "my-comp >>> .el" --json
+```
+- Returns computed `CSSStyleDeclaration`
+- `--props` filters to specific properties
+
+---
+
+## Clipboard & PDF
+
+**clipboard** - Read/write/copy/paste
+```bash
+dv1 clipboard read
+dv1 clipboard write "Hello"
+dv1 clipboard copy --selector "#content"
+dv1 clipboard paste --selector "#input"
+```
+- Uses `Clipboard.readText`/`writeText` CDP methods
+- `copy`/`paste` use `execCommand` fallback
+
+**pdf** - Export page as PDF
+```bash
+dv1 pdf --output page.pdf
+dv1 pdf --landscape --print-background
+dv1 pdf --paper-width 8.5 --paper-height 11 --margin-top 0.5
+```
+- Uses `Page.printToPDF`
+- Options: paper size, margins, landscape, print-background, page ranges
 
 ---
 
@@ -263,9 +399,86 @@ dv1 session-storage --key "session-id" --json
 
 ---
 
+## Console & Diagnostics
+
+**console** - List console messages
+```bash
+dv1 console
+dv1 console --type error
+dv1 console --type log --filter "API"
+```
+- Lists all console messages
+- Filter by type (error, warn, log, info)
+- Filter by text pattern
+
+**monitor** - Real-time console monitoring
+```bash
+dv1 monitor --types error,warn
+```
+- Streams console messages in real-time
+- Press Ctrl+C to stop
+
+**perf** - Performance metrics
+```bash
+dv1 perf
+dv1 perf --json
+```
+- Shows performance timing data
+- JSON output for scripting
+
+**dialog** - Handle dialogs
+```bash
+dv1 dialog --accept
+dv1 dialog --dismiss
+dv1 dialog --text "input"
+```
+- Handle alert/confirm/prompt dialogs
+- Auto-accept, dismiss, or provide text
+
+**a11y** - Accessibility info
+```bash
+dv1 a11y --selector "#nav"
+dv1 a11y --json
+```
+- Accessibility tree information
+- ARIA attributes
+
+---
+
+## Page Control
+
+**scroll** - Scroll page
+```bash
+dv1 scroll -y 500
+dv1 scroll --selector "#panel" -y 200
+```
+- Scroll window or element
+- Supports `>>>` shadow piercing
+
+**frame** - Set/switch frame
+```bash
+dv1 frame --selector "iframe#checkout"
+dv1 frame --list
+```
+- Switch to iframe context
+- List all frames
+
+**wait** - Wait for condition
+```bash
+dv1 wait --selector "#done"
+dv1 wait --selector "my-dialog >>> .ready"
+dv1 wait --networkidle
+dv1 wait --ms 1000
+```
+- Wait for element to appear
+- Wait for network idle
+- Wait for timeout
+
+---
+
 ## CDP Domain Coverage
 
-**11/56 domains (19.6%)**
+**13/56 domains (23.2%)**
 
 - ✅ Browser HTTP API
 - ✅ Page
@@ -274,10 +487,12 @@ dv1 session-storage --key "session-id" --json
 - ✅ Input
 - ✅ DOM (enhanced)
 - ✅ DOMSnapshot
+- ✅ Clipboard
 - ✅ Emulation (enhanced)
 - ✅ Network
 - ✅ Storage
 - ✅ DOMStorage
+- ✅ Accessibility
 
 ---
 
@@ -334,6 +549,23 @@ dv1 set-attribute --selector "#button" --attr disabled --value "true"
 dv1 get-html --selector "#container"
 ```
 
+### Shadow DOM Interactions
+```bash
+dv1 click "my-comp >>> .inner-btn"
+dv1 query "my-comp >>> .title" --text --json
+dv1 box "my-comp >>> .card" --json
+dv1 style "my-comp >>> .el" --props color,display --json
+```
+
+### Element State Inspection
+```bash
+dv1 is-visible --selector "#modal"
+dv1 is-enabled --selector "#submit"
+dv1 is-checked --selector "#agree"
+dv1 value --selector "#email" --json
+dv1 attr --selector "#btn" href --json
+```
+
 ---
 
 ## Architecture
@@ -348,35 +580,51 @@ dv1 get-html --selector "#container"
 - State persistence
 
 ### Command Files
-All 49 commands in `src/commands/`:
+All 73 commands in `src/commands/`:
 - Browser: start.ts, stop.ts, status.ts, pages.ts, select.ts, new.ts, close.ts
-- Navigation: navigate.ts, goto.ts, eval.ts, snapshot.ts, screenshot.ts
-- Interaction: click.ts, fill.ts, type.ts, key.ts
-- DOM: inspect.ts, query-all.ts, get-text.ts, get-html.ts, set-text.ts, set-html.ts, set-attribute.ts
-- Network: network.ts, intercept.ts, request.ts, clear-cache.ts
+- Navigation: navigate.ts, goto.ts, reload.ts, history.ts, eval.ts, snapshot.ts, screenshot.ts, read.ts
+- Interaction: click.ts, dblclick.ts, check.ts, uncheck.ts, scroll-into-view.ts, fill.ts, type.ts, key.ts, hover.ts, focus.ts, drag.ts, upload.ts, find.ts
+- DOM: inspect.ts, query.ts, query-all.ts, get-text.ts, get-html.ts, set-text.ts, set-html.ts, set-attribute.ts, highlight.ts, watch.ts
+- State: is-visible.ts, is-enabled.ts, is-checked.ts, get-value.ts, get-attr.ts, get-box.ts, get-styles.ts
+- Clipboard & PDF: clipboard.ts, pdf.ts
+- Network: network.ts, intercept.ts, request.ts, clear-cache.ts, har.ts
 - Emulation: emulate.ts, location.ts, user-agent.ts, timezone.ts, throttle.ts
 - Storage: cookies.ts, cookies-clear.ts, storage-clear.ts, local-storage.ts, session-storage.ts
-- Console: console.ts, monitor.ts
-- Viewport: resize.ts
+- Console: console.ts, monitor.ts, perf.ts, dialog.ts, a11y.ts
+- Page: resize.ts, scroll.ts, frame.ts, wait.ts
+- Comparison: diff.ts, batch.ts
+- Profile: profiles.ts
 
 ### Profile System (src/profiles.ts)
 - 6 pre-configured profiles
 - Fixed port assignments (9230-9235)
 - Profile validation
 
+### Shadow DOM Piercing
+- `>>>` operator compiles to `element.shadowRoot.querySelector()` at runtime
+- Supported on all selector-based commands: query, click, hover, focus, drag, upload, check, uncheck, dblclick, scroll-into-view, highlight, scroll, wait, get-text, get-html, value, attr, box, style
+- Nested shadow roots supported: `outer >>> widget >>> .item`
+
+### Structured Output
+- `--json` and `--yaml` flags on all data-returning commands
+- Action commands (click, fill, type, etc.) print status lines only
+
 ---
 
 ## Summary
 
-✅ 49 commands implemented
-✅ 11/56 CDP domains covered (19.6%)
+✅ 73 commands implemented
+✅ 13/56 CDP domains covered (23.2%)
 ✅ Network monitoring and interception
 ✅ Enhanced DOM manipulation
+✅ Shadow DOM piercing (`>>>`)
 ✅ Device emulation
 ✅ Storage management
+✅ Element state & box model queries
+✅ Clipboard & PDF export
 ✅ Profile-based parallel execution
-✅ JSON output for scripting
+✅ Structured JSON/YAML output
 ✅ Mandatory profile command prefix prevents agent collisions
 ✅ Comprehensive error handling
 
-The CLI provides comprehensive browser automation, testing, and debugging capabilities for AI agents and developers!
+The CLI provides comprehensive browser automation, testing, and debugging capabilities for AI agents and developers.

@@ -12,3 +12,5 @@ test-*.sh
 test-*.ps1
 test-*.png
 test-script.js
+coverage/
+*TEMPsnap*.json

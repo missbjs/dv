@@ -5,20 +5,27 @@
 ### Unreleased
 
 #### Added
-- **`--yaml` output everywhere, alongside `--json`.** Every data-returning command (`status`, `snapshot`, `network`, `cookies`, `console`, `eval`, `local-storage`, `session-storage`, `tabs`, `new`, `request`, `query`, `query-all`, `inspect`, `get-text`, `get-html`, `read`, `find`, `diff`, `history --list`, `frame --list`, `a11y`, `perf`, `profiles`) now accepts both `--json` and `--yaml`. Human-readable output remains the default when neither flag is given. Both flags route through a shared `src/output.ts` formatter, so `--json` output is unchanged byte-for-byte and `--yaml` renders the exact same data shape.
-- **`read --html` / `read --dom`** — dump the page's full HTML (`document.documentElement.outerHTML`), or a single element's `outerHTML` when a selector is passed (`read --html "my-comp >>> .card"`). `--dom` is an alias for `--html`. `read` also gained an optional `[selector]` argument (supports `>>>`) that scopes `--html` / `--text` output to one element.
-- **`get-text` / `get-html` now support `>>>` shadow piercing** and `--json` / `--yaml`. Both previously used a raw `document.querySelector` that could not reach into Shadow DOM; they now build the element expression via the shared `buildElementExpression()` path used by `query`.
-- `query --computed-style` — read an element's computed CSS styles as a JSON object, including elements deep inside Shadow DOM via the `>>>` pierce syntax. Use `--props color,font-size` to limit output to specific properties; omit to dump all longhands. Returns `null` when the element isn't found.
-- **`>>>` shadow-pierce selectors now work on the interaction commands**, not just `query`. `click`, `hover`, `focus`, `drag` (source & target), `upload`, `highlight`, `scroll`, and `wait --selector` all resolve `>>>` through a shared `resolveNodeId()` path (`Runtime.evaluate` → `DOM.requestNode`), so you can target elements inside Shadow DOM directly (e.g. `dv1 click "my-comp >>> .btn"`).
+- **13 new commands** for richer browser automation:
+  - **`dblclick`** — double-click an element (via `Input.dispatchMouseEvent` with `clickCount: 2`)
+  - **`check` / `uncheck`** — toggle checkboxes and radio buttons via `el.checked = true/false`
+  - **`scroll-into-view`** — scroll an element into the viewport (via `DOM.scrollIntoViewIfNeeded`)
+  - **`clipboard`** — read, write, copy, and paste clipboard content (via `Clipboard.readText`/`writeText` + `execCommand`)
+  - **`pdf`** — export the current page as PDF (via `Page.printToPDF`), with options for paper size, margins, landscape, print-background, and page ranges
+  - **`is-visible` / `is-enabled` / `is-checked`** — query element state via `el.checkVisibility()`, `el.disabled`, `el.checked`
+  - **`value` / `attr` / `box` / `style`** — read input value, attribute, box model (x/y/width/height/center), and computed CSS styles
+- All new state query commands support `--json` / `--yaml` structured output and `>>>` shadow-piercing selectors.
 
 #### Changed
-- Unified element resolution in `cdp.ts` behind `resolveNodeId(selector)`, which handles plain CSS (via `DOM.querySelector`) and `>>>` shadow-pierce (via evaluated `shadowRoot.querySelector` chains) in one place. Previously each interaction command did its own `DOM.getDocument` + `DOM.querySelector`, none of which pierced Shadow DOM.
-- Added a `yaml` dependency and a shared `src/output.ts` module (`wantsStructured` / `renderStructured` / `printStructured`). Structured output helpers were factored out of the per-command `if (options.json)` blocks so JSON and YAML stay consistent across the whole CLI.
-
-> **Note:** Structured flags apply to commands that return data. Action commands that only report success (`click`, `fill`, `type`, `key`, `hover`, `focus`, `drag`, `upload`, `navigate`, `reload`, etc.) still print a human status line and intentionally do **not** take `--json` / `--yaml`. `har` also stays JSON-only (it writes a HAR file, which is JSON by definition).
+- **`get-box` → `box`, `get-styles` → `style`, `get-value` → `value`, `get-attr` → `attr`** — the four `get-*` state query commands are now primary under their short names. The `get-*` forms are still accepted as backward-compatible aliases.
+- **`--tab-id` → `--tab`** — the deprecated `--tab-id` option is replaced by `--tab` across `console`, `select`, and `close` commands. `--tab-id` is still accepted as a backward-compatible alias.
+- **`--computed-style` → `--style`** on the `query` command. `--computed-style` is still accepted as a deprecated alias.
+- Updated CDP coverage: 13 domains (23.2%), up from 11 (19.6%).
 
 #### Docs
-- Updated README and QUICK-REFERENCE to cover all 59 commands (previously listed 49/50); documented the 19 commands added in the interaction/diagnostics batch (`hover`, `focus`, `drag`, `upload`, `find`, `highlight`, `watch`, `reload`, `history`, `read`, `har`, `perf`, `dialog`, `scroll`, `frame`, `wait`, `diff`, `batch`, `stop`).
+- Updated README.md: command count 59→73, added sections for Element State & Box Model (7 commands) and Clipboard & PDF (2 commands), expanded Element Interaction (9→13), updated `--computed-style` → `--style` throughout, added `--tab` to relevant commands, added Clipboard domain to CDP coverage.
+- Updated QUICK-REFERENCE.md: total command count 59→73, new sections for Element State & Box Model and Clipboard & PDF, updated `--computed-style` → `--style`, updated `--tab-id` → `--tab`.
+- Updated CDP-COVERAGE.md: added 2 new domains, 4 new command groups, updated coverage to 23.2%.
+- Updated EXAMPLES.md: `dv1 close <id>` → `dv1 close <tab>` in Step 10.
 
 ### 1.0.0 (2026-07-03)
 

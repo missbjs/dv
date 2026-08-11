@@ -4,8 +4,8 @@ import { getPortFromProfile } from '../utils.js';
 export async function close(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        console.log(chalk.blue(`Closing tab ${options.tabId}...`));
-        await client.closeTab(options.tabId);
+        console.log(chalk.blue(`Closing tab ${options.tab}...`));
+        await client.closeTab(options.tab);
         console.log(chalk.green('Tab closed'));
     }
     catch (error) {

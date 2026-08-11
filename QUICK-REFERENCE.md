@@ -1,14 +1,15 @@
 # DV CLI Quick Reference
 
-## Total Commands: 59
+## Total Commands: 73
 
 ### Browser Management
 ```bash
 dv1 start
 dv1 status
 dv1 tabs
+dv1 select --tab <id>
 dv1 select --url "example"
-dv1 close
+dv1 close <tab>
 dv1 stop
 ```
 
@@ -32,6 +33,10 @@ dv1 read --url https://x.com   # HTTP fetch (no page)
 ### Element Interaction
 ```bash
 dv1 click #button
+dv1 dblclick #button
+dv1 check #agree
+dv1 uncheck #agree
+dv1 scroll-into-view #footer
 dv1 fill #input "text"
 dv1 type #input "more"
 dv1 key --key Enter
@@ -59,12 +64,16 @@ dv1 query "my-comp >>> .title" --text
 dv1 query "my-comp >>> input" --attr placeholder
 dv1 query ".list-item" --count
 dv1 query ".modal" --exists
-dv1 query "my-comp >>> sy-a" --computed-style --json
-dv1 query "my-comp >>> sy-a" --computed-style --props color,font-size
+dv1 query "my-comp >>> sy-a" --style --json
+dv1 query "my-comp >>> sy-a" --style --props color,font-size
 dv1 get-text --selector "#title"
 dv1 get-text --selector "app >>> .title"   # >>> shadow piercing supported
 dv1 get-html --selector "#container"
 dv1 get-html --selector "app >>> .inner" --json
+dv1 value --selector "#email"
+dv1 attr --selector "#btn" href
+dv1 box --selector "#card" --json
+dv1 style --selector "#btn" --props color,display
 dv1 set-text --selector "#title" --value "New"
 dv1 set-html --selector "#div" --value "<p>HTML</p>"
 dv1 set-attribute --selector "#btn" --attr disabled --value "true"
@@ -109,6 +118,28 @@ dv1 session-storage
 ```bash
 dv1 screenshot page.png
 dv1 snapshot --json
+```
+
+### Element State & Box Model
+```bash
+dv1 is-visible --selector "#modal"
+dv1 is-enabled --selector "#submit"
+dv1 is-checked --selector "#agree"
+dv1 value --selector "#email"
+dv1 attr --selector "#btn" href
+dv1 box --selector "#card" --json
+dv1 style --selector "#btn" --props color,display
+```
+
+### Clipboard & PDF
+```bash
+dv1 clipboard read
+dv1 clipboard write "Hello"
+dv1 clipboard copy --selector "#content"
+dv1 clipboard paste --selector "#input"
+dv1 pdf --output page.pdf
+dv1 pdf --landscape
+dv1 pdf --paper-width 8.5 --paper-height 11 --margin-top 0.5
 ```
 
 ### Console & Diagnostics
@@ -186,10 +217,14 @@ dv1 inspect --selector "#btn" --json
 dv1 snapshot --yaml
 dv1 query "app >>> .price" --text --yaml
 dv1 status --json
+dv1 clipboard read --json
+dv1 is-visible --selector "#modal" --json
+dv1 box --selector "#card" --yaml
 ```
 Covered: status, snapshot, network, cookies, console, eval, local-storage,
 session-storage, tabs, new, request, query, query-all, inspect, get-text,
-get-html, read, find, diff, history --list, frame --list, a11y, perf, profiles.
+get-html, read, find, diff, history --list, frame --list, a11y, perf, profiles,
+is-visible, is-enabled, is-checked, value, attr, box, style.
 
 Action commands (click, fill, type, hover, drag, upload, navigate, …) report a
 status line and do not take --json/--yaml. `har` is JSON-only (writes a HAR file).

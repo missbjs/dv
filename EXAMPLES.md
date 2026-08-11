@@ -193,7 +193,7 @@ dv1 select --index 2
 dv1 select --index 2
 
 # Close a tab
-dv1 close <id>
+dv1 close <tab>
 ```
 
 Expected output:
@@ -347,6 +347,50 @@ dv3 query "my-comp >>> .data" --html --json
 
 dv3 query "my-list >>> .item" --count --json
 # Output: { "count": 5 }
+```
+
+## Element State & Box Model Examples
+
+Force a checkbox, scroll past the fold, and read element state without writing JS:
+
+```bash
+# Check / uncheck a checkbox or radio
+dv1 check #agree
+dv1 uncheck #opt-in
+dv1 check "form >>> #agree"        # >>> shadow piercing works
+
+# Double-click an element
+dv1 dblclick #card
+
+# Scroll an element into view
+dv1 scroll-into-view #footer
+
+# Query element state
+dv1 is-visible --selector "#modal"      # true/false
+dv1 is-enabled --selector "#submit"
+dv1 is-checked --selector "#agree"
+
+# Read value / attribute / box / styles
+dv1 value --selector "#email"
+dv1 attr --selector "#btn" href
+dv1 box --selector "#card" --json   # x, y, width, height, center, viewport coords
+dv1 style --selector "#btn" --props color,display
+```
+
+## Clipboard & PDF Examples
+
+```bash
+# Read / write clipboard
+dv1 clipboard read
+dv1 clipboard write "Hello world"
+
+# Copy an element's text / paste into an input
+dv1 clipboard copy --selector "#content"
+dv1 clipboard paste --selector "#input"
+
+# Export the page as PDF
+dv1 pdf --output page.pdf
+dv1 pdf --landscape --print-background --paper-width 8.5 --paper-height 11 --margin-top 0.5
 ```
 
 ## Tips

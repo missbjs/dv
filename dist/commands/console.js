@@ -13,7 +13,7 @@ const TYPE_ALIASES = {
 export async function consoleCommand(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect(options.tabId);
+        await client.connect(options.tab ?? options.tabId);
         await client.enableConsole();
         const messages = await client.getConsoleMessages();
         let filtered = messages;

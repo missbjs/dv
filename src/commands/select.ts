@@ -4,7 +4,8 @@ import { getPortFromProfile } from '../utils.js';
 
 export interface SelectOptions {
   profile: string;
-  tabId?: string;
+  tab?: string;
+  tabId?: string; // deprecated, use tab
   index?: number;
 }
 
@@ -17,12 +18,13 @@ export async function select(options: SelectOptions) {
 
     let selectedTab;
 
-    if (options.tabId) {
-      selectedTab = tabs.find(p => p.id === options.tabId);
+    const tabId = options.tab ?? options.tabId;
+    if (tabId) {
+      selectedTab = tabs.find(p => p.id === tabId);
     } else if (options.index !== undefined) {
       selectedTab = tabs[options.index - 1];
     } else {
-      console.error(chalk.red('Use --tab-id or --index to select a tab'));
+      console.error(chalk.red('Use --tab or --index to select a tab'));
       process.exit(1);
     }
 

@@ -174,7 +174,7 @@
 - **Files:** `src/commands/start.ts:60-66`
 - **Impact:** Zombie Chrome processes; no cleanup on CLI exit; resource leak
 - **Current mitigation:** User must manually kill Chrome
-- **Recommendations:** Track PID; add `dv stop` command; cleanup on exit
+- **Recommendations:** Track PID; add `dv1 stop` command; cleanup on exit
 
 ## Dependency Risks
 

@@ -86,7 +86,7 @@
 
 **Error messages:**
 - User-friendly messages with chalk coloring
-- Context-specific guidance (e.g., "Start it first with: dv start --port")
+- Context-specific guidance (e.g., "Start it first with: dv1 start")
 - Suggestion of available options on failure (e.g., listing available profiles)
 
 **Patterns:**

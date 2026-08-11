@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import { buildElementExpression } from './utils.js';
+import { getProfileByPort } from './profiles.js';
 export class CDPClient {
     ws = null;
     port;
@@ -21,7 +22,7 @@ export class CDPClient {
         }
         catch (error) {
             if (error && typeof error === 'object' && 'code' in error && error.code === 'ECONNREFUSED') {
-                throw new Error(`Chrome is not running on port ${this.port}. Start it first with: dv1 start`);
+                throw new Error(`Chrome is not running on port ${this.port}. Start it first with: ${(() => { const p = getProfileByPort(this.port); return p ? p[0] : `dv`; })()} start`);
             }
             throw error;
         }

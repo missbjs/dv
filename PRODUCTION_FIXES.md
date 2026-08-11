@@ -116,11 +116,11 @@ client.onRequestIntercepted(async (intercepted) => {
 
 **Problem:**
 - Chrome processes were never killed after starting
-- Multiple `dv start` commands created zombie processes
+- Multiple `dv1 start` commands created zombie processes
 - No way to stop Chrome, leading to port exhaustion
 
 **Fix:**
-- Created new `dv stop` command
+- Created new `dv1 stop` command
 - Kills Chrome process on specified port using platform-specific commands
 - Works on Windows, macOS, and Linux
 - Prevents zombie processes and port collisions
@@ -162,11 +162,11 @@ program
 - No errors or warnings
 
 ✅ **New Commands**
-- `dv stop --port 9222` - Kills Chrome on port 9222
+- `dv1 stop` - Kills Chrome on the profile's port
 - Updated to 50 total commands (was 49)
 
 ✅ **Fixed Functionality**
-- `dv intercept` now properly blocks/mocks requests
+- `dv1 intercept` now properly blocks/mocks requests
 - WebSocket timeouts are properly cleaned up
 - Profile names are validated before use
 

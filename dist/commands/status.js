@@ -45,7 +45,7 @@ export async function status(options) {
             }
             console.log(chalk.red.bold('✗ Chrome is not running on port ' + port));
             console.log(chalk.yellow('\nTo start Chrome:'));
-            console.log(chalk.gray(`  dv ${options.profile} start`));
+            console.log(chalk.gray(`  ${options.profile} start`));
         }
         else {
             console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
