@@ -1,6 +1,6 @@
 {
   "name": "@missbjs/dv",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser automation, testing, and debugging",
   "license": "ISC",
