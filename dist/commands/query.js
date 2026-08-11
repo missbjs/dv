@@ -2,12 +2,13 @@ import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile, buildShadowExpression, buildElementExpression, escapeJsString } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
-/** Parse a comma-separated --props list into a clean array of property names. */
+/** Parse a comma-separated --props list into a clean array of property names.
+ *  Also splits on whitespace to handle PowerShell array-flattening (commas → spaces). */
 export function parseProps(props) {
     if (!props)
         return [];
     return props
-        .split(',')
+        .split(/[\s,]+/)
         .map((p) => p.trim())
         .filter((p) => p.length > 0);
 }

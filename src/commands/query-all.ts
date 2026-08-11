@@ -15,11 +15,12 @@ export interface QueryAllOptions {
   profile: string;
 }
 
-/** Parse a comma-separated --props list into a clean array of property names. */
+/** Parse a comma-separated --props list into a clean array of property names.
+ *  Also splits on whitespace to handle PowerShell array-flattening (commas → spaces). */
 function parseProps(props?: string): string[] {
   if (!props) return [];
   return props
-    .split(',')
+    .split(/[\s,]+/)
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 }

@@ -7,7 +7,7 @@ export async function getStyles(options) {
     try {
         await client.connect();
         const propsList = options.props
-            ? options.props.split(',').map(p => p.trim()).filter(Boolean)
+            ? options.props.split(/[\s,]+/).map(p => p.trim()).filter(Boolean)
             : undefined;
         const styles = await client.getElementStyles(options.selector, propsList);
         if (styles === null) {

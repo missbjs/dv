@@ -375,6 +375,8 @@ dv1 value --selector "#email"
 dv1 attr --selector "#btn" href
 dv1 box --selector "#card" --json   # x, y, width, height, center, viewport coords
 dv1 style --selector "#btn" --props color,display
+# In PowerShell, quote --props to prevent comma-splitting:
+#   dv1 style --selector "#btn" --props "color,display"
 ```
 
 ## Clipboard & PDF Examples

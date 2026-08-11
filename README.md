@@ -219,6 +219,12 @@ dv3 query ".btn" --style
 
 Returns `null` if the element isn't found. `--props` accepts a comma-separated list; omit it to dump every longhand property from the element's `CSSStyleDeclaration`. (`--computed-style` is still accepted as a deprecated alias.)
 
+> **PowerShell tip:** When using `--props` in PowerShell, quote the value to prevent comma-splitting:
+> ```powershell
+> dv1 query "my-comp >>> sy-a" --style --props "color,font-size,display" --json
+> ```
+> Without quotes, PowerShell interprets commas as array separators and flattens them into spaces, producing `--props "color font-size display"` — which the `split(/[\s,]+/)` parser still handles correctly, but quoting avoids ambiguity.
+
 ### ✅ Structured Output: `--json` and `--yaml`
 
 Every data-returning command prints human-readable output by default, and accepts **both** `--json` and `--yaml` for programmatic use:

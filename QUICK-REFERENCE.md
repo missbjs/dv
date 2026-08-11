@@ -80,6 +80,7 @@ dv1 set-attribute --selector "#btn" --attr disabled --value "true"
 dv1 highlight --selector "#btn"
 dv1 watch                       # watch DOM mutations in real-time
 ```
+> **PowerShell tip:** Quote `--props` values: `--props "color,font-size"` — otherwise PowerShell flattens commas into spaces.
 
 ### Network Monitoring
 ```bash
