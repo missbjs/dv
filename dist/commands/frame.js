@@ -39,6 +39,11 @@ export async function frame(options) {
             console.log(chalk.gray(`Total: ${frames.length} frames`));
         }
         else if (options.top) {
+            // NOTE: window.focus() focuses the browser tab, not the CDP execution context.
+            // CDP frame switching requires Page.setDocumentContent or attaching to the
+            // correct execution context via Runtime.evaluate's contextId. This is a
+            // best-effort convenience that works for simple cross-origin frame navigation
+            // but does NOT change which frame subsequent CDP commands target.
             console.log(chalk.blue('Switching to top-level frame...'));
             await client.send('Page.navigate', { url: '' }); // no-op to reset frame context
             // Focus on the main frame by evaluating in the top window
@@ -48,6 +53,9 @@ export async function frame(options) {
             console.log(chalk.green('Switched to top frame'));
         }
         else if (options.parent) {
+            // NOTE: Same limitation as --top — window.parent.focus() does not switch
+            // the CDP execution context. Subsequent commands still target the original
+            // frame's execution context.
             console.log(chalk.blue('Switching to parent frame...'));
             await client.send('Runtime.evaluate', {
                 expression: 'window.parent.focus()',

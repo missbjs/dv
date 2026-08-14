@@ -1,4 +1,4 @@
-node_modules/
+.npmrc
 .dv-session.json
 *.log
 .DS_Store

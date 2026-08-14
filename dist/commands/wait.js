@@ -62,47 +62,23 @@ export async function wait(options) {
 }
 async function waitForLoadEvent(client, maxWait) {
     return new Promise((resolve, reject) => {
-        const ws = client.ws;
-        if (!ws) {
-            reject(new Error('Not connected'));
-            return;
-        }
         const timer = setTimeout(() => reject(new Error('Timeout waiting for page load')), maxWait);
-        const handler = (data) => {
-            try {
-                const msg = JSON.parse(data.toString());
-                if (msg.method === 'Page.loadEventFired') {
-                    clearTimeout(timer);
-                    ws.removeListener('message', handler);
-                    resolve();
-                }
-            }
-            catch { }
-        };
-        ws.on('message', handler);
+        const off = client.on('Page.loadEventFired', () => {
+            clearTimeout(timer);
+            off();
+            resolve();
+        });
         client.send('Page.reload').catch(() => { });
     });
 }
 async function waitForDOMContentLoaded(client, maxWait) {
     return new Promise((resolve, reject) => {
-        const ws = client.ws;
-        if (!ws) {
-            reject(new Error('Not connected'));
-            return;
-        }
         const timer = setTimeout(() => reject(new Error('Timeout waiting for DOMContentLoaded')), maxWait);
-        const handler = (data) => {
-            try {
-                const msg = JSON.parse(data.toString());
-                if (msg.method === 'Page.domContentEventFired') {
-                    clearTimeout(timer);
-                    ws.removeListener('message', handler);
-                    resolve();
-                }
-            }
-            catch { }
-        };
-        ws.on('message', handler);
+        const off = client.on('Page.domContentEventFired', () => {
+            clearTimeout(timer);
+            off();
+            resolve();
+        });
         client.send('Page.reload').catch(() => { });
     });
 }
@@ -110,38 +86,28 @@ async function waitForNetworkIdle(client, maxWait) {
     const idleTime = 500;
     let lastActivity = Date.now();
     let activeRequests = 0;
-    const ws = client.ws;
-    if (!ws)
-        throw new Error('Not connected');
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
-            ws.removeListener('message', handler);
+            off();
             clearInterval(interval);
             reject(new Error('Timeout waiting for network idle'));
         }, maxWait);
-        const handler = (data) => {
-            try {
-                const msg = JSON.parse(data.toString());
-                if (msg.method === 'Network.requestWillBeSent') {
-                    activeRequests++;
-                    lastActivity = Date.now();
-                }
-                else if (msg.method === 'Network.responseReceived') {
-                    activeRequests = Math.max(0, activeRequests - 1);
-                    lastActivity = Date.now();
-                }
-                else if (msg.method === 'Network.loadingFinished') {
-                    activeRequests = Math.max(0, activeRequests - 1);
-                }
-            }
-            catch { }
-        };
-        ws.on('message', handler);
+        const off = client.on('Network.requestWillBeSent', () => {
+            activeRequests++;
+            lastActivity = Date.now();
+        });
+        client.on('Network.responseReceived', () => {
+            activeRequests = Math.max(0, activeRequests - 1);
+            lastActivity = Date.now();
+        });
+        client.on('Network.loadingFinished', () => {
+            activeRequests = Math.max(0, activeRequests - 1);
+        });
         const interval = setInterval(() => {
             if (activeRequests <= 0 && Date.now() - lastActivity >= idleTime) {
                 clearTimeout(timer);
                 clearInterval(interval);
-                ws.removeListener('message', handler);
+                off();
                 resolve();
             }
         }, 100);
@@ -157,7 +123,9 @@ async function waitForSelector(client, selector, maxWait) {
             if (result.result?.value === true)
                 return;
         }
-        catch { }
+        catch (err) {
+            console.warn(chalk.yellow(`waitForSelector: poll error: ${err instanceof Error ? err.message : err}`));
+        }
         await sleep(pollInterval);
     }
     throw new Error(`Timeout waiting for selector: ${selector}`);
@@ -173,7 +141,9 @@ async function waitForRef(client, ref, maxWait) {
             if (result.refs.has(ref))
                 return;
         }
-        catch { }
+        catch (err) {
+            console.warn(chalk.yellow(`waitForRef: poll error: ${err instanceof Error ? err.message : err}`));
+        }
         await sleep(pollInterval);
     }
     throw new Error(`Timeout waiting for ref: ${ref}`);
@@ -184,11 +154,14 @@ async function waitForText(client, text, maxWait) {
     const lowerText = text.toLowerCase();
     while (Date.now() < deadline) {
         try {
-            const result = await client.evaluate(`document.body?.textContent || ''`);
+            // innerText excludes script/style content that textContent would include
+            const result = await client.evaluate(`document.body?.innerText || ''`);
             if (result.result?.value?.toLowerCase().includes(lowerText))
                 return;
         }
-        catch { }
+        catch (err) {
+            console.warn(chalk.yellow(`waitForText: poll error: ${err instanceof Error ? err.message : err}`));
+        }
         await sleep(pollInterval);
     }
     throw new Error(`Timeout waiting for text: "${text}"`);

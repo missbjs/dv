@@ -1,7 +1,5 @@
 import { CDPClient } from './cdp.js';
 import { AXNode, RefEntry, SnapshotResult } from './types.js';
-/** Check if a target string is a dv ref (e.g. "@e1", "@e1-2-3") */
-export declare function isRef(target: string): boolean;
 /** Parse a ref string into its path segments: "@e1-2-3" → [1, 2, 3] */
 export declare function parseRef(ref: string): number[];
 /** Compare two refs for snapshot diff sorting */
@@ -32,6 +30,13 @@ export declare function buildSnapshotLines(nodes: AXNode[], existingRefs: Map<nu
  * without one, and write them back to the DOM.
  *
  * Returns a Map<backendDOMNodeId, ref> of all anchored refs.
+ *
+ * NOTE (TOCTOU): The AX tree is fetched once by the caller via `getFullAXTree()`,
+ * then this function writes `data-dv-ref` attributes to the DOM in batches of 50.
+ * If the DOM mutates between the AX snapshot and these writes (e.g. an element is
+ * added/removed/reordered), the assigned refs may not correspond to the original
+ * AX tree nodes. For interactive pages, consider re-fetching the AX tree after
+ * anchoring so the refs and tree stay in sync.
  */
 export declare function anchorRefs(client: CDPClient, nodes: AXNode[]): Promise<Map<number, string>>;
 /**

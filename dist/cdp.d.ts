@@ -7,7 +7,15 @@ export declare class CDPClient {
     private consoleMessages;
     private networkRequests;
     private requestInterceptedCallback?;
+    /** Subscribers for CDP events (keyed by method name, e.g. 'Page.loadEventFired'). */
+    private eventListeners;
+    /** Track whether the Page domain is already enabled to avoid duplicate Page.enable. */
+    private pageEnabled;
     constructor(port: number);
+    /** Subscribe to a CDP event (e.g. 'Page.loadEventFired'). Returns an unsubscribe fn. */
+    on(method: string, listener: (params: any) => void): () => void;
+    /** Remove a specific CDP event listener. */
+    off(method: string, listener: (params: any) => void): void;
     getTargets(): Promise<CDPTarget[]>;
     /** Find the first non-DevTools tab from live targets */
     getCurrentTab(targets: CDPTarget[]): CDPTarget | null;
@@ -61,6 +69,16 @@ export declare class CDPClient {
     closeTab(tabId: string): Promise<void>;
     enableNetwork(): Promise<void>;
     getNetworkRequests(): Promise<{
+        requestId: string;
+        url: string;
+        method: string;
+        type: string;
+        status?: number;
+        responseHeaders?: any;
+        responseBody?: string;
+    }[]>;
+    /** Public accessor for the collected network events (used by `har`). */
+    getNetworkEvents(): Promise<{
         requestId: string;
         url: string;
         method: string;
@@ -146,7 +164,7 @@ export declare class CDPClient {
     typeBackendNode(backendNodeId: number, text: string): Promise<void>;
     /** Resolve a DOM node to its object for inspection */
     resolveNode(nodeId: number): Promise<any>;
-    /** Get box model for a CSS selector (returns model or throws if not found) */
+    /** Get box model for a CSS selector (supports `>>>` shadow-piercing; returns null if not found) */
     getBoxModelBySelector(selector: string): Promise<any>;
     /** Capture screenshot clipped to a bounding box (viewport CSS coords) */
     captureScreenshotWithClip(clip: {
@@ -169,7 +187,11 @@ export declare class CDPClient {
     enablePerformance(): Promise<void>;
     getPerformanceMetrics(): Promise<any>;
     /** Scroll an element into view by CSS or `>>>` shadow-piercing selector */
-    scrollIntoView(selector: string): Promise<void>;
+    scrollIntoView(selector: string, options?: {
+        behavior?: 'auto' | 'smooth';
+        block?: 'start' | 'center' | 'end' | 'nearest';
+        inline?: 'start' | 'center' | 'end' | 'nearest';
+    }): Promise<void>;
     /** Scroll the window or an element by pixel offset (element may be `>>>` shadow-piercing) */
     scrollBy(selector: string | null, deltaX: number, deltaY: number): Promise<void>;
     getNavigationHistory(): Promise<any>;

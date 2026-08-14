@@ -1,7 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
-import { buildSnapshotLines, anchorRefs, resolveRef, compareRefs } from '../snapshot.js';
+import { buildSnapshotLines, anchorRefs, compareRefs } from '../snapshot.js';
 import { wantsStructured, renderStructured } from '../output.js';
 import { SnapshotDiff, RefEntry } from '../types.js';
 import fs from 'fs';

@@ -81,6 +81,18 @@ export function isRef(target) {
     return /^@e[\d]+(?:-[\d]+)*$/.test(target);
 }
 /**
+ * Parse a comma-separated --props list into a clean array of property names.
+ * Also splits on whitespace to handle PowerShell array-flattening (commas → spaces).
+ */
+export function parseProps(props) {
+    if (!props)
+        return [];
+    return props
+        .split(/[\s,]+/)
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+}
+/**
  * Convert a glob pattern to RegExp.
  * Supports: `*` (any chars except /), `**` (any chars), `?` (single char).
  */
@@ -91,8 +103,8 @@ export function globToRegex(pattern) {
         if (pattern[i] === '*' && pattern[i + 1] === '*') {
             regexStr += '.*';
             i += 2;
-            // Skip trailing /
-            if (pattern[i] === '/')
+            // Skip trailing / or \ (Windows paths)
+            if (pattern[i] === '/' || pattern[i] === '\\')
                 i++;
         }
         else if (pattern[i] === '*') {

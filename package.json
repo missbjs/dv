@@ -1,6 +1,6 @@
 {
   "name": "@missbjs/dv",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "type": "module",
   "description": "Chrome DevTools Protocol CLI - A comprehensive TypeScript CLI tool for browser automation, testing, and debugging",
   "license": "ISC",
@@ -41,6 +41,7 @@
   },
   "scripts": {
     "build": "npm version patch --no-git-tag-version && tsc",
+    "release": "git push && npm version patch --no-git-tag-version && pnpm build && npm publish --access public",
     "dev": "tsx src/cli.ts",
     "dev:watch": "tsx watch src/cli.ts",
     "start": "node dist/cli.js",

@@ -68,7 +68,6 @@ function execCommand(bin: string, cmd: string): Promise<void> {
 
     const proc = spawn(bin, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: true,
     });
 
     let stdout = '';
@@ -103,10 +102,18 @@ function execCommand(bin: string, cmd: string): Promise<void> {
   });
 }
 
-/** Map profile name to dv binary */
+/** Whitelist of known dv profile binaries */
+const DV_BINS = ['dv1', 'dv2', 'dv3', 'dv4', 'dv5', 'dv6'];
+
+/** Map profile name to dv binary (validated against the known profile whitelist) */
 function dvProfileBin(profile: string): string {
-  // dv1 → dv1, dv2 → dv2, etc.
-  return profile.startsWith('dv') ? profile : `dv${profile}`;
+  const bin = profile.startsWith('dv') ? profile : `dv${profile}`;
+  if (!DV_BINS.includes(bin)) {
+    throw new Error(
+      `Unknown dv profile binary "${bin}". Expected one of: ${DV_BINS.join(', ')}`
+    );
+  }
+  return bin;
 }
 
 function sleep(ms: number): Promise<void> {

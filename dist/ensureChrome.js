@@ -44,16 +44,12 @@ export async function ensureChromeRunning(profileName, headless) {
     if (headless) {
         args.push('--headless=new');
     }
-    let chromePath;
-    if (process.platform === 'win32') {
-        chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-    }
-    else if (process.platform === 'darwin') {
-        chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-    }
-    else {
-        chromePath = 'google-chrome';
-    }
+    const chromePath = process.env.CHROME_PATH
+        ?? (process.platform === 'win32'
+            ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+            : process.platform === 'darwin'
+                ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+                : 'google-chrome');
     const chrome = spawn(chromePath, args, {
         detached: true,
         stdio: 'ignore',

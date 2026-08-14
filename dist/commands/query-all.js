@@ -1,17 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
-import { getPortFromProfile, escapeJsString } from '../utils.js';
-/** Parse a comma-separated --props list into a clean array of property names.
- *  Also splits on whitespace to handle PowerShell array-flattening (commas → spaces). */
-function parseProps(props) {
-    if (!props)
-        return [];
-    return props
-        .split(/[\s,]+/)
-        .map((p) => p.trim())
-        .filter((p) => p.length > 0);
-}
+import { getPortFromProfile, escapeJsString, parseProps } from '../utils.js';
 /**
  * Build a JS expression that resolves to an array of all matching elements,
  * supporting `>>>` shadow piercing. Returns a NodeList-like usable in Array.from.

@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import axios from 'axios';
+import chalk from 'chalk';
 import { buildElementExpression } from './utils.js';
 import { getProfileByPort } from './profiles.js';
 export class CDPClient {
@@ -10,8 +11,35 @@ export class CDPClient {
     consoleMessages = [];
     networkRequests = [];
     requestInterceptedCallback;
+    /** Subscribers for CDP events (keyed by method name, e.g. 'Page.loadEventFired'). */
+    eventListeners = new Map();
+    /** Track whether the Page domain is already enabled to avoid duplicate Page.enable. */
+    pageEnabled = false;
     constructor(port) {
         this.port = port;
+    }
+    /** Subscribe to a CDP event (e.g. 'Page.loadEventFired'). Returns an unsubscribe fn. */
+    on(method, listener) {
+        let set = this.eventListeners.get(method);
+        if (!set) {
+            set = new Set();
+            this.eventListeners.set(method, set);
+        }
+        set.add(listener);
+        return () => {
+            set.delete(listener);
+            if (set.size === 0)
+                this.eventListeners.delete(method);
+        };
+    }
+    /** Remove a specific CDP event listener. */
+    off(method, listener) {
+        const set = this.eventListeners.get(method);
+        if (set) {
+            set.delete(listener);
+            if (set.size === 0)
+                this.eventListeners.delete(method);
+        }
     }
     async getTargets() {
         try {
@@ -104,6 +132,15 @@ export class CDPClient {
                     // Handle intercepted requests
                     if (this.requestInterceptedCallback) {
                         this.requestInterceptedCallback(message.params);
+                    }
+                }
+                // Dispatch to event subscribers for any CDP method
+                if (message.method) {
+                    const listeners = this.eventListeners.get(message.method);
+                    if (listeners) {
+                        for (const listener of listeners) {
+                            listener(message.params);
+                        }
                     }
                 }
             });
@@ -328,13 +365,18 @@ export class CDPClient {
             };
             this.ws?.on('message', handler);
         });
-        await this.send('Page.enable');
+        if (!this.pageEnabled) {
+            await this.send('Page.enable');
+            this.pageEnabled = true;
+        }
         await this.send('Page.reload');
         // Wait for load event
         try {
             await loadPromise;
         }
-        catch { }
+        catch {
+            console.warn(chalk.yellow('reloadAndWait: Page.loadEventFired not received, continuing with additional wait'));
+        }
         // Wait additional time for dynamic content/scripts to execute
         await new Promise(resolve => setTimeout(resolve, waitMs));
     }
@@ -357,6 +399,10 @@ export class CDPClient {
         await this.send('Network.enable');
     }
     async getNetworkRequests() {
+        return this.networkRequests;
+    }
+    /** Public accessor for the collected network events (used by `har`). */
+    async getNetworkEvents() {
         return this.networkRequests;
     }
     async clearNetworkRequests() {
@@ -623,8 +669,19 @@ export class CDPClient {
         return await this.send('DOM.resolveNode', { nodeId });
     }
     // ── Element Screenshot ──
-    /** Get box model for a CSS selector (returns model or throws if not found) */
+    /** Get box model for a CSS selector (supports `>>>` shadow-piercing; returns null if not found) */
     async getBoxModelBySelector(selector) {
+        if (selector.includes('>>>')) {
+            // Use resolveNodeId for shadow-piercing selectors
+            try {
+                const nodeId = await this.resolveNodeId(selector);
+                const box = await this.send('DOM.getBoxModel', { nodeId });
+                return box.model;
+            }
+            catch {
+                return null;
+            }
+        }
         const document = await this.send('DOM.getDocument');
         const node = await this.send('DOM.querySelector', {
             nodeId: document.root.nodeId,
@@ -721,7 +778,12 @@ export class CDPClient {
     }
     // ── Scroll ──
     /** Scroll an element into view by CSS or `>>>` shadow-piercing selector */
-    async scrollIntoView(selector) {
+    async scrollIntoView(selector, options) {
+        if (options?.behavior || options?.block || options?.inline) {
+            const opts = JSON.stringify({ behavior: options.behavior ?? 'auto', block: options.block ?? 'nearest', inline: options.inline ?? 'nearest' });
+            await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return; el.scrollIntoView(${opts}); })()`);
+            return;
+        }
         const nodeId = await this.resolveNodeId(selector);
         await this.send('DOM.scrollIntoViewIfNeeded', { nodeId });
     }
@@ -731,11 +793,9 @@ export class CDPClient {
         if (!selector) {
             expression = `window.scrollBy(${deltaX}, ${deltaY})`;
         }
-        else if (selector.includes('>>>')) {
-            expression = `${buildElementExpression(selector)}.scrollBy(${deltaX}, ${deltaY})`;
-        }
         else {
-            expression = `document.querySelector(${JSON.stringify(selector)}).scrollBy(${deltaX}, ${deltaY})`;
+            const el = buildElementExpression(selector);
+            expression = `(() => { const el = ${el}; if (!el) return; el.scrollBy(${deltaX}, ${deltaY}); })()`;
         }
         await this.send('Runtime.evaluate', { expression, returnByValue: true });
     }
@@ -888,7 +948,7 @@ export class CDPClient {
             }
         }
         catch {
-            // Silently ignore — permissions may already be granted
+            console.warn(chalk.yellow('grantClipboardPermission: could not grant permissions (may already be granted)'));
         }
     }
     /** Write text to the system clipboard via navigator.clipboard.writeText */
@@ -978,7 +1038,6 @@ export class CDPClient {
         await this.send('Runtime.evaluate', {
             expression: `
         window.__dvMutations = [];
-        window.__dvObserver = null;
         if (window.__dvObserver) { window.__dvObserver.disconnect(); }
         window.__dvObserver = new MutationObserver(function(muts) {
           for (const m of muts) {

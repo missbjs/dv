@@ -18,7 +18,7 @@ export async function har(options: HarOptions) {
     console.log(chalk.blue('Collecting network activity for HAR export...'));
 
     // Get all network entries from the client's collected events
-    const entries = (client as any).networkEvents || [];
+    const entries = await client.getNetworkEvents() || [];
     const promises = entries.map(async (entry: any) => {
       try {
         if (entry.requestId) {
@@ -27,7 +27,9 @@ export async function har(options: HarOptions) {
           }).catch(() => null);
           return { ...entry, body };
         }
-      } catch {}
+      } catch (err) {
+        console.warn(chalk.yellow(`Failed to fetch response body for ${entry.requestId}: ${err instanceof Error ? err.message : err}`));
+      }
       return entry;
     });
 

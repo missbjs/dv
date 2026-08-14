@@ -3,18 +3,16 @@ import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 export async function intercept(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
+    let isClosing = false;
     try {
         await client.connect();
         await client.enableNetwork();
         console.log(chalk.blue(`Setting up interception for: ${options.url}`));
-        // Store interception config
-        const interceptionConfig = {
-            urlPattern: options.url,
-            action: options.action,
-            response: options.response
-        };
         // Listen for intercepted requests
         client.onRequestIntercepted(async (intercepted) => {
+            // Skip if we're shutting down (CR-17 / WR-17)
+            if (isClosing)
+                return;
             const url = intercepted.request.url;
             // Check if URL matches pattern
             if (url.includes(options.url) || new RegExp(options.url).test(url)) {
@@ -25,7 +23,6 @@ export async function intercept(options) {
                 }
                 else if (options.action === 'mock' && options.response) {
                     console.log(chalk.green('  → Mocking response'));
-                    // For mock, we need to provide the mocked response
                     const mockResponse = Buffer.from(options.response).toString('base64');
                     await client.send('Network.continueInterceptedRequest', {
                         interceptionId: intercepted.interceptionId,
@@ -33,12 +30,10 @@ export async function intercept(options) {
                     });
                 }
                 else {
-                    // Continue normally if no mock response provided
                     await client.continueInterceptedRequest(intercepted.interceptionId);
                 }
             }
             else {
-                // URL doesn't match, continue normally
                 await client.continueInterceptedRequest(intercepted.interceptionId);
             }
         });
@@ -55,18 +50,28 @@ export async function intercept(options) {
         }
         console.log(chalk.yellow('\nListening for requests... Press Ctrl+C to stop'));
         console.log(chalk.gray('Interception will remain active until you stop this command'));
-        // Keep the process running
-        process.on('SIGINT', () => {
+        // Use a deferred promise that resolves on SIGINT (CR-07)
+        const deferred = defer();
+        const onSigint = () => {
+            isClosing = true;
             console.log(chalk.blue('\n\nStopping interception...'));
-            client.close();
-            process.exit(0);
-        });
-        // Prevent process from exiting
-        await new Promise(() => { });
+            deferred.resolve();
+        };
+        process.on('SIGINT', onSigint);
+        await deferred.promise;
+        process.removeListener('SIGINT', onSigint);
+        await client.close();
     }
     catch (error) {
         console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
         process.exit(1);
     }
+}
+/** Create a deferred promise (resolvable from outside) */
+function defer() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
 }
 //# sourceMappingURL=intercept.js.map

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { buildExpression, parseProps } from '../src/commands/query.js';
+import { buildExpression } from '../src/commands/query.js';
+import { parseProps } from '../src/utils.js';
 import { CDPClient } from '../src/cdp.js';
 import { MockCDPServer, createMockTargets } from './mock-cdp-server.js';
 import { getTestPort } from './test-profiles.js';

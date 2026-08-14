@@ -1,1 +1,1 @@
-{"version":3,"file":"emulate.d.ts","sourceRoot":"","sources":["../../src/commands/emulate.ts"],"names":[],"mappings":"AAcA,MAAM,WAAW,cAAc;IAC7B,OAAO,EAAE,MAAM,CAAC;IAChB,MAAM,EAAE,MAAM,CAAC;CAChB;AAED,wBAAsB,OAAO,CAAC,OAAO,EAAE,cAAc,iBA8BpD"}
+{"version":3,"file":"emulate.d.ts","sourceRoot":"","sources":["../../src/commands/emulate.ts"],"names":[],"mappings":"AAaA,MAAM,WAAW,cAAc;IAC7B,OAAO,EAAE,MAAM,CAAC;IAChB,MAAM,EAAE,MAAM,CAAC;CAChB;AAED,wBAAsB,OAAO,CAAC,OAAO,EAAE,cAAc,iBA8BpD"}

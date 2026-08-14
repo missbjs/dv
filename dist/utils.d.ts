@@ -29,6 +29,11 @@ export declare function buildShadowRectExpression(selector: string): string;
 /** Check if a target string is a dv ref (e.g. "@e1", "@e1-2-3") */
 export declare function isRef(target: string): boolean;
 /**
+ * Parse a comma-separated --props list into a clean array of property names.
+ * Also splits on whitespace to handle PowerShell array-flattening (commas → spaces).
+ */
+export declare function parseProps(props?: string): string[];
+/**
  * Convert a glob pattern to RegExp.
  * Supports: `*` (any chars except /), `**` (any chars), `?` (single char).
  */
