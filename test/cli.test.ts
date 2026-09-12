@@ -170,3 +170,120 @@ describe('CLI Error Handling', () => {
     expect(stderr).toContain('error: unknown command');
   });
 });
+describe('Emulation Reset Commands', () => {
+  describe('resize', () => {
+    it('should document clearing in its help', async () => {
+      const { stdout } = await runCLI(['resize', '--profile', 'dv1', '--help']);
+      expect(stdout).toContain('0 0');
+      expect(stdout).toMatch(/clear/i);
+    });
+
+    it('should accept 0 0 as arguments', async () => {
+      // Chrome is not running on dv1 in CI, so this fails at connect —
+      // what matters is that `0` is not rejected by argument parsing.
+      const { stdout, stderr } = await runCLI(['resize', '0', '0', '--profile', 'dv1']);
+      const output = stdout + stderr;
+      expect(output).not.toMatch(/argument/i);
+      expect(output).not.toMatch(/non-negative integer/);
+    });
+
+    it('should reject a non-numeric dimension', async () => {
+      const { stderr } = await runCLI(['resize', 'abc', '100', '--profile', 'dv1']);
+      expect(stderr).toContain('non-negative integer');
+    });
+
+    it('should reject a negative dimension', async () => {
+      const { stderr } = await runCLI(['resize', '-5', '100', '--profile', 'dv1']);
+      expect(stderr).toMatch(/non-negative integer|unknown option/);
+    });
+
+    it('should accept --tab, since overrides are per-tab', async () => {
+      const { stdout } = await runCLI(['resize', '--profile', 'dv1', '--help']);
+      expect(stdout).toContain('--tab');
+    });
+  });
+
+  describe('reset', () => {
+    it('should be registered in the top-level help', async () => {
+      const { stdout } = await runCLI(['--help']);
+      expect(stdout).toContain('reset');
+    });
+
+    it('should list its narrowing flags', async () => {
+      const { stdout } = await runCLI(['reset', '--profile', 'dv1', '--help']);
+      expect(stdout).toContain('--viewport');
+      expect(stdout).toContain('--user-agent');
+      expect(stdout).toContain('--timezone');
+      expect(stdout).toContain('--geolocation');
+      expect(stdout).toContain('--network');
+      expect(stdout).toContain('--json');
+    });
+
+    it('should require a profile', async () => {
+      const { stderr } = await runCLI(['reset']);
+      expect(stderr).toContain('--profile');
+    });
+
+    it('should offer --tab and --all-tabs, since overrides are per-tab', async () => {
+      const { stdout } = await runCLI(['reset', '--profile', 'dv1', '--help']);
+      expect(stdout).toContain('--tab');
+      expect(stdout).toContain('--all-tabs');
+    });
+  });
+
+  describe('status', () => {
+    it('should offer --no-viewport to skip the probe', async () => {
+      const { stdout } = await runCLI(['status', '--profile', 'dv1', '--help']);
+      expect(stdout).toContain('--no-viewport');
+    });
+  });
+});
+
+/**
+ * Every command that drives a page drives exactly one tab, and which tab that is
+ * depends on /json/list ordering — which shifts as tabs are activated. These pin
+ * the flag onto the commands that need it, and keep it off the ones where it
+ * would be a lie (browser-wide or all-tabs commands). One test per list: each
+ * check is a process spawn, and 60+ of them would outlast any sane timeout.
+ */
+describe('Per-tab targeting', () => {
+  it('offers --tab on the commands that drive a single tab', async () => {
+    const perTab = [
+      'navigate', 'eval', 'screenshot', 'emulate', 'click', 'read',
+      'storage-clear', 'cookies', 'reload', 'user-agent', 'throttle', 'pdf',
+    ];
+    for (const cmd of perTab) {
+      const { stdout } = await runCLI([cmd, '--profile', 'dv1', '--help']);
+      expect(stdout, `${cmd} should offer --tab`).toContain('--tab <id>');
+    }
+  }, 60000);
+
+  it('leaves --tab off the commands that are not per-tab', async () => {
+    // start/stop are browser-level, status covers every tab, tabs/profiles list,
+    // clear-cache and cookies-clear are browser-wide.
+    for (const cmd of ['start', 'status', 'stop', 'tabs', 'profiles', 'clear-cache', 'cookies-clear']) {
+      const { stdout } = await runCLI([cmd, '--profile', 'dv1', '--help']);
+      expect(stdout, `${cmd} should not offer --tab`).not.toContain('--tab <id>');
+    }
+  }, 60000);
+
+  it('keeps the deprecated --tab-id spelling working alongside --tab', async () => {
+    const { stdout } = await runCLI(['eval', '--profile', 'dv1', '--help']);
+    expect(stdout).toContain('--tab <id>');
+    expect(stdout).toContain('--tab-id <id>');
+  });
+
+  it('lets emulate load the page inside its own session, since the UA dies with it', async () => {
+    const { stdout } = await runCLI(['emulate', '--profile', 'dv1', '--help']);
+    expect(stdout).toContain('--navigate <url>');
+    expect(stdout).toContain('--reload');
+  });
+
+  it('reports the tab it could not find by ID, not "no tab found"', async () => {
+    // dv1 is not running in CI, so this may fail at connect instead — either
+    // way it must never silently act on the default tab.
+    const { stdout, stderr } = await runCLI(['eval', '--script', '1', '--profile', 'dv1', '--tab', 'NOPE']);
+    const output = stdout + stderr;
+    expect(output).toMatch(/No tab with ID NOPE|Chrome is not running/);
+  });
+});

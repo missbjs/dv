@@ -1,4 +1,5 @@
-export interface ResizeOptions {
+import { TabOptions } from '../tab.js';
+export interface ResizeOptions extends TabOptions {
     profile: string;
     width: number;
     height: number;

@@ -1,10 +1,11 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 export async function drag(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         // Parse target: either a CSS selector or "x=100,y=200" format
         let targetPos;
         const xyMatch = options.target.match(/^x=(\d+(?:\.\d+)?),y=(\d+(?:\.\d+)?)$/i);

@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
 
-export interface ClipboardOptions {
+export interface ClipboardOptions extends TabOptions {
   profile: string;
   /** clipboard action: read, write, copy, paste */
   action: 'read' | 'write' | 'copy' | 'paste';
@@ -17,7 +18,7 @@ export async function clipboard(options: ClipboardOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     switch (options.action) {
       case 'read': {

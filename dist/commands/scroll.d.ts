@@ -1,4 +1,5 @@
-export interface ScrollOptions {
+import { TabOptions } from '../tab.js';
+export interface ScrollOptions extends TabOptions {
     profile: string;
     selector?: string;
     deltaX?: number;

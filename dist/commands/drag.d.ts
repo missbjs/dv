@@ -1,4 +1,5 @@
-export interface DragOptions {
+import { TabOptions } from '../tab.js';
+export interface DragOptions extends TabOptions {
     profile: string;
     source: string;
     target: string;

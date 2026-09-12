@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, formatSnapshotLines, buildSnapshotJSONObject } from '../snapshot.js';
@@ -27,7 +28,7 @@ export async function read(options) {
     // Read from the browser page
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         if (options.snapshot) {
             // Output accessibility snapshot
             await client.enableAccessibility();

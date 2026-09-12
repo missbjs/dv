@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface ScrollOptions {
+export interface ScrollOptions extends TabOptions {
   profile: string;
   selector?: string;
   deltaX?: number;
@@ -13,7 +14,7 @@ export async function scroll(options: ScrollOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     const deltaX = options.deltaX ?? 0;
     const deltaY = options.deltaY ?? 0;
 

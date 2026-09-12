@@ -1,4 +1,5 @@
-export interface NetworkOptions {
+import { TabOptions } from '../tab.js';
+export interface NetworkOptions extends TabOptions {
     filter?: string;
     json?: boolean;
     yaml?: boolean;

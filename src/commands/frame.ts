@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
 
-export interface FrameOptions {
+export interface FrameOptions extends TabOptions {
   profile: string;
   selector?: string;
   parent?: boolean;
@@ -18,7 +19,7 @@ export async function frame(options: FrameOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (options.list) {
       // List all frames

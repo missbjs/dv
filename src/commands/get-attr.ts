@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
 
-export interface GetAttrOptions {
+export interface GetAttrOptions extends TabOptions {
   profile: string;
   selector: string;
   attr: string;
@@ -15,7 +16,7 @@ export async function getAttr(options: GetAttrOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     const value = await client.getElementAttribute(options.selector, options.attr);
 
     if (value === null) {

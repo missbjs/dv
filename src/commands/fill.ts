@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, isRef } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 
-export interface FillOptions {
+export interface FillOptions extends TabOptions {
   profile: string;
   selector: string;
   value: string;
@@ -13,7 +14,7 @@ export async function fill(options: FillOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (isRef(options.selector)) {
       // @e ref — resolve via snapshot

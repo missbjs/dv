@@ -1,4 +1,5 @@
-export interface WatchOptions {
+import { TabOptions } from '../tab.js';
+export interface WatchOptions extends TabOptions {
     profile: string;
     install?: boolean;
     read?: boolean;

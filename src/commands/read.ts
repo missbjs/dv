@@ -1,11 +1,12 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, formatSnapshotLines, buildSnapshotJSONObject } from '../snapshot.js';
 import { wantsStructured, renderStructured } from '../output.js';
 import axios from 'axios';
 
-export interface ReadOptions {
+export interface ReadOptions extends TabOptions {
   profile: string;
   /** Optional CSS selector (supports >>>) to scope --html / --text output */
   selector?: string;
@@ -47,7 +48,7 @@ export async function read(options: ReadOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (options.snapshot) {
       // Output accessibility snapshot

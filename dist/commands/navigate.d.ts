@@ -1,4 +1,5 @@
-export interface NavigateOptions {
+import { TabOptions } from '../tab.js';
+export interface NavigateOptions extends TabOptions {
     profile: string;
     url: string;
 }

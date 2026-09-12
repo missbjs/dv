@@ -1,4 +1,5 @@
-export interface WaitOptions {
+import { TabOptions } from '../tab.js';
+export interface WaitOptions extends TabOptions {
     profile: string;
     load?: boolean;
     domcontentloaded?: boolean;

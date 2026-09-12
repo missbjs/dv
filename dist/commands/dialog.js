@@ -1,10 +1,11 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 export async function dialog(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         // Enable dialog handling
         await client.send('Page.enable');
         // Set up a one-shot handler for the next dialog

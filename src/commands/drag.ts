@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface DragOptions {
+export interface DragOptions extends TabOptions {
   profile: string;
   source: string;
   target: string;
@@ -12,7 +13,7 @@ export async function drag(options: DragOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     // Parse target: either a CSS selector or "x=100,y=200" format
     let targetPos: string | { x: number; y: number };

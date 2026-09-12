@@ -1,4 +1,5 @@
-export interface DialogOptions {
+import { TabOptions } from '../tab.js';
+export interface DialogOptions extends TabOptions {
     profile: string;
     accept?: boolean;
     dismiss?: boolean;

@@ -1,4 +1,5 @@
-export interface FindOptions {
+import { TabOptions } from '../tab.js';
+export interface FindOptions extends TabOptions {
     profile: string;
     /** Locator mode: text, role, label, placeholder, testid */
     mode: 'text' | 'role' | 'label' | 'placeholder' | 'testid';

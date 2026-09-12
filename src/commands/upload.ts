@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { resolve } from 'path';
 
-export interface UploadOptions {
+export interface UploadOptions extends TabOptions {
   profile: string;
   selector: string;
   files: string[];
@@ -13,7 +14,7 @@ export async function upload(options: UploadOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     const resolvedPaths = options.files.map((f: string) => resolve(f));
     console.log(chalk.blue(`Uploading files to "${options.selector}":`));
     for (const fp of resolvedPaths) {

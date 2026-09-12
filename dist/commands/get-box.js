@@ -1,11 +1,12 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
 export async function getBox(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         const box = await client.getBoxModelBySelector(options.selector);
         const result = {
             x: box.content[0],

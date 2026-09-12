@@ -1,4 +1,5 @@
-export interface HoverOptions {
+import { TabOptions } from '../tab.js';
+export interface HoverOptions extends TabOptions {
     profile: string;
     selector: string;
 }

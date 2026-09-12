@@ -1,4 +1,5 @@
-export interface GetStylesOptions {
+import { TabOptions } from '../tab.js';
+export interface GetStylesOptions extends TabOptions {
     profile: string;
     selector: string;
     props?: string;

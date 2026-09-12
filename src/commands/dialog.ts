@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface DialogOptions {
+export interface DialogOptions extends TabOptions {
   profile: string;
   accept?: boolean;
   dismiss?: boolean;
@@ -13,7 +14,7 @@ export async function dialog(options: DialogOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     // Enable dialog handling
     await client.send('Page.enable');

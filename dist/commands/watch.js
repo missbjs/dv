@@ -1,10 +1,11 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 export async function watch(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         if (options.install || options.continuous) {
             console.log(chalk.blue('Installing MutationObserver on the page...'));
             await client.installMutationObserver();

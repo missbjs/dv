@@ -1,4 +1,5 @@
-export interface LocationOptions {
+import { TabOptions } from '../tab.js';
+export interface LocationOptions extends TabOptions {
     lat: number;
     lng: number;
     accuracy?: number;

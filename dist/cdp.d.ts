@@ -62,7 +62,19 @@ export declare class CDPClient {
     fill(selector: string, value: string): Promise<void>;
     type(selector: string, text: string): Promise<void>;
     pressKey(key: string): Promise<void>;
+    /**
+     * Override the viewport size. A width or height of 0 means "no override" in
+     * CDP's own convention, so `resize(0, 0)` clears the override instead of
+     * installing a useless one that would still govern the tab.
+     */
     resize(width: number, height: number): Promise<void>;
+    /**
+     * Navigate and wait for the load event. Same shape as reloadAndWait, and the
+     * reason it exists is the same: a command that installs a session-scoped
+     * override (user agent, device metrics) has to get the page loaded *before*
+     * it disconnects, or the site never sees the override at all.
+     */
+    navigateAndWait(url: string, waitMs?: number): Promise<void>;
     reloadAndWait(waitMs?: number): Promise<void>;
     close(): Promise<void>;
     newTab(url: string): Promise<CDPTarget>;
@@ -109,6 +121,30 @@ export declare class CDPClient {
     setTimezoneOverride(timezoneId: string): Promise<void>;
     setNetworkConditions(offline: boolean, latency: number, downloadThroughput: number, uploadThroughput: number): Promise<void>;
     clearGeolocationOverride(): Promise<void>;
+    /**
+     * Drop any device-metrics override and hand the tab back its real window size.
+     *
+     * `Emulation.clearDeviceMetricsOverride` only reverts an override installed by
+     * the *same* CDP session, and every dv command is a fresh connect/close — so a
+     * bare clear does nothing to the stale override that is the whole problem here
+     * (verified against Chrome 152: the size survives the owning session's exit).
+     * Claiming ownership first with a no-op 0x0 override — 0 means "do not override
+     * this dimension", so nothing on the page moves — makes the clear effective, and
+     * the restored size then persists for later sessions.
+     */
+    clearDeviceMetricsOverride(): Promise<void>;
+    /**
+     * Restore the real user agent. CDP has no clearUserAgentOverride; an empty
+     * userAgent disables the override (verified against Chrome 152).
+     */
+    clearUserAgentOverride(): Promise<void>;
+    /**
+     * Restore the host system timezone. Per the protocol, an empty timezoneId
+     * disables the override rather than erroring.
+     */
+    clearTimezoneOverride(): Promise<void>;
+    /** Restore unthrottled networking (-1 throughput means "no limit"). */
+    clearNetworkConditions(): Promise<void>;
     getCookies(urls?: string[]): Promise<any>;
     clearCookies(browserContextId?: string): Promise<void>;
     clearDataForOrigin(origin: string, storageTypes: string): Promise<void>;

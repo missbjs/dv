@@ -1,11 +1,12 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function perf(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         await client.enablePerformance();
         const metrics = await client.getPerformanceMetrics();
         const metricsList = metrics.metrics || [];

@@ -1,4 +1,5 @@
-export interface SessionStorageOptions {
+import { TabOptions } from '../tab.js';
+export interface SessionStorageOptions extends TabOptions {
     profile: string;
     key?: string;
     json?: boolean;

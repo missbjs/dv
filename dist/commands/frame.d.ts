@@ -1,4 +1,5 @@
-export interface FrameOptions {
+import { TabOptions } from '../tab.js';
+export interface FrameOptions extends TabOptions {
     profile: string;
     selector?: string;
     parent?: boolean;

@@ -1,4 +1,5 @@
-export interface A11yOptions {
+import { TabOptions } from '../tab.js';
+export interface A11yOptions extends TabOptions {
     profile: string;
     /** Output as JSON */
     json?: boolean;

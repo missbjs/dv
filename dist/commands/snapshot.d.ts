@@ -1,4 +1,5 @@
-export interface SnapshotOptions {
+import { TabOptions } from '../tab.js';
+export interface SnapshotOptions extends TabOptions {
     profile: string;
     json?: boolean;
     yaml?: boolean;

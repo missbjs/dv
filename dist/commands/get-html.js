@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
@@ -6,7 +7,7 @@ import { wantsStructured, renderStructured } from '../output.js';
 export async function getHtml(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         let html = null;
         if (isRef(options.selector)) {
             // @e ref — resolve via snapshot

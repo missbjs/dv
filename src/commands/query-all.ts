@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile, escapeJsString, parseProps } from '../utils.js';
 
-export interface QueryAllOptions {
+export interface QueryAllOptions extends TabOptions {
   selector: string;
   text?: boolean;
   html?: boolean;
@@ -49,7 +50,7 @@ export async function queryAll(options: QueryAllOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     // Value/style extraction uses Runtime.evaluate (no live node handles needed).
     const accessor = options.text ? 'textContent'

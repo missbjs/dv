@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import { ensureChromeRunning } from '../ensureChrome.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface NavigateOptions {
+export interface NavigateOptions extends TabOptions {
   profile: string;
   url: string;
 }
@@ -15,7 +16,7 @@ export async function navigate(options: NavigateOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     await client.enablePage();
 
     console.log(chalk.blue(`Navigating to ${options.url}...`));

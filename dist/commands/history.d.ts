@@ -1,4 +1,5 @@
-export interface HistoryOptions {
+import { TabOptions } from '../tab.js';
+export interface HistoryOptions extends TabOptions {
     profile: string;
     back?: boolean;
     forward?: boolean;

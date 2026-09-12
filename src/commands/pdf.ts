@@ -1,10 +1,11 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import fs from 'fs';
 import path from 'path';
 
-export interface PdfOptions {
+export interface PdfOptions extends TabOptions {
   profile: string;
   output?: string;
   landscape?: boolean;
@@ -23,7 +24,7 @@ export async function pdf(options: PdfOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     console.log(chalk.blue('Generating PDF...'));
     const data = await client.printToPDF({

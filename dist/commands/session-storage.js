@@ -1,11 +1,12 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function sessionStorage(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         console.log(chalk.blue('Getting sessionStorage...'));
         const result = await client.evaluate(`
       JSON.stringify(Array.from({ length: sessionStorage.length }, (_, i) => {

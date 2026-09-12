@@ -1,4 +1,5 @@
-export interface LocalStorageOptions {
+import { TabOptions } from '../tab.js';
+export interface LocalStorageOptions extends TabOptions {
     profile: string;
     key?: string;
     json?: boolean;

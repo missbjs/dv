@@ -1,4 +1,5 @@
-export interface KeyOptions {
+import { TabOptions } from '../tab.js';
+export interface KeyOptions extends TabOptions {
     profile: string;
     key: string;
 }

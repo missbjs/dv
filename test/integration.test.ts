@@ -148,7 +148,9 @@ describe('Integration Tests', () => {
         expect(output, `${cmd} should offer --json`).toContain('--json');
         expect(output, `${cmd} should offer --yaml`).toContain('--yaml');
       }
-    });
+      // 24 process spawns, sequentially: the default 30s timeout is too tight
+      // on a loaded machine.
+    }, 60000);
 
     it('should expose --html and --dom on the read command', async () => {
       const { stdout, stderr } = await runCLIAsync(['read', '--help']);

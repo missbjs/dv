@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
 
-export interface IsStateOptions {
+export interface IsStateOptions extends TabOptions {
   profile: string;
   selector: string;
   json?: boolean;
@@ -14,7 +15,7 @@ async function isState(options: IsStateOptions, state: 'visible' | 'enabled' | '
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     let value: boolean | null;
     switch (state) {

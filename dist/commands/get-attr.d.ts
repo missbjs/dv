@@ -1,4 +1,5 @@
-export interface GetAttrOptions {
+import { TabOptions } from '../tab.js';
+export interface GetAttrOptions extends TabOptions {
     profile: string;
     selector: string;
     attr: string;

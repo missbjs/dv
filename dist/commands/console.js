@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
@@ -13,7 +14,7 @@ const TYPE_ALIASES = {
 export async function consoleCommand(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect(options.tab ?? options.tabId);
+        await client.connect(targetTab(options));
         await client.enableConsole();
         const messages = await client.getConsoleMessages();
         let filtered = messages;

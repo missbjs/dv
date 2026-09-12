@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { promises as fs } from 'fs';
@@ -6,7 +7,7 @@ import { getPortFromProfile } from '../utils.js';
 export async function evalCommand(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         await client.enableRuntime();
         let expression = '';
         if (options.file) {

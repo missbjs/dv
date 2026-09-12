@@ -1,4 +1,5 @@
-export interface RequestOptions {
+import { TabOptions } from '../tab.js';
+export interface RequestOptions extends TabOptions {
     profile: string;
     id: string;
     body?: boolean;

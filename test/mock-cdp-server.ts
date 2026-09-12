@@ -118,11 +118,18 @@ export class MockCDPServer {
     // Runtime.releaseObject — release a retained Runtime object
     this.messageHandlers.set('Runtime.releaseObject', () => ({}));
 
-    // Page.navigate
-    this.messageHandlers.set('Page.navigate', (params: any) => ({
-      frameId: 'main',
-      loaderId: 'loader-1',
-    }));
+    // Page.navigate — fires a delayed Page.loadEventFired, like Page.reload, so
+    // navigateAndWait() resolves instead of hanging on its load promise.
+    this.messageHandlers.set('Page.navigate', (params: any) => {
+      setTimeout(() => {
+        this.connections.forEach((ws) => {
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ method: 'Page.loadEventFired', params: { timestamp: 1 } }));
+          }
+        });
+      }, 10);
+      return { frameId: 'main', loaderId: 'loader-1' };
+    });
 
     // Page.captureScreenshot
     this.messageHandlers.set('Page.captureScreenshot', () => ({
@@ -150,6 +157,9 @@ export class MockCDPServer {
 
     // Emulation.setDeviceMetricsOverride
     this.messageHandlers.set('Emulation.setDeviceMetricsOverride', () => ({}));
+
+    // Emulation.clearDeviceMetricsOverride
+    this.messageHandlers.set('Emulation.clearDeviceMetricsOverride', () => ({}));
 
     // Storage.getCookies
     this.messageHandlers.set('Storage.getCookies', () => ({

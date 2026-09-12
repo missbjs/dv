@@ -1,4 +1,5 @@
-export interface DiffOptions {
+import { TabOptions } from '../tab.js';
+export interface DiffOptions extends TabOptions {
     profile: string;
     /** Compare snapshots (snapshot1.json snapshot2.json) */
     files?: [string, string];

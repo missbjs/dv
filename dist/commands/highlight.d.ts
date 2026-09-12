@@ -1,4 +1,5 @@
-export interface HighlightOptions {
+import { TabOptions } from '../tab.js';
+export interface HighlightOptions extends TabOptions {
     profile: string;
     selector?: string;
     hide?: boolean;

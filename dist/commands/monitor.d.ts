@@ -1,4 +1,5 @@
-export interface MonitorOptions {
+import { TabOptions } from '../tab.js';
+export interface MonitorOptions extends TabOptions {
     types: string;
     profile: string;
 }

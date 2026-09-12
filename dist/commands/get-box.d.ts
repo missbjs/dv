@@ -1,4 +1,5 @@
-export interface GetBoxOptions {
+import { TabOptions } from '../tab.js';
+export interface GetBoxOptions extends TabOptions {
     profile: string;
     selector: string;
     json?: boolean;

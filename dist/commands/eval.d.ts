@@ -1,4 +1,5 @@
-export interface EvalOptions {
+import { TabOptions } from '../tab.js';
+export interface EvalOptions extends TabOptions {
     profile: string;
     script?: string;
     file?: string;

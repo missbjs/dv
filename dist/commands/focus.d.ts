@@ -1,4 +1,5 @@
-export interface FocusOptions {
+import { TabOptions } from '../tab.js';
+export interface FocusOptions extends TabOptions {
     profile: string;
     selector: string;
 }

@@ -1,4 +1,5 @@
-export interface QueryAllOptions {
+import { TabOptions } from '../tab.js';
+export interface QueryAllOptions extends TabOptions {
     selector: string;
     text?: boolean;
     html?: boolean;

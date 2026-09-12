@@ -1,4 +1,5 @@
-export interface CookiesOptions {
+import { TabOptions } from '../tab.js';
+export interface CookiesOptions extends TabOptions {
     profile: string;
     domain?: string;
     json?: boolean;

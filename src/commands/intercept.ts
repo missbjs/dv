@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface InterceptOptions {
+export interface InterceptOptions extends TabOptions {
   profile: string;
   url: string;
   action: 'block' | 'mock';
@@ -14,7 +15,7 @@ export async function intercept(options: InterceptOptions) {
   let isClosing = false;
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     await client.enableNetwork();
 
     console.log(chalk.blue(`Setting up interception for: ${options.url}`));

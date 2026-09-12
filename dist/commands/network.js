@@ -1,11 +1,12 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 export async function network(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         await client.enableNetwork();
         console.log(chalk.blue('Collecting network requests...'));
         await new Promise(resolve => setTimeout(resolve, 1000));

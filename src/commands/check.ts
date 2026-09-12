@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, isRef } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 
-export interface ToggleOptions {
+export interface ToggleOptions extends TabOptions {
   profile: string;
   selector: string;
 }
@@ -13,7 +14,7 @@ async function toggle(options: ToggleOptions, checked: boolean) {
   const verb = checked ? 'Checking' : 'Unchecking';
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (isRef(options.selector)) {
       await client.enableAccessibility();

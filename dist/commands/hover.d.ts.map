@@ -1,1 +1,1 @@
-{"version":3,"file":"hover.d.ts","sourceRoot":"","sources":["../../src/commands/hover.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,YAAY;IAC3B,OAAO,EAAE,MAAM,CAAC;IAChB,QAAQ,EAAE,MAAM,CAAC;CAClB;AAED,wBAAsB,KAAK,CAAC,OAAO,EAAE,YAAY,iBAchD"}
+{"version":3,"file":"hover.d.ts","sourceRoot":"","sources":["../../src/commands/hover.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,UAAU,EAAa,MAAM,WAAW,CAAC;AAIlD,MAAM,WAAW,YAAa,SAAQ,UAAU;IAC9C,OAAO,EAAE,MAAM,CAAC;IAChB,QAAQ,EAAE,MAAM,CAAC;CAClB;AAED,wBAAsB,KAAK,CAAC,OAAO,EAAE,YAAY,iBAchD"}

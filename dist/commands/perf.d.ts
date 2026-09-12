@@ -1,4 +1,5 @@
-export interface PerfOptions {
+import { TabOptions } from '../tab.js';
+export interface PerfOptions extends TabOptions {
     profile: string;
     json?: boolean;
     yaml?: boolean;

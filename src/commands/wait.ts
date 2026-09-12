@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs } from '../snapshot.js';
 
-export interface WaitOptions {
+export interface WaitOptions extends TabOptions {
   profile: string;
   load?: boolean;
   domcontentloaded?: boolean;
@@ -19,7 +20,7 @@ export async function wait(options: WaitOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     // Infer mode from which option was provided
     if (options.load) {

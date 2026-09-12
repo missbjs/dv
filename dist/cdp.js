@@ -66,6 +66,12 @@ export class CDPClient {
         let targetTab;
         if (tabId) {
             targetTab = tabs.find(p => p.id === tabId);
+            // A tab id that does not match must not fall through to the default tab:
+            // the command would then run against a tab the caller never named.
+            if (!targetTab) {
+                const bin = (() => { const p = getProfileByPort(this.port); return p ? p[0] : 'dv'; })();
+                throw new Error(`No tab with ID ${tabId} on port ${this.port}. List open tabs with: ${bin} tabs`);
+            }
         }
         else {
             // Default to first non-DevTools tab
@@ -345,13 +351,52 @@ export class CDPClient {
             code: key,
         });
     }
+    /**
+     * Override the viewport size. A width or height of 0 means "no override" in
+     * CDP's own convention, so `resize(0, 0)` clears the override instead of
+     * installing a useless one that would still govern the tab.
+     */
     async resize(width, height) {
+        if (!width || !height) {
+            await this.clearDeviceMetricsOverride();
+            return;
+        }
         await this.send('Emulation.setDeviceMetricsOverride', {
             width,
             height,
             deviceScaleFactor: 1,
             mobile: false,
         });
+    }
+    /**
+     * Navigate and wait for the load event. Same shape as reloadAndWait, and the
+     * reason it exists is the same: a command that installs a session-scoped
+     * override (user agent, device metrics) has to get the page loaded *before*
+     * it disconnects, or the site never sees the override at all.
+     */
+    async navigateAndWait(url, waitMs = 1000) {
+        const loadPromise = new Promise((resolve) => {
+            const handler = (data) => {
+                const message = JSON.parse(data.toString());
+                if (message.method === 'Page.loadEventFired') {
+                    this.ws?.removeListener('message', handler);
+                    resolve();
+                }
+            };
+            this.ws?.on('message', handler);
+        });
+        if (!this.pageEnabled) {
+            await this.send('Page.enable');
+            this.pageEnabled = true;
+        }
+        await this.send('Page.navigate', { url });
+        try {
+            await loadPromise;
+        }
+        catch {
+            console.warn(chalk.yellow('navigateAndWait: Page.loadEventFired not received, continuing with additional wait'));
+        }
+        await new Promise(resolve => setTimeout(resolve, waitMs));
     }
     async reloadAndWait(waitMs = 3000) {
         // Use a single-shot listener for Page.loadEventFired — don't destroy existing handlers
@@ -489,6 +534,44 @@ export class CDPClient {
     }
     async clearGeolocationOverride() {
         await this.send('Emulation.clearGeolocationOverride');
+    }
+    /**
+     * Drop any device-metrics override and hand the tab back its real window size.
+     *
+     * `Emulation.clearDeviceMetricsOverride` only reverts an override installed by
+     * the *same* CDP session, and every dv command is a fresh connect/close — so a
+     * bare clear does nothing to the stale override that is the whole problem here
+     * (verified against Chrome 152: the size survives the owning session's exit).
+     * Claiming ownership first with a no-op 0x0 override — 0 means "do not override
+     * this dimension", so nothing on the page moves — makes the clear effective, and
+     * the restored size then persists for later sessions.
+     */
+    async clearDeviceMetricsOverride() {
+        await this.send('Emulation.setDeviceMetricsOverride', {
+            width: 0,
+            height: 0,
+            deviceScaleFactor: 0,
+            mobile: false,
+        });
+        await this.send('Emulation.clearDeviceMetricsOverride');
+    }
+    /**
+     * Restore the real user agent. CDP has no clearUserAgentOverride; an empty
+     * userAgent disables the override (verified against Chrome 152).
+     */
+    async clearUserAgentOverride() {
+        await this.send('Emulation.setUserAgentOverride', { userAgent: '' });
+    }
+    /**
+     * Restore the host system timezone. Per the protocol, an empty timezoneId
+     * disables the override rather than erroring.
+     */
+    async clearTimezoneOverride() {
+        await this.send('Emulation.setTimezoneOverride', { timezoneId: '' });
+    }
+    /** Restore unthrottled networking (-1 throughput means "no limit"). */
+    async clearNetworkConditions() {
+        await this.setNetworkConditions(false, 0, -1, -1);
     }
     // Storage Domain
     async getCookies(urls) {

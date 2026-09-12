@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface KeyOptions {
+export interface KeyOptions extends TabOptions {
   profile: string;
   key: string;
 }
@@ -11,7 +12,7 @@ export async function key(options: KeyOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     console.log(chalk.blue(`Pressing key ${options.key}...`));
     await client.pressKey(options.key);

@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 // Map user-friendly short type names to CDP Console level values
@@ -14,7 +15,7 @@ export async function monitor(options) {
     const cdpTypes = types.map(t => TYPE_ALIASES[t] || t);
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         await client.enableConsole();
         console.log(chalk.blue(`Monitoring console messages (types: ${types.join(', ')})...`));
         console.log(chalk.gray('Press Ctrl+C to stop\n'));

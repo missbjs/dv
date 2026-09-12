@@ -1,4 +1,5 @@
-export interface HarOptions {
+import { TabOptions } from '../tab.js';
+export interface HarOptions extends TabOptions {
     profile: string;
     output: string;
 }

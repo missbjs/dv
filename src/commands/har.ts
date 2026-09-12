@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
 import { getPortFromProfile } from '../utils.js';
 
-export interface HarOptions {
+export interface HarOptions extends TabOptions {
   profile: string;
   output: string;
 }
@@ -12,7 +13,7 @@ export async function har(options: HarOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     await client.enableNetwork();
 
     console.log(chalk.blue('Collecting network activity for HAR export...'));

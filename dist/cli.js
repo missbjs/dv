@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command, Option } from 'commander';
+import { Command, Option, InvalidArgumentError } from 'commander';
 import { start } from './commands/start.js';
 import { stop } from './commands/stop.js';
 import { status } from './commands/status.js';
@@ -17,6 +17,7 @@ import { select } from './commands/select.js';
 import { newPage } from './commands/new.js';
 import { close } from './commands/close.js';
 import { resize } from './commands/resize.js';
+import { reset } from './commands/reset.js';
 import { monitor } from './commands/monitor.js';
 import { query } from './commands/query.js';
 import { listProfiles } from './profiles.js';
@@ -82,6 +83,17 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
 const program = new Command();
+/**
+ * Parse a viewport dimension. Rejects junk instead of silently passing NaN
+ * through, and keeps 0 — which CDP reads as "no override" — a valid value.
+ */
+function parseDimension(value) {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+        throw new InvalidArgumentError('must be a non-negative integer (0 clears the override)');
+    }
+    return parsed;
+}
 // Detect which binary was invoked for help text display
 const binName = process.env.DV_BIN_NAME || 'dv';
 program
@@ -93,6 +105,12 @@ const profileOption = new Option('--profile <profile>', 'Profile name (dv1 throu
 if (process.env.DV_BIN_NAME) {
     profileOption.hidden = true;
 }
+// Every command that talks to a page talks to exactly one tab. Without --tab it
+// is whichever tab comes first in /json/list, and that order shifts as tabs are
+// activated — so on a profile with more than one tab open, the target is not
+// something the caller can rely on. Tab IDs come from `tabs` and `status`.
+const tabOption = new Option('--tab <id>', 'Tab ID to act on (default: the first content tab)');
+const legacyTabOption = new Option('--tab-id <id>', 'Deprecated: use --tab instead');
 // Start Chrome
 program
     .command('start')
@@ -103,10 +121,11 @@ program
 // Status
 program
     .command('status')
-    .description('Check if Chrome is running and show open tabs')
+    .description('Check if Chrome is running and show open tabs (warns on emulated viewports)')
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .option('--no-viewport', 'Skip the per-tab viewport probe')
     .action(status);
 // Stop Chrome
 program
@@ -121,6 +140,8 @@ program
     .description('Navigate to URL on the current tab')
     .addOption(profileOption)
     .argument('<url>', 'URL to navigate to')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((url, options) => {
     navigate({ ...options, url, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -133,6 +154,8 @@ program
     .option('-f, --file <file>', 'JavaScript file to evaluate')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(evalCommand);
 // Take snapshot
 program
@@ -141,6 +164,8 @@ program
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(snapshot);
 // Take screenshot
 program
@@ -149,6 +174,8 @@ program
     .addOption(profileOption)
     .argument('<output>', 'Output file path')
     .option('-s, --selector <selector>', 'Capture only this element (CSS selector)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((output, options) => {
     screenshot({ ...options, output, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -161,20 +188,22 @@ program
     .option('-f, --filter <pattern>', 'Filter messages by pattern')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
-    .option('--tab <id>', 'Target specific tab by ID')
-    .option('--tab-id <id>', 'Deprecated: use --tab instead')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(consoleCommand);
 // Reload
 program
     .command('reload')
     .description('Reload the current tab')
     .addOption(profileOption)
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(async (options) => {
     const { CDPClient } = await import('./cdp.js');
     const { getPortFromProfile } = await import('./utils.js');
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(options.tab ?? options.tabId);
         await client.enablePage();
         await client.reloadAndWait(2000);
         console.log(chalk.green('Tab reloaded'));
@@ -193,6 +222,8 @@ program
     .description('Click element by selector')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     click({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -203,6 +234,8 @@ program
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector')
     .argument('<value>', 'Value to fill')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, value, options) => {
     fill({ ...options, selector, value, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -213,6 +246,8 @@ program
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector')
     .argument('<text>', 'Text to type')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, text, options) => {
     type({ ...options, selector, text, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -222,6 +257,8 @@ program
     .description('Press a key')
     .addOption(profileOption)
     .requiredOption('-k, --key <key>', 'Key to press (e.g., Enter, Escape, Tab)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(key);
 // Tabs
 program
@@ -263,19 +300,39 @@ program
 // Resize
 program
     .command('resize')
-    .description('Resize viewport')
+    .description('Resize viewport (use 0 0 to clear the override)')
     .addOption(profileOption)
-    .argument('<width>', 'Viewport width', parseInt)
-    .argument('<height>', 'Viewport height', parseInt)
+    .argument('<width>', 'Viewport width, or 0 to clear the override', parseDimension)
+    .argument('<height>', 'Viewport height, or 0 to clear the override', parseDimension)
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((width, height, options) => {
     resize({ ...options, width, height, profile: options.profile || process.env.DV_PROFILE });
 });
+// Reset emulation state
+program
+    .command('reset')
+    .description('Clear emulation overrides (viewport, user agent, timezone, geolocation, network)')
+    .addOption(profileOption)
+    .option('--viewport', 'Clear only the device metrics (viewport) override')
+    .option('--user-agent', 'Clear only the user agent override')
+    .option('--timezone', 'Clear only the timezone override')
+    .option('--geolocation', 'Clear only the geolocation override')
+    .option('--network', 'Clear only the network throttling')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
+    .option('--all-tabs', 'Clear on every open content tab')
+    .option('--json', 'Output as JSON')
+    .option('--yaml', 'Output as YAML')
+    .action(reset);
 // Monitor
 program
     .command('monitor')
     .description('Monitor console messages in real-time')
     .addOption(profileOption)
     .requiredOption('-t, --types <types>', 'Comma-separated message types (error,warn,log)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(monitor);
 // Profiles
 const profilesCmd = program
@@ -313,6 +370,8 @@ program
     .option('--props <list>', 'Comma-separated CSS properties to include (with --style)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     query({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -324,6 +383,8 @@ program
     .option('-f, --filter <pattern>', 'Filter by URL pattern')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(network);
 program
     .command('intercept')
@@ -332,6 +393,8 @@ program
     .requiredOption('-u, --url <url>', 'URL pattern to intercept')
     .requiredOption('-a, --action <action>', 'Action: block or mock')
     .option('-r, --response <response>', 'Mock response body')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(intercept);
 program
     .command('request')
@@ -341,6 +404,8 @@ program
     .option('--body', 'Include response body')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(request);
 program
     .command('clear-cache')
@@ -355,6 +420,8 @@ program
     .requiredOption('-s, --selector <selector>', 'CSS selector')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(inspect);
 program
     .command('query-all')
@@ -369,6 +436,8 @@ program
     .option('--props <list>', 'Comma-separated CSS properties to include (with --style)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     const sel = options.selector || selector;
     if (!sel) {
@@ -384,6 +453,8 @@ program
     .requiredOption('-s, --selector <selector>', 'CSS selector (supports >>> shadow piercing)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(getText);
 program
     .command('get-html')
@@ -392,6 +463,8 @@ program
     .requiredOption('-s, --selector <selector>', 'CSS selector (supports >>> shadow piercing)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(getHtml);
 program
     .command('set-text')
@@ -399,6 +472,8 @@ program
     .addOption(profileOption)
     .requiredOption('-s, --selector <selector>', 'CSS selector')
     .requiredOption('-v, --value <value>', 'Text value')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(setText);
 program
     .command('set-html')
@@ -406,6 +481,8 @@ program
     .addOption(profileOption)
     .requiredOption('-s, --selector <selector>', 'CSS selector')
     .requiredOption('-v, --value <value>', 'HTML value')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(setHtml);
 program
     .command('set-attribute')
@@ -414,6 +491,8 @@ program
     .requiredOption('-s, --selector <selector>', 'CSS selector')
     .requiredOption('-a, --attr <attr>', 'Attribute name')
     .requiredOption('-v, --value <value>', 'Attribute value')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(setAttribute);
 // Emulation commands
 program
@@ -421,6 +500,10 @@ program
     .description('Emulate device')
     .addOption(profileOption)
     .requiredOption('-d, --device <device>', 'Device name (e.g., iphone-13, pixel-5, ipad-pro)')
+    .option('--navigate <url>', 'Load this URL in the same session, so the site sees the device user agent')
+    .option('--reload', 'Reload the current page in the same session, for the same reason')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(emulate);
 program
     .command('location')
@@ -429,6 +512,8 @@ program
     .argument('<lat>', 'Latitude', parseFloat)
     .argument('<lng>', 'Longitude', parseFloat)
     .option('--accuracy <accuracy>', 'Accuracy in meters', parseFloat)
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((lat, lng, options) => {
     location({ ...options, lat, lng, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -437,12 +522,16 @@ program
     .description('Set user agent')
     .addOption(profileOption)
     .requiredOption('--ua <ua>', 'User agent string')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(userAgent);
 program
     .command('timezone')
     .description('Set timezone')
     .addOption(profileOption)
     .requiredOption('--tz <tz>', 'Timezone ID (e.g., America/New_York)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(timezone);
 program
     .command('throttle')
@@ -451,6 +540,8 @@ program
     .option('--offline', 'Go offline')
     .option('--slow-3g', 'Slow 3G')
     .option('--fast-3g', 'Fast 3G')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(throttle);
 // Storage commands
 program
@@ -460,6 +551,8 @@ program
     .option('--domain <domain>', 'Filter by domain')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(cookies);
 program
     .command('cookies-clear')
@@ -472,6 +565,8 @@ program
     .description('Clear storage')
     .addOption(profileOption)
     .requiredOption('-t, --type <type>', 'Storage type: local, session, or all')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(storageClear);
 program
     .command('local-storage')
@@ -480,6 +575,8 @@ program
     .option('-k, --key <key>', 'Filter by key')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(localStorage);
 program
     .command('session-storage')
@@ -488,6 +585,8 @@ program
     .option('-k, --key <key>', 'Filter by key')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(sessionStorage);
 // Read command
 program
@@ -502,6 +601,8 @@ program
     .option('--dom', 'Alias for --html')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     read({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -517,6 +618,8 @@ program
     .option('--text <text>', 'Text to wait for (case-insensitive)')
     .option('--ms <ms>', 'Simple sleep in ms', parseInt)
     .option('-t, --timeout <ms>', 'Max wait time in ms (default: 30000)', parseInt)
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(wait);
 // Batch command
 program
@@ -540,6 +643,8 @@ program
     .option('--action-value <value>', 'Value for fill/type action')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(find);
 // Diff command
 program
@@ -551,6 +656,8 @@ program
     .option('--output <file>', 'Save diff result to file')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     diff({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -561,6 +668,8 @@ program
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action(a11y);
 // Hover command
 program
@@ -568,6 +677,8 @@ program
     .description('Hover over an element by CSS selector')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     hover({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -577,6 +688,8 @@ program
     .description('Focus an element by CSS selector')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     focus({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -587,6 +700,8 @@ program
     .addOption(profileOption)
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     perf({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -598,6 +713,8 @@ program
     .option('-s, --selector <selector>', 'Element to scroll (omit to scroll window)')
     .option('-x, --delta-x <px>', 'Horizontal scroll offset', parseInt)
     .option('-y, --delta-y <px>', 'Vertical scroll offset', parseInt)
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     scroll({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -612,6 +729,8 @@ program
     .option('--go <entry>', 'Go to a specific history entry index', parseInt)
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     history({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -622,6 +741,8 @@ program
     .addOption(profileOption)
     .requiredOption('-s, --selector <selector>', 'CSS selector for file input element')
     .requiredOption('-f, --files <files...>', 'File paths to upload')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     upload({ selector: options.selector, files: options.files, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -631,6 +752,8 @@ program
     .description('Export network activity as HAR file')
     .addOption(profileOption)
     .argument('<output>', 'Output HAR file path')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((output, options) => {
     har({ ...options, output, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -642,6 +765,8 @@ program
     .option('--accept', 'Accept dialog (default)')
     .option('--dismiss', 'Dismiss dialog')
     .option('--text <text>', 'Text for prompt dialogs')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     dialog({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -657,6 +782,8 @@ program
     .option('--index <index>', 'Switch to frame by child index', parseInt)
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     frame({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -668,6 +795,8 @@ program
     .option('--install', 'Install MutationObserver on the page')
     .option('--read', 'Read accumulated mutations')
     .option('--continuous', 'Install and continuously poll for mutations')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     watch({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -678,6 +807,8 @@ program
     .addOption(profileOption)
     .requiredOption('-s, --source <selector>', 'Source element selector')
     .requiredOption('-t, --target <target>', 'Target selector or x,y (e.g. "x=100,y=200")')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     drag({ source: options.source, target: options.target, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -688,6 +819,8 @@ program
     .addOption(profileOption)
     .option('-s, --selector <selector>', 'CSS selector')
     .option('--hide', 'Hide the highlight')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     highlight({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -697,6 +830,8 @@ program
     .description('Double-click an element')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     dblclick({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -705,6 +840,8 @@ program
     .description('Check a checkbox or radio button')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     check({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -713,6 +850,8 @@ program
     .description('Uncheck a checkbox or radio button')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     uncheck({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -721,6 +860,8 @@ program
     .description('Scroll an element into view')
     .addOption(profileOption)
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     scrollIntoView({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -732,6 +873,8 @@ program
     .argument('[text]', 'Text to write (required for write action)')
     .option('--json', 'Output as JSON (read action only)')
     .option('--yaml', 'Output as YAML (read action only)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((action, text, options) => {
     clipboard({ ...options, action: action, text, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -750,6 +893,8 @@ program
     .option('--margin-right <margin>', 'Right margin in inches', parseFloat)
     .option('--page-ranges <ranges>', 'Page ranges to print, e.g. "1-5,8"')
     .option('--prefer-css-page-size', 'Prefer CSS-defined page size')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((options) => {
     pdf({ ...options, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -760,6 +905,8 @@ program
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     isVisible({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -770,6 +917,8 @@ program
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     isEnabled({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -780,6 +929,8 @@ program
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     isChecked({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -791,6 +942,8 @@ program
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     getValue({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -803,6 +956,8 @@ program
     .argument('<attr>', 'Attribute name')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, attr, options) => {
     getAttr({ ...options, selector, attr, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -814,6 +969,8 @@ program
     .argument('<selector>', 'CSS selector (use >>> to pierce shadow roots)')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     getBox({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });
@@ -826,6 +983,8 @@ program
     .option('--props <list>', 'Comma-separated CSS property names to filter')
     .option('--json', 'Output as JSON')
     .option('--yaml', 'Output as YAML')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
     .action((selector, options) => {
     getStyles({ ...options, selector, profile: options.profile || process.env.DV_PROFILE });
 });

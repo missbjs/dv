@@ -39,7 +39,7 @@ dv1 screenshot screenshot.png
 
 ## Features
 
-### 🚀 73 Commands Across 13 CDP Domains
+### 🚀 74 Commands Across 13 CDP Domains
 
 **Browser Management (7)**
 - `start`, `stop`, `status`, `tabs`, `select`, `new`, `close`
@@ -63,8 +63,8 @@ dv1 screenshot screenshot.png
 **Network Monitoring (5)**
 - `network`, `intercept`, `request`, `clear-cache`, `har`
 
-**Device Emulation (5)**
-- `emulate`, `location`, `user-agent`, `timezone`, `throttle`
+**Device Emulation (6)**
+- `emulate`, `location`, `user-agent`, `timezone`, `throttle`, `reset`
 
 **Storage Management (5)**
 - `cookies`, `cookies-clear`, `storage-clear`
@@ -108,10 +108,121 @@ dv1 location 37.7749 -122.4194
 dv1 throttle --slow-3g
 ```
 
-**Supported Devices:**
-- iPhone 13, iPhone 13 Pro, iPhone SE
-- Pixel 5, Samsung S21
-- iPad Pro, iPad Air
+**Taking emulation back off.** A viewport override is per-tab and sticky: it survives
+reloads, navigation and the CLI process exiting, so one stale `resize` otherwise governs
+every later screenshot, hit-test and measurement.
+
+```bash
+dv1 resize 0 0            # clear the viewport override (0 means "no override")
+dv1 reset                 # clear the whole bundle: viewport, UA, timezone, geolocation, throttle
+dv1 reset --viewport      # or narrow it: --viewport --user-agent --timezone --geolocation --network
+dv1 status                # flags any tab whose viewport does not match its window
+```
+
+Overrides are per-tab, and `resize` / `reset` talk to the same tab as every other dv
+command — the first content tab. For anything else, name it or sweep the profile:
+
+```bash
+dv1 resize 0 0 --tab <id>            # clear one specific tab (ids come from dv1 status)
+dv1 reset --viewport --all-tabs      # clear every open content tab
+```
+
+`dv1 status` reports the per-tab viewport and warns when it looks emulated:
+
+```
+  ○ 1. wui editor demo
+     URL: http://localhost:5173/demo-editor.html
+     Viewport: 900x700  ⚠ emulated — window is 1147x1241
+```
+
+The same numbers are in `status --json` under `tabs[].viewport` and a top-level
+`emulatedTabs` count, and the hint names the tab when the emulated one is not the
+default target. `status` only reports — it never changes emulation state. Use
+`--no-viewport` to skip the probe.
+
+When a tab cannot be judged, `status` says so instead of reporting "not emulated". A
+tab that has never been in front has no window size to compare against, and a
+`chrome://` page cannot be probed at all:
+
+```
+     Viewport: 390x844  ⚠ cannot tell — outerWidth, outerHeight reported as 0 — a tab
+                          that has never been in front has no window size to compare against
+     Viewport: not readable (tab did not answer)
+```
+
+`--json` / `--yaml` carry the same distinction: top-level `inconclusiveTabs` and
+`unprobedTabs` counts, and per tab `viewport.conclusive` plus
+`viewport.inconclusiveReason`. `emulatedTabs: 0` with `inconclusiveTabs: 2` means
+two tabs were not checked — not that they are clean.
+
+Two caveats worth knowing. A tab that is not in front keeps reporting the inner size
+its widget last settled at, so a background tab can still read as emulated for a
+while after its override is genuinely gone — `status` will not bring tabs to front to
+get a cleaner number, because that would steal focus. And detection is a comparison,
+not a flag Chrome exposes: an override close to the real window size in either
+dimension (within ~40px wide or ~200px tall) is not reported, which is the price of
+never crying wolf over docked DevTools.
+
+**What survives the command, and what does not.** Every dv command is one CDP
+connect/close, and a CDP override belongs to the connection that installed it. The
+viewport size is the exception: Chrome keeps the resized widget after the session goes
+away, which is why `resize 0 0` and `reset` exist at all. Everything else is gone
+before the next command runs, and each command now says so in its own output.
+
+`emulate --device` splits across that line, so it is worth stating plainly (measured
+against Chrome 152):
+
+| What `emulate` sets | After the command exits |
+|---|---|
+| Viewport width/height, and the CSS/media queries that follow from it | **persists** — the page keeps its mobile layout |
+| `devicePixelRatio` | reverts to the display's own |
+| `screen.width` / `screen.height` and the mobile flag | revert |
+| User agent | reverts to desktop Chrome |
+
+So a site that lays out by media query stays mobile, while a site that branches on the
+user agent serves desktop HTML the moment it is re-fetched. `batch` does not help here:
+it spawns one CLI process per step, so every step is its own session.
+
+The fix is to load the page from inside the same command:
+
+```bash
+dv1 emulate -d iphone-13 --navigate https://example.com   # fetch under the device UA
+dv1 emulate -d iphone-13 --reload                         # re-fetch the current page
+```
+
+Both wait for the load event before disconnecting, so the response the server picked for
+that user agent is the HTML left on the page. Verified against a local echo server: the
+request arrived as `Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 …)` while
+`navigator.userAgent` read as desktop Chrome again on the next command.
+
+Neither `resize 0 0` nor `reset` touches the real window bounds.
+
+**Supported Devices:** `iphone-13`, `iphone-se`, `pixel-5`, `samsung-s21`,
+`ipad-pro`, `ipad-air` (`emulate` with an unknown name lists them).
+
+### ✅ Per-Tab Targeting: `--tab <id>`
+Every command that talks to a page talks to exactly one tab. Without `--tab` that is
+whichever tab comes first in Chrome's target list — and that order is *activation*
+order, so it shifts as tabs are clicked. On a profile with more than one tab open, the
+default target is not something a script can rely on.
+
+`--tab <id>` pins it. All 64 page-facing commands accept it (`--tab-id` is kept as a
+deprecated alias); the 10 that do not are the ones where it would be a lie — `start`,
+`stop`, `status`, `tabs`, `new`, `close`, `profiles`, `clear-cache`,
+`cookies-clear` and `batch`.
+
+```bash
+dv1 tabs                                  # tab ids
+dv1 read --tab 6CF0E9E6618DFFDC2C2B62797B9EDD1B
+dv1 eval --tab <id> --script "location.href"
+dv1 storage-clear --tab <id> --type local  # clears that tab's origin, not the default tab's
+```
+
+A tab id that matches nothing fails loudly rather than quietly running somewhere else:
+
+```
+Error: No tab with ID NOPE123 on port 9231. List open tabs with: dv2 tabs
+```
 
 ### ✅ Storage Management
 View and manage cookies, localStorage, sessionStorage:

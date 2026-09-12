@@ -1,4 +1,5 @@
-export interface ScrollIntoViewOptions {
+import { TabOptions } from '../tab.js';
+export interface ScrollIntoViewOptions extends TabOptions {
     profile: string;
     selector: string;
 }

@@ -1,10 +1,11 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile, isRef } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 
-export interface InspectOptions {
+export interface InspectOptions extends TabOptions {
   profile: string;
   selector: string;
   json?: boolean;
@@ -15,7 +16,7 @@ export async function inspect(options: InspectOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (isRef(options.selector)) {
       // @e ref — resolve via snapshot

@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
@@ -7,7 +8,7 @@ import { auditA11y, formatA11yReport } from '../a11y.js';
 export async function a11y(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         await client.enableAccessibility();
         const axResult = await client.getFullAXTree();
         if (!axResult.nodes || axResult.nodes.length === 0) {

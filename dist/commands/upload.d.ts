@@ -1,4 +1,5 @@
-export interface UploadOptions {
+import { TabOptions } from '../tab.js';
+export interface UploadOptions extends TabOptions {
     profile: string;
     selector: string;
     files: string[];

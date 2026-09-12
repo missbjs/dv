@@ -1,4 +1,5 @@
-export interface InterceptOptions {
+import { TabOptions } from '../tab.js';
+export interface InterceptOptions extends TabOptions {
     profile: string;
     url: string;
     action: 'block' | 'mock';

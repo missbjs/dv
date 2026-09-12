@@ -1,4 +1,5 @@
-export interface ToggleOptions {
+import { TabOptions } from '../tab.js';
+export interface ToggleOptions extends TabOptions {
     profile: string;
     selector: string;
 }

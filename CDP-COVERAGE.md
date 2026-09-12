@@ -16,7 +16,7 @@ Chrome DevTools Protocol CLI
 | HTTP | `/json/close/id` | `close` | ✅ Implemented |
 | **Page** | | | |
 | Page | `Page.enable` | Internal | ✅ Implemented |
-| Page | `Page.navigate` | `navigate` | ✅ Implemented |
+| Page | `Page.navigate` | `navigate`, `emulate --navigate` | ✅ Implemented |
 | Page | `Page.captureScreenshot` | `screenshot` | ✅ Implemented |
 | Page | `Page.printToPDF` | `pdf` | ✅ Implemented |
 | **Runtime** | | | |
@@ -55,11 +55,44 @@ Chrome DevTools Protocol CLI
 | Network | `Network.continueInterceptedRequest` | `intercept` | ✅ Implemented |
 | **Emulation** | | | |
 | Emulation | `Emulation.setDeviceMetricsOverride` | `resize`, `emulate` | ✅ Implemented |
+| Emulation | `Emulation.clearDeviceMetricsOverride` | `resize 0 0`, `reset --viewport`, `start` | ✅ Implemented |
 | Emulation | `Emulation.setGeolocationOverride` | `location` | ✅ Implemented |
-| Emulation | `Emulation.clearGeolocationOverride` | Internal | ✅ Implemented |
-| Emulation | `Emulation.setUserAgentOverride` | `user-agent` | ✅ Implemented |
-| Emulation | `Emulation.setTimezoneOverride` | `timezone` | ✅ Implemented |
-| Emulation | `Emulation.setNetworkConditions` | `throttle` | ✅ Implemented |
+| Emulation | `Emulation.clearGeolocationOverride` | `reset --geolocation` | ✅ Implemented |
+| Emulation | `Emulation.setUserAgentOverride` | `user-agent`, `reset --user-agent` (empty string clears) | ✅ Implemented |
+| Emulation | `Emulation.setTimezoneOverride` | `timezone`, `reset --timezone` (empty id clears) | ✅ Implemented |
+| Emulation | `Emulation.setNetworkConditions` | `throttle`, `reset --network` (-1 throughput clears) | ✅ Implemented |
+
+**What an override outlives.** Every override in this table except device metrics belongs to
+the CDP session that set it, and every dv command is one connect/close — so by the next command
+they are gone. Measured against Chrome 152: the viewport *size* persists (Chrome keeps the
+resized widget), while `deviceScaleFactor`, `screen.width/height`, the mobile flag, the user
+agent and the timezone all revert. The commands say so in their output, and
+`emulate --navigate <url>` / `--reload` exist so a request can go out while the device user
+agent is still installed (`Page.navigate` + `Page.loadEventFired` inside the same session).
+
+**Clearing emulation.** CDP only exposes a dedicated clear for device metrics and
+geolocation; user agent, timezone and network conditions are cleared by re-setting them to
+a neutral value (empty string, empty timezone id, `-1` throughput).
+
+`Emulation.clearDeviceMetricsOverride` reverts only an override installed by the *same* CDP
+session, and every dv command is a fresh connect/close — so dv claims ownership with a no-op
+`setDeviceMetricsOverride {width: 0, height: 0, deviceScaleFactor: 0}` immediately before the
+clear. Without that claim the clear is silently ineffective against the stale override left by
+an earlier command (verified against Chrome 152).
+
+Measured against Chrome 152: the claim works no matter how many stale overrides earlier
+sessions left behind (1, 2 and 3 were tested), while a bare clear fails even against one.
+A claim with a *real* size clears correctly against a single stale override but can leave
+its own size behind when several are stacked — which is why the claim is `0x0`.
+
+Overrides are per-target, so every clear names a target: `resize` and `reset` use the same
+tab as the rest of dv (the first content tab) unless given `--tab <id>`, and
+`reset --all-tabs` walks every content tab.
+
+There is no CDP getter for "is an override active". `status` infers it instead, by comparing
+`innerWidth/innerHeight` against `outerWidth/outerHeight` per tab. A tab that is not in front
+reports the inner size its widget last settled at, so a cleared background tab can still read
+as emulated until it is next shown.
 | **Storage** | | | |
 | Storage | `Storage.getCookies` | `cookies` | ✅ Implemented |
 | Storage | `Storage.clearCookies` | `cookies-clear` | ✅ Implemented |
@@ -177,12 +210,13 @@ These CDP domains are not relevant for browser automation/testing CLI:
 - `har` - Export network activity as HAR
 
 
-### Device Emulation (5)
-- `emulate` - Device emulation
+### Device Emulation (6)
+- `emulate` - Device emulation (`--navigate`/`--reload` load the page under the device user agent)
 - `location` - Geolocation override
 - `user-agent` - User agent override
 - `timezone` - Timezone override
 - `throttle` - Network throttling
+- `reset` - Clear emulation overrides (all, or narrowed by flag)
 
 ### Storage Management (5)
 - `cookies` - List cookies
@@ -210,7 +244,7 @@ These CDP domains are not relevant for browser automation/testing CLI:
 ### Profile Management (1)
 - `profiles` - List profiles
 
-**Total: 73 commands**
+**Total: 74 commands**
 
 ---
 

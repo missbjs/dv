@@ -1,4 +1,5 @@
-export interface ThrottleOptions {
+import { TabOptions } from '../tab.js';
+export interface ThrottleOptions extends TabOptions {
     profile: string;
     offline?: boolean;
     slow3g?: boolean;

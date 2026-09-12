@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface HighlightOptions {
+export interface HighlightOptions extends TabOptions {
   profile: string;
   selector?: string;
   hide?: boolean;
@@ -12,7 +13,7 @@ export async function highlight(options: HighlightOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (options.hide) {
       console.log(chalk.blue('Hiding highlight...'));

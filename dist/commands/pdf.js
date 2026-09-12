@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import fs from 'fs';
@@ -6,7 +7,7 @@ import path from 'path';
 export async function pdf(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         console.log(chalk.blue('Generating PDF...'));
         const data = await client.printToPDF({
             landscape: options.landscape,

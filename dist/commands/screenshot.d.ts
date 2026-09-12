@@ -1,4 +1,5 @@
-export interface ScreenshotOptions {
+import { TabOptions } from '../tab.js';
+export interface ScreenshotOptions extends TabOptions {
     profile: string;
     output: string;
     selector?: string;

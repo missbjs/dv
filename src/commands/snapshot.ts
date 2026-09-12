@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import {
@@ -9,7 +10,7 @@ import {
 } from '../snapshot.js';
 import { wantsStructured, renderStructured } from '../output.js';
 
-export interface SnapshotOptions {
+export interface SnapshotOptions extends TabOptions {
   profile: string;
   json?: boolean;
   yaml?: boolean;
@@ -19,7 +20,7 @@ export async function snapshot(options: SnapshotOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     // Enable accessibility domain
     await client.enableAccessibility();

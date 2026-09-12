@@ -1,4 +1,5 @@
-export interface PdfOptions {
+import { TabOptions } from '../tab.js';
+export interface PdfOptions extends TabOptions {
     profile: string;
     output?: string;
     landscape?: boolean;

@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface SetAttributeOptions {
+export interface SetAttributeOptions extends TabOptions {
   profile: string;
   selector: string;
   attr: string;
@@ -13,7 +14,7 @@ export async function setAttribute(options: SetAttributeOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     console.log(chalk.blue(`Setting attribute ${options.attr} on ${options.selector}`));
     await client.evaluate(

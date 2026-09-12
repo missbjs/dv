@@ -1,6 +1,6 @@
 # DV CLI Quick Reference
 
-## Total Commands: 73
+## Total Commands: 74
 
 ### Browser Management
 ```bash
@@ -96,12 +96,49 @@ dv1 har session.har            # export network activity as HAR
 ```bash
 dv1 emulate --device iphone-13
 dv1 emulate --device pixel-5
+dv1 emulate -d iphone-13 --navigate https://example.com  # fetch under the device UA
+dv1 emulate -d iphone-13 --reload                        # re-fetch current page under it
 dv1 location 37.7749 -122.4194
 dv1 user-agent --ua "Mozilla/5.0..."
 dv1 timezone --tz "America/New_York"
 dv1 throttle --slow-3g
 dv1 throttle --offline
 ```
+
+### Clearing Emulation
+```bash
+dv1 resize 0 0                  # clear the viewport override only
+dv1 reset                       # clear everything: viewport, UA, timezone, geo, throttle
+dv1 reset --viewport            # narrow it (also --user-agent --timezone --geolocation --network)
+dv1 reset --json
+dv1 resize 0 0 --tab <id>       # clear one named tab (ids come from dv1 status)
+dv1 reset --viewport --all-tabs # clear every open content tab
+dv1 status                      # warns per tab: "Viewport: 900x700  ⚠ emulated — window is 1147x1241"
+dv1 status --no-viewport        # skip the per-tab viewport probe
+```
+A viewport override is per-tab and survives reloads, navigation and the CLI exiting —
+it is the one piece of emulation state you have to clear deliberately. Clearing never
+moves the real window. Without `--tab`, `resize` and `reset` hit the same tab as every
+other dv command (the first content tab); a background tab also keeps reporting its old
+inner size until it is next in front.
+
+Every other override dies with the command that set it — `user-agent`, `timezone`,
+`location`, `throttle`, and `emulate`'s device scale factor, mobile flag and user
+agent. Only the WxH viewport (and therefore the CSS/media-query layout) makes it to the
+next command. Each of those commands now prints that in its own output.
+
+### Per-Tab Targeting
+```bash
+dv1 tabs                             # tab ids
+dv1 read --tab <id>                  # any of the 64 page-facing commands
+dv1 eval --tab <id> --script "..."
+dv1 storage-clear --tab <id> --type local
+```
+Without `--tab`, commands hit the first tab in Chrome's *activation*-ordered target
+list, so the target shifts as tabs are clicked. `--tab-id` is a deprecated alias. An id
+that matches nothing errors out (`No tab with ID … List open tabs with: dv1 tabs`)
+rather than silently running on the default tab. Not accepted on `start`, `stop`,
+`status`, `tabs`, `new`, `close`, `profiles`, `clear-cache`, `cookies-clear`, `batch`.
 
 ### Storage Management
 ```bash
@@ -157,6 +194,7 @@ dv1 dialog --text "input"       # answer a prompt()
 ### Page Control
 ```bash
 dv1 resize 1920 1080
+dv1 resize 0 0                  # clear the viewport override (sticky until cleared)
 dv1 scroll -y 500               # scroll window down 500px
 dv1 scroll --selector "#panel" -y 200
 dv1 frame --selector "iframe#checkout"

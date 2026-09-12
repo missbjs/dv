@@ -1,4 +1,5 @@
-export interface TimezoneOptions {
+import { TabOptions } from '../tab.js';
+export interface TimezoneOptions extends TabOptions {
     profile: string;
     tz: string;
 }

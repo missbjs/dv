@@ -22,4 +22,17 @@ export async function start(options: StartOptions) {
   }
 
   await ensureChromeRunning(options.profile, options.headless);
+
+  // Cheap insurance, and safe only here: a brand-new session carrying a device
+  // metrics override from a previous one is never intentional. Deliberate
+  // emulation set later in the session is untouched — dv never clears on connect.
+  const fresh = new CDPClient(getPortFromProfile(options.profile));
+  try {
+    await fresh.connect();
+    await fresh.clearDeviceMetricsOverride();
+  } catch {
+    // No tab to attach to yet, or Chrome is still coming up — nothing to clear.
+  } finally {
+    await fresh.close();
+  }
 }

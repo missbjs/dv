@@ -62,6 +62,26 @@ describe('CDPClient', () => {
     it('should throw error when page not found', async () => {
       await expect(client.connect('nonexistent-page')).rejects.toThrow();
     });
+
+    it('names the tab it could not find, instead of claiming there is no tab', async () => {
+      // The generic "No tab found" message read as "Chrome has no tabs open",
+      // which sends the reader looking in the wrong place entirely.
+      await expect(client.connect('nonexistent-page')).rejects.toThrow(
+        /No tab with ID nonexistent-page/
+      );
+    });
+
+    it('points at the command that lists tab IDs', async () => {
+      await expect(client.connect('nonexistent-page')).rejects.toThrow(/ tabs$/);
+    });
+
+    it('never falls back to the default tab when a tab ID is given', async () => {
+      // A silent fallback would run the command against a tab the caller did
+      // not name — the failure mode this error exists to prevent.
+      await expect(client.connect('nonexistent-page')).rejects.toThrow();
+      // Nothing was connected, so nothing could have been run against a tab.
+      await expect(client.send('Runtime.enable')).rejects.toThrow('Not connected');
+    });
   });
 
   describe('send', () => {
@@ -140,6 +160,17 @@ describe('CDPClient', () => {
     it('should take screenshot', async () => {
       const result = await client.takeScreenshot();
       expect(result).toHaveProperty('data');
+    });
+
+    it('navigateAndWait sends the URL and resolves on the load event', async () => {
+      await client.navigateAndWait('https://example.com/mobile', 0);
+      expect(mockServer.getCallParams('Page.navigate')).toEqual({ url: 'https://example.com/mobile' });
+    });
+
+    it('navigateAndWait enables Page before navigating', async () => {
+      await client.navigateAndWait('https://example.com/mobile', 0);
+      const order = mockServer.getCalls().map((c) => c.method);
+      expect(order.indexOf('Page.enable')).toBeLessThan(order.indexOf('Page.navigate'));
     });
   });
 
@@ -348,6 +379,76 @@ describe('CDPClient', () => {
 
     it('should clear geolocation override', async () => {
       await expect(client.clearGeolocationOverride()).resolves.toBeUndefined();
+    });
+
+    it('should send a real resize as a device metrics override', async () => {
+      await client.resize(1280, 720);
+      expect(mockServer.getCallParams('Emulation.setDeviceMetricsOverride')).toEqual({
+        width: 1280,
+        height: 720,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      expect(mockServer.getCalls('Emulation.clearDeviceMetricsOverride')).toHaveLength(0);
+    });
+
+    it('should clear the override for resize(0, 0) instead of sizing the tab', async () => {
+      await client.resize(0, 0);
+      expect(mockServer.getCalls('Emulation.clearDeviceMetricsOverride')).toHaveLength(1);
+      // The only override sent is the 0x0 ownership claim — never a real size.
+      expect(mockServer.getCalls('Emulation.setDeviceMetricsOverride')).toHaveLength(1);
+      expect(mockServer.getCallParams('Emulation.setDeviceMetricsOverride')).toEqual({
+        width: 0,
+        height: 0,
+        deviceScaleFactor: 0,
+        mobile: false,
+      });
+    });
+
+    it('should clear the override when only one dimension is 0', async () => {
+      await client.resize(900, 0);
+      expect(mockServer.getCalls('Emulation.clearDeviceMetricsOverride')).toHaveLength(1);
+      expect(mockServer.getCallParams('Emulation.setDeviceMetricsOverride')).toEqual({
+        width: 0,
+        height: 0,
+        deviceScaleFactor: 0,
+        mobile: false,
+      });
+    });
+
+    it('should claim ownership before clearing device metrics', async () => {
+      // A bare clear only reverts an override the same CDP session installed, so
+      // the claim has to come first or a stale override survives the clear.
+      await expect(client.clearDeviceMetricsOverride()).resolves.toBeUndefined();
+      const order = mockServer
+        .getCalls()
+        .map((c) => c.method)
+        .filter((m) => m.startsWith('Emulation.') && m.endsWith('DeviceMetricsOverride'));
+      expect(order).toEqual([
+        'Emulation.setDeviceMetricsOverride',
+        'Emulation.clearDeviceMetricsOverride',
+      ]);
+      expect(mockServer.getCallParams('Emulation.clearDeviceMetricsOverride')).toBeUndefined();
+    });
+
+    it('should clear the user agent override with an empty string', async () => {
+      await client.clearUserAgentOverride();
+      expect(mockServer.getCallParams('Emulation.setUserAgentOverride')).toEqual({ userAgent: '' });
+    });
+
+    it('should clear the timezone override with an empty timezoneId', async () => {
+      await client.clearTimezoneOverride();
+      expect(mockServer.getCallParams('Emulation.setTimezoneOverride')).toEqual({ timezoneId: '' });
+    });
+
+    it('should clear network conditions back to unthrottled', async () => {
+      await client.clearNetworkConditions();
+      expect(mockServer.getCallParams('Network.emulateNetworkConditions')).toEqual({
+        offline: false,
+        latency: 0,
+        downloadThroughput: -1,
+        uploadThroughput: -1,
+      });
     });
   });
 

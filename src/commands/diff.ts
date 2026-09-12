@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, compareRefs } from '../snapshot.js';
@@ -7,7 +8,7 @@ import { SnapshotDiff, RefEntry } from '../types.js';
 import fs from 'fs';
 import path from 'path';
 
-export interface DiffOptions {
+export interface DiffOptions extends TabOptions {
   profile: string;
   /** Compare snapshots (snapshot1.json snapshot2.json) */
   files?: [string, string];
@@ -47,7 +48,7 @@ export async function diff(options: DiffOptions) {
     // Compare current tab with a saved snapshot
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-      await client.connect();
+      await client.connect(targetTab(options));
       await client.enableAccessibility();
       const axResult = await client.getFullAXTree();
       const existingRefs = await anchorRefs(client, axResult.nodes);

@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 
-export interface LocalStorageOptions {
+export interface LocalStorageOptions extends TabOptions {
   profile: string;
   key?: string;
   json?: boolean;
@@ -14,7 +15,7 @@ export async function localStorage(options: LocalStorageOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     console.log(chalk.blue('Getting localStorage...'));
     const result = await client.evaluate(`

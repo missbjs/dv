@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
 import { getPortFromProfile } from '../utils.js';
 
-export interface ScreenshotOptions {
+export interface ScreenshotOptions extends TabOptions {
   profile: string;
   output: string;
   selector?: string;
@@ -13,7 +14,7 @@ export async function screenshot(options: ScreenshotOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
     await client.enablePage();
 
     let data: string;

@@ -1,16 +1,15 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
 import { getPortFromProfile } from '../utils.js';
 
-export interface ConsoleOptions {
+export interface ConsoleOptions extends TabOptions {
   profile: string;
   type?: string;
   filter?: string;
   json?: boolean;
   yaml?: boolean;
-  tab?: string;
-  tabId?: string; // deprecated, use tab
 }
 
 // Map user-friendly short type names to CDP Console level values
@@ -26,7 +25,7 @@ export async function consoleCommand(options: ConsoleOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect(options.tab ?? options.tabId);
+    await client.connect(targetTab(options));
     await client.enableConsole();
 
     const messages = await client.getConsoleMessages();

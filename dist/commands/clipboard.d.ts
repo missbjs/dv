@@ -1,4 +1,5 @@
-export interface ClipboardOptions {
+import { TabOptions } from '../tab.js';
+export interface ClipboardOptions extends TabOptions {
     profile: string;
     /** clipboard action: read, write, copy, paste */
     action: 'read' | 'write' | 'copy' | 'paste';

@@ -1,4 +1,5 @@
 import { CDPClient } from '../cdp.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 import { buildSnapshotLines, anchorRefs } from '../snapshot.js';
@@ -6,7 +7,7 @@ import { wantsStructured, renderStructured } from '../output.js';
 export async function find(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         await client.enableAccessibility();
         const axResult = await client.getFullAXTree();
         const existingRefs = await anchorRefs(client, axResult.nodes);

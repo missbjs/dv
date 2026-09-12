@@ -1,9 +1,10 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, isRef } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 
-export interface DblClickOptions {
+export interface DblClickOptions extends TabOptions {
   profile: string;
   selector: string;
 }
@@ -12,7 +13,7 @@ export async function dblclick(options: DblClickOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     if (isRef(options.selector)) {
       await client.enableAccessibility();

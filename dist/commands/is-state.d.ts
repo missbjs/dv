@@ -1,4 +1,5 @@
-export interface IsStateOptions {
+import { TabOptions } from '../tab.js';
+export interface IsStateOptions extends TabOptions {
     profile: string;
     selector: string;
     json?: boolean;

@@ -1,4 +1,5 @@
-export interface UserAgentOptions {
+import { TabOptions } from '../tab.js';
+export interface UserAgentOptions extends TabOptions {
     profile: string;
     ua: string;
 }

@@ -1,4 +1,5 @@
-export interface TypeOptions {
+import { TabOptions } from '../tab.js';
+export interface TypeOptions extends TabOptions {
     profile: string;
     selector: string;
     text: string;

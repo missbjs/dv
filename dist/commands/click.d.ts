@@ -1,4 +1,5 @@
-export interface ClickOptions {
+import { TabOptions } from '../tab.js';
+export interface ClickOptions extends TabOptions {
     profile: string;
     selector: string;
 }

@@ -1,10 +1,11 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile, isRef, buildElementExpression } from '../utils.js';
 import { buildSnapshotLines, anchorRefs, resolveRef } from '../snapshot.js';
 import { wantsStructured, renderStructured } from '../output.js';
 
-export interface GetHtmlOptions {
+export interface GetHtmlOptions extends TabOptions {
   selector: string;
   profile: string;
   json?: boolean;
@@ -15,7 +16,7 @@ export async function getHtml(options: GetHtmlOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    await client.connect();
+    await client.connect(targetTab(options));
 
     let html: string | null = null;
 

@@ -1,1 +1,1 @@
-{"version":3,"file":"dblclick.d.ts","sourceRoot":"","sources":["../../src/commands/dblclick.ts"],"names":[],"mappings":"AAKA,MAAM,WAAW,eAAe;IAC9B,OAAO,EAAE,MAAM,CAAC;IAChB,QAAQ,EAAE,MAAM,CAAC;CAClB;AAED,wBAAsB,QAAQ,CAAC,OAAO,EAAE,eAAe,iBAoCtD"}
+{"version":3,"file":"dblclick.d.ts","sourceRoot":"","sources":["../../src/commands/dblclick.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,UAAU,EAAa,MAAM,WAAW,CAAC;AAKlD,MAAM,WAAW,eAAgB,SAAQ,UAAU;IACjD,OAAO,EAAE,MAAM,CAAC;IAChB,QAAQ,EAAE,MAAM,CAAC;CAClB;AAED,wBAAsB,QAAQ,CAAC,OAAO,EAAE,eAAe,iBAoCtD"}

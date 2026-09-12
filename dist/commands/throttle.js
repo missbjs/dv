@@ -1,10 +1,12 @@
 import { CDPClient } from '../cdp.js';
+import { sessionScopedNote } from '../emulation.js';
+import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 export async function throttle(options) {
     const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect();
+        await client.connect(targetTab(options));
         // Emulation domain doesn't have an enable method; try setNetworkConditions directly
         let conditions;
         if (options.offline) {
@@ -32,6 +34,9 @@ export async function throttle(options) {
             console.log(chalk.gray(`Latency: ${conditions.latency}ms`));
             console.log(chalk.gray(`Download: ${conditions.downloadThroughput} bytes/s`));
             console.log(chalk.gray(`Upload: ${conditions.uploadThroughput} bytes/s`));
+        }
+        for (const line of sessionScopedNote('network conditions')) {
+            console.log(chalk.gray(line));
         }
     }
     catch (error) {

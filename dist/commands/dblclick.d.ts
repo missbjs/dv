@@ -1,4 +1,5 @@
-export interface DblClickOptions {
+import { TabOptions } from '../tab.js';
+export interface DblClickOptions extends TabOptions {
     profile: string;
     selector: string;
 }

@@ -1,8 +1,9 @@
 import { CDPClient } from '../cdp.js';
+import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
 
-export interface StorageClearOptions {
+export interface StorageClearOptions extends TabOptions {
   profile: string;
   type: 'local' | 'session' | 'all';
 }
@@ -10,13 +11,19 @@ export interface StorageClearOptions {
 export async function storageClear(options: StorageClearOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
+  const requested = targetTab(options);
+
   try {
-    await client.connect();
+    await client.connect(requested);
 
     console.log(chalk.blue('Clearing storage...'));
 
     const targets = await client.getTargets();
-    const tab = client.getCurrentTab(targets);
+    // The origin has to come from the tab we actually connected to — deriving it
+    // from the default tab would clear storage for the wrong site under --tab.
+    const tab = requested
+      ? targets.find((t) => t.id === requested) ?? null
+      : client.getCurrentTab(targets);
     if (!tab) {
       console.error(chalk.red('No tab found'));
       process.exit(1);

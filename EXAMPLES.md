@@ -157,7 +157,51 @@ Expected output:
 ```
 Resizing viewport to 375x667...
 Viewport resized
+This override is sticky — it survives reloads and navigation.
+Undo with: dv1 resize 0 0
 ```
+
+The override is per-tab and outlives the command, so undo it when you are done —
+otherwise every later screenshot and click hit-test is measured against 375x667:
+
+```bash
+dv1 resize 0 0
+```
+
+```
+Clearing viewport override...
+✓ Viewport override cleared
+The tab is back to its real window size.
+```
+
+`dv1 status` tells you when a tab is still emulated, and `dv1 reset` clears the whole
+emulation bundle (viewport, user agent, timezone, geolocation, throttling) in one call.
+
+#### Testing a real site as a phone
+
+`emulate` sets five things, and only the viewport size outlives the command — the
+device pixel ratio, `screen.*`, the mobile flag and the user agent all belong to the
+CDP session, and dv opens one session per command. So this sequence tests the mobile
+*layout* but not the mobile *response*:
+
+```bash
+dv1 emulate -d iphone-13          # 390x844 sticks; the iPhone UA does not
+dv1 read                          # fetched earlier, under desktop Chrome
+```
+
+Load the page from inside the emulate command instead, and the request goes out with
+the device user agent:
+
+```bash
+dv1 emulate -d iphone-13 --navigate https://www.microsoft.com/
+dv1 eval --script "matchMedia('(max-width: 860px)').matches"   # true
+dv1 read                                                       # the mobile HTML
+dv1 reset --viewport                                           # done
+```
+
+`--reload` does the same for the page already open. Both wait for the load event
+before disconnecting. `batch` is not a substitute: it spawns one process per step, so
+each step is a fresh session with the override already gone.
 
 ### Step 9: Monitor Console in Real-Time
 
@@ -395,11 +439,35 @@ dv1 pdf --output page.pdf
 dv1 pdf --landscape --print-background --paper-width 8.5 --paper-height 11 --margin-top 0.5
 ```
 
+## Working on One Specific Tab
+
+Commands without `--tab` hit the first tab in Chrome's target list, and that list is
+ordered by *activation* — so clicking a tab changes where the next command lands. Pin it:
+
+```bash
+dv1 tabs
+# 1. Microsoft — https://www.microsoft.com/   id: 6CF0E9E6618DFFDC2C2B62797B9EDD1B
+# 2. Example   — https://example.com/         id: 01C0383230862ECBC6D7054086BB4D09
+
+dv1 eval --tab 6CF0E9E6618DFFDC2C2B62797B9EDD1B --script "location.host"
+# www.microsoft.com
+
+dv1 storage-clear --tab 6CF0E9E6618DFFDC2C2B62797B9EDD1B --type local
+# clears microsoft.com's localStorage; example.com's is untouched
+
+dv1 eval --tab NOPE123 --script "1"
+# Error: No tab with ID NOPE123 on port 9230. List open tabs with: dv1 tabs
+```
+
+All 64 page-facing commands take `--tab` (`--tab-id` still works as a deprecated
+alias). The browser-level ones do not: `start`, `stop`, `status`, `tabs`, `new`,
+`close`, `profiles`, `clear-cache`, `cookies-clear`, `batch`.
+
 ## Tips
 
 1. **Use profile-specific commands**: `dv1`–`dv6` each manage a separate Chrome instance with its own user data
 2. **Check console errors first**: Always check for console errors before debugging other issues
 3. **Use --json for scripting**: When writing scripts, use --json to get machine-readable output
 4. **Monitor in real-time**: Use `dv1 monitor` to catch errors as they happen
-5. **Resize for mobile**: Use `dv1 resize` to test responsive designs
+5. **Resize for mobile**: Use `dv1 resize` to test responsive designs — and `dv1 resize 0 0` to undo it, since the override is sticky (`dv1 status` warns while it is active)
 6. **Take screenshots**: Screenshots help document issues and verify UI behavior

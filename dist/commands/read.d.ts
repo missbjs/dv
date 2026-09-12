@@ -1,4 +1,5 @@
-export interface ReadOptions {
+import { TabOptions } from '../tab.js';
+export interface ReadOptions extends TabOptions {
     profile: string;
     /** Optional CSS selector (supports >>>) to scope --html / --text output */
     selector?: string;
