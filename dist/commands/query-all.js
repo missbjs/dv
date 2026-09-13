@@ -2,31 +2,15 @@ import { CDPClient } from '../cdp.js';
 import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
-import { getPortFromProfile, escapeJsString, parseProps } from '../utils.js';
-/**
- * Build a JS expression that resolves to an array of all matching elements,
- * supporting `>>>` shadow piercing. Returns a NodeList-like usable in Array.from.
- */
-function buildListExpression(selector) {
-    const parts = selector.split('>>>').map((s) => s.trim());
-    if (parts.length === 1) {
-        return `document.querySelectorAll('${escapeJsString(parts[0])}')`;
-    }
-    const last = parts.pop();
-    let expr = 'document';
-    for (const part of parts) {
-        expr += `.querySelector('${escapeJsString(part)}')?.shadowRoot`;
-    }
-    return `(${expr}?.querySelectorAll('${escapeJsString(last)}') ?? [])`;
-}
+import { getPortFromProfile, buildShadowListExpression, escapeJsString, parseProps } from '../utils.js';
 /** Build an expression mapping every match to `{ index, value }` (text/html/attr). */
 function buildValueAllExpression(selector, accessor) {
-    const list = buildListExpression(selector);
+    const list = buildShadowListExpression(selector);
     return `Array.from(${list}).map((el, i) => ({ index: i, value: el?.${accessor} ?? null }))`;
 }
 /** Build an expression mapping every match to `{ index, [prop]: value }` computed styles. */
 function buildStyleAllExpression(selector, propsList) {
-    const list = buildListExpression(selector);
+    const list = buildShadowListExpression(selector);
     const propsExpr = JSON.stringify(propsList.length > 0 ? propsList : ['display']);
     return `(() => { const props = ${propsExpr}; return Array.from(${list}).map((el, i) => { const cs = getComputedStyle(el); const o = { index: i }; props.forEach((p) => { o[p] = cs.getPropertyValue(p); }); return o; }); })()`;
 }
@@ -87,9 +71,10 @@ export async function queryAll(options) {
             }
             return;
         }
-        // Default: list node IDs via DOM.querySelectorAll (no shadow piercing).
+        // Default: list node IDs. `>>>` selectors go through Runtime.evaluate +
+        // DOM.requestNode, since DOM.querySelectorAll cannot see into a shadow root.
         console.log(chalk.blue(`Querying: ${options.selector}`));
-        const nodeIds = await client.querySelectorAll(options.selector);
+        const nodeIds = await client.resolveNodeIds(options.selector);
         if (wantsStructured(options)) {
             console.log(renderStructured({ count: nodeIds.length, nodeIds }, options));
         }

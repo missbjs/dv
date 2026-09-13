@@ -2,6 +2,7 @@ import { CDPClient } from '../cdp.js';
 import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { applyToElement } from './apply-to-element.js';
 
 export interface SetTextOptions extends TabOptions {
   profile: string;
@@ -16,9 +17,7 @@ export async function setText(options: SetTextOptions) {
     await client.connect(targetTab(options));
 
     console.log(chalk.blue(`Setting text content of ${options.selector}`));
-    await client.evaluate(
-      `const el = document.querySelector('${options.selector}'); if (el) el.textContent = '${options.value.replace(/'/g, "\\'")}';`
-    );
+    await applyToElement(client, options.selector, `el.textContent = ${JSON.stringify(options.value)};`);
 
     console.log(chalk.green('✓ Text content updated'));
   } catch (error) {

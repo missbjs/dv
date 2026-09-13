@@ -19,45 +19,83 @@ export function escapeJsString(str) {
         .replace(/\r/g, '\\r');
 }
 /**
+ * Split a `>>>` selector into its trimmed segments.
+ *
+ * Rejects empty segments (`"host >>>"`, `"a >>> >>> b"`). An empty segment used to
+ * compile to `querySelector('')`, which throws `SyntaxError: The provided selector is
+ * empty` deep inside the page — a typo in the selector should not look like a page bug.
+ */
+export function splitShadowSelector(selector) {
+    const parts = selector.split('>>>').map((s) => s.trim());
+    if (parts.some((p) => p.length === 0)) {
+        throw new Error(`Invalid selector: "${selector}" — every ">>>" segment must name an element`);
+    }
+    return parts;
+}
+/**
+ * Build the `document.querySelector(...)` chain that walks `parts` through shadow roots.
+ *
+ * Both hops are optional-chained: `?.shadowRoot?.querySelector(...)`. The `?.shadowRoot`
+ * alone is not enough — `a?.b.c` only short-circuits when `a` is nullish, so a host that
+ * exists but has no `shadowRoot` (a closed root, a custom element that never attaches one,
+ * or a plain element) made the chain throw `Cannot read properties of null` mid-expression
+ * instead of evaluating to `undefined`.
+ */
+function buildShadowChain(parts) {
+    let expr = 'document';
+    for (let i = 0; i < parts.length; i++) {
+        expr += `${i === 0 ? '' : '?'}.querySelector('${escapeJsString(parts[i])}')`;
+        if (i < parts.length - 1) {
+            expr += '?.shadowRoot';
+        }
+    }
+    return expr;
+}
+/**
  * Build a JS expression that traverses shadow DOM using `>>>` syntax.
  *
  * `>>>` separates each level: `"host >>> .inner"` becomes
  * `document.querySelector('host')?.shadowRoot?.querySelector('.inner')`
  *
- * The `accessor` is appended at the end (e.g. `outerHTML`, `textContent`).
+ * The `accessor` is appended at the end (e.g. `outerHTML`, `textContent`). Pass an empty
+ * accessor to get the bare element chain with the `?? ''` tail omitted — appending `?.`
+ * with nothing after it is a syntax error.
  */
 export function buildShadowExpression(selector, accessor) {
-    const parts = selector.split('>>>').map(s => s.trim());
-    let expr = 'document';
-    for (let i = 0; i < parts.length; i++) {
-        expr += `.querySelector('${escapeJsString(parts[i])}')`;
-        if (i < parts.length - 1) {
-            expr += '?.shadowRoot';
-        }
-    }
+    const expr = buildShadowChain(splitShadowSelector(selector));
+    if (!accessor)
+        return expr;
     return `${expr}?.${accessor} ?? ''`;
 }
 /**
  * Build a JS expression that resolves to an element node (no accessor tail).
  *
  * Non-shadow: `document.querySelector('sel')`
- * Shadow `"host >>> .inner"`: `document.querySelector('host')?.shadowRoot.querySelector('.inner')`
+ * Shadow `"host >>> .inner"`: `document.querySelector('host')?.shadowRoot?.querySelector('.inner')`
  *
- * The result may be `null` at runtime if any step misses; callers must guard.
+ * The result may be `null`/`undefined` at runtime if any step misses; callers must guard.
  */
 export function buildElementExpression(selector) {
     if (!selector.includes('>>>')) {
         return `document.querySelector('${escapeJsString(selector)}')`;
     }
-    const parts = selector.split('>>>').map(s => s.trim());
-    let expr = 'document';
-    for (let i = 0; i < parts.length; i++) {
-        expr += `.querySelector('${escapeJsString(parts[i])}')`;
-        if (i < parts.length - 1) {
-            expr += '?.shadowRoot';
-        }
+    return buildShadowChain(splitShadowSelector(selector));
+}
+/**
+ * Build a JS expression resolving to every match of the last `>>>` segment.
+ *
+ * `"host >>> .row"` becomes
+ * `(document.querySelector('host')?.shadowRoot?.querySelectorAll('.row') ?? [])`.
+ * Always array-like, never null, so callers can `Array.from(...)` it directly.
+ */
+export function buildShadowListExpression(selector) {
+    const parts = splitShadowSelector(selector);
+    if (parts.length === 1) {
+        return `document.querySelectorAll('${escapeJsString(parts[0])}')`;
     }
-    return expr;
+    const last = parts.pop();
+    const host = buildShadowChain(parts);
+    return `(${host}?.shadowRoot?.querySelectorAll('${escapeJsString(last)}') ?? [])`;
 }
 /**
  * Build a JS expression that returns the center coordinates and dimensions
@@ -66,14 +104,7 @@ export function buildElementExpression(selector) {
  * Returns `null` if the element is not found.
  */
 export function buildShadowRectExpression(selector) {
-    const parts = selector.split('>>>').map(s => s.trim());
-    let expr = 'document';
-    for (let i = 0; i < parts.length; i++) {
-        expr += `.querySelector('${escapeJsString(parts[i])}')`;
-        if (i < parts.length - 1) {
-            expr += '?.shadowRoot';
-        }
-    }
+    const expr = buildShadowChain(splitShadowSelector(selector));
     return `(() => { const el = ${expr}; if (!el) return null; const r = el.getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, width: r.width, height: r.height }; })()`;
 }
 /** Check if a target string is a dv ref (e.g. "@e1", "@e1-2-3") */

@@ -45,42 +45,57 @@ describe('buildExpression', () => {
   describe('shadow >>> selectors', () => {
     it('should build single-level shadow expression', () => {
       const expr = buildExpression('my-comp >>> .btn', { profile: 'test-dv1', selector: 'my-comp >>> .btn' });
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')?.outerHTML ?? ''");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')?.outerHTML ?? ''");
     });
 
     it('should build nested shadow expression', () => {
       const expr = buildExpression('outer >>> middle >>> .inner', { profile: 'test-dv1', selector: 'outer >>> middle >>> .inner', text: true });
-      expect(expr).toBe("document.querySelector('outer')?.shadowRoot.querySelector('middle')?.shadowRoot.querySelector('.inner')?.textContent ?? ''");
+      expect(expr).toBe("document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelector('.inner')?.textContent ?? ''");
     });
 
     it('should build shadow expression with getAttribute', () => {
       const expr = buildExpression('x-input >>> input', { profile: 'test-dv1', selector: 'x-input >>> input', attr: 'placeholder' });
-      expect(expr).toBe("document.querySelector('x-input')?.shadowRoot.querySelector('input')?.getAttribute('placeholder') ?? ''");
+      expect(expr).toBe("document.querySelector('x-input')?.shadowRoot?.querySelector('input')?.getAttribute('placeholder') ?? ''");
     });
 
     it('should build shadow count expression', () => {
       const expr = buildExpression('my-list >>> .item', { profile: 'test-dv1', selector: 'my-list >>> .item', count: true });
-      expect(expr).toBe("(document.querySelector('my-list')?.shadowRoot?.querySelectorAll('.item')?.length ?? 0)");
+      expect(expr).toBe("(document.querySelector('my-list')?.shadowRoot?.querySelectorAll('.item') ?? []).length");
     });
 
-    it('should build shadow exists expression', () => {
+    it('should guard every shadowRoot hop in a nested count expression', () => {
+      // The hand-rolled loop here emitted `?.shadowRoot.querySelector(...)` for every hop
+      // but the last, so a two-level count threw inside the page whenever an intermediate
+      // host had no shadow root.
+      const expr = buildExpression('outer >>> middle >>> .item', { profile: 'test-dv1', selector: 'outer >>> middle >>> .item', count: true });
+      expect(expr).not.toContain('?.shadowRoot.querySelector');
+      expect(expr).toBe(
+        "(document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelectorAll('.item') ?? []).length"
+      );
+    });
+
+    it('should build a syntactically valid shadow exists expression', () => {
+      // Regression: this used to compile to `!!(...?. ?? '')`, a SyntaxError that made
+      // query --exists fail on every >>> selector whether or not the element was there.
       const expr = buildExpression('my-dialog >>> .modal', { profile: 'test-dv1', selector: 'my-dialog >>> .modal', exists: true });
-      expect(expr).toBe("!!(document.querySelector('my-dialog')?.shadowRoot.querySelector('.modal')?. ?? '')");
+      expect(expr).toBe("!!(document.querySelector('my-dialog')?.shadowRoot?.querySelector('.modal'))");
+      expect(expr).not.toContain("?. ??");
     });
 
-    it('should handle trailing >>> gracefully', () => {
-      const expr = buildExpression('my-comp >>>', { profile: 'test-dv1', selector: 'my-comp >>>' });
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('')?.outerHTML ?? ''");
+    it('should reject a trailing >>> instead of querying an empty selector', () => {
+      expect(() => buildExpression('my-comp >>>', { profile: 'test-dv1', selector: 'my-comp >>>' })).toThrow(
+        'Invalid selector'
+      );
     });
 
     it('should trim whitespace around parts', () => {
       const expr = buildExpression('  my-comp   >>>   .btn  ', { profile: 'test-dv1', selector: '  my-comp   >>>   .btn  ' });
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')?.outerHTML ?? ''");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')?.outerHTML ?? ''");
     });
 
     it('should escape special characters in shadow parts', () => {
       const expr = buildExpression("my-comp >>> it's.btn", { profile: 'test-dv1', selector: "my-comp >>> it's.btn" });
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('it\\'s.btn')?.outerHTML ?? ''");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('it\\'s.btn')?.outerHTML ?? ''");
     });
   });
 
@@ -99,7 +114,7 @@ describe('buildExpression', () => {
         computedStyle: true,
       });
       expect(expr).toBe(
-        "(() => { const el = document.querySelector('my-custom-el')?.shadowRoot.querySelector('sy-a'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([...cs].map((p) => [p, cs.getPropertyValue(p)])); })()"
+        "(() => { const el = document.querySelector('my-custom-el')?.shadowRoot?.querySelector('sy-a'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([...cs].map((p) => [p, cs.getPropertyValue(p)])); })()"
       );
     });
 
@@ -111,7 +126,7 @@ describe('buildExpression', () => {
         props: 'color, font-size ,display',
       });
       expect(expr).toBe(
-        "(() => { const el = document.querySelector('my-custom-el')?.shadowRoot.querySelector('sy-a'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([\"color\",\"font-size\",\"display\"].map((p) => [p, cs.getPropertyValue(p)])); })()"
+        "(() => { const el = document.querySelector('my-custom-el')?.shadowRoot?.querySelector('sy-a'); if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries([\"color\",\"font-size\",\"display\"].map((p) => [p, cs.getPropertyValue(p)])); })()"
       );
     });
 
@@ -239,7 +254,7 @@ describe('query command integration', () => {
       const result = await client.evaluate(expression);
 
       expect(capturedExpression).toContain('getComputedStyle');
-      expect(capturedExpression).toContain("querySelector('my-custom-el')?.shadowRoot.querySelector('sy-a')");
+      expect(capturedExpression).toContain("querySelector('my-custom-el')?.shadowRoot?.querySelector('sy-a')");
       expect(result.result.value).toEqual({ color: 'rgb(255, 0, 0)', display: 'block' });
     });
 

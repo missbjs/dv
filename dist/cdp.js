@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import chalk from 'chalk';
-import { buildElementExpression } from './utils.js';
+import { buildElementExpression, buildShadowListExpression } from './utils.js';
 import { getProfileByPort } from './profiles.js';
 export class CDPClient {
     ws = null;
@@ -213,6 +213,24 @@ export class CDPClient {
             returnByValue: true,
         });
     }
+    /**
+     * Evaluate an expression and return its value, throwing whatever the page threw.
+     *
+     * `evaluate()` hands back the raw CDP reply, and a thrown expression puts the failure in
+     * `exceptionDetails` while leaving `result.value` undefined. Callers that read
+     * `result.result?.value ?? false` therefore reported a confident `false`/`null` for an
+     * expression that never ran — which is how a TypeError inside a `>>>` chain came out as
+     * "not visible" rather than as an error.
+     */
+    async evalValue(expression) {
+        const result = await this.evaluate(expression);
+        if (result.exceptionDetails) {
+            const details = result.exceptionDetails;
+            const message = details.exception?.description ?? details.text;
+            throw new Error(String(message).split(/\r?\n/)[0]);
+        }
+        return result.result?.value;
+    }
     async getConsoleMessages() {
         return this.consoleMessages;
     }
@@ -250,6 +268,12 @@ export class CDPClient {
      */
     async resolveNodeId(selector) {
         if (selector.includes('>>>')) {
+            // Prime the DOM agent first. `DOM.requestNode` hands back `nodeId: 0` — not an
+            // error — unless the agent already holds a node tree, and every dv command is a
+            // fresh connect, so it never does. `DOM.enable` is not enough; `DOM.getDocument`
+            // is what acquires the tree. `depth: 0` keeps it to the root node: we need the
+            // agent primed, not the tree serialised.
+            await this.send('DOM.getDocument', { depth: 0 });
             const expression = buildElementExpression(selector);
             const evalRes = await this.send('Runtime.evaluate', { expression });
             const objectId = evalRes?.result?.objectId;
@@ -493,6 +517,55 @@ export class CDPClient {
             selector,
         });
         return result.nodeIds;
+    }
+    /**
+     * Resolve a selector to frontend nodeIds, piercing shadow roots for `>>>` selectors.
+     *
+     * `DOM.querySelectorAll` cannot see into a shadow root — handed a `>>>` selector it
+     * rejects the whole thing with a bare "DOM Error while querying". So for `>>>` we
+     * evaluate the match list in the page and convert each element handle with
+     * `DOM.requestNode`, which needs the same `DOM.getDocument` priming as `resolveNodeId`.
+     */
+    async resolveNodeIds(selector) {
+        if (!selector.includes('>>>')) {
+            return await this.querySelectorAll(selector);
+        }
+        await this.send('DOM.getDocument', { depth: 0 });
+        const expression = `Array.from(${buildShadowListExpression(selector)})`;
+        const evalRes = await this.send('Runtime.evaluate', { expression });
+        const arrayId = evalRes?.result?.objectId;
+        if (evalRes?.exceptionDetails || !arrayId) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+        const elementIds = [];
+        try {
+            const props = await this.send('Runtime.getProperties', {
+                objectId: arrayId,
+                ownProperties: true,
+            });
+            for (const prop of props?.result ?? []) {
+                // Own properties of an Array include `length` and the index keys; only the
+                // latter carry an element handle.
+                if (/^\d+$/.test(prop.name) && prop.value?.objectId) {
+                    elementIds.push(prop.value.objectId);
+                }
+            }
+        }
+        finally {
+            await this.send('Runtime.releaseObject', { objectId: arrayId }).catch(() => { });
+        }
+        const nodeIds = [];
+        for (const objectId of elementIds) {
+            try {
+                const { nodeId } = await this.send('DOM.requestNode', { objectId });
+                if (nodeId)
+                    nodeIds.push(nodeId);
+            }
+            finally {
+                await this.send('Runtime.releaseObject', { objectId }).catch(() => { });
+            }
+        }
+        return nodeIds;
     }
     async getOuterHTML(nodeId) {
         return await this.send('DOM.getOuterHTML', { nodeId });
@@ -752,18 +825,19 @@ export class CDPClient {
         return await this.send('DOM.resolveNode', { nodeId });
     }
     // ── Element Screenshot ──
-    /** Get box model for a CSS selector (supports `>>>` shadow-piercing; returns null if not found) */
+    /**
+     * Get box model for a CSS selector (supports `>>>` shadow-piercing).
+     *
+     * Throws `Element not found: <selector>` when nothing matches — same as the plain-CSS
+     * path below. Callers dereference `.content` directly, so returning `null` here only
+     * turned a missing element into a "Cannot read properties of null" further downstream.
+     */
     async getBoxModelBySelector(selector) {
         if (selector.includes('>>>')) {
             // Use resolveNodeId for shadow-piercing selectors
-            try {
-                const nodeId = await this.resolveNodeId(selector);
-                const box = await this.send('DOM.getBoxModel', { nodeId });
-                return box.model;
-            }
-            catch {
-                return null;
-            }
+            const nodeId = await this.resolveNodeId(selector);
+            const box = await this.send('DOM.getBoxModel', { nodeId });
+            return box.model;
         }
         const document = await this.send('DOM.getDocument');
         const node = await this.send('DOM.querySelector', {
@@ -864,7 +938,9 @@ export class CDPClient {
     async scrollIntoView(selector, options) {
         if (options?.behavior || options?.block || options?.inline) {
             const opts = JSON.stringify({ behavior: options.behavior ?? 'auto', block: options.block ?? 'nearest', inline: options.inline ?? 'nearest' });
-            await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return; el.scrollIntoView(${opts}); })()`);
+            const ok = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return false; el.scrollIntoView(${opts}); return true; })()`);
+            if (ok !== true)
+                throw new Error(`Element not found: ${selector}`);
             return;
         }
         const nodeId = await this.resolveNodeId(selector);
@@ -872,15 +948,14 @@ export class CDPClient {
     }
     /** Scroll the window or an element by pixel offset (element may be `>>>` shadow-piercing) */
     async scrollBy(selector, deltaX, deltaY) {
-        let expression;
         if (!selector) {
-            expression = `window.scrollBy(${deltaX}, ${deltaY})`;
+            await this.evalValue(`window.scrollBy(${deltaX}, ${deltaY})`);
+            return;
         }
-        else {
-            const el = buildElementExpression(selector);
-            expression = `(() => { const el = ${el}; if (!el) return; el.scrollBy(${deltaX}, ${deltaY}); })()`;
-        }
-        await this.send('Runtime.evaluate', { expression, returnByValue: true });
+        const el = buildElementExpression(selector);
+        const ok = await this.evalValue(`(() => { const el = ${el}; if (!el) return false; el.scrollBy(${deltaX}, ${deltaY}); return true; })()`);
+        if (ok !== true)
+            throw new Error(`Element not found: ${selector}`);
     }
     // ── History ──
     async getNavigationHistory() {
@@ -1068,36 +1143,40 @@ export class CDPClient {
     // ── Element State Queries (via evaluate) ──
     /** Check if an element is visible (not display:none, visibility:visible, has offsetParent) */
     async isVisible(selector) {
-        const result = await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return null; const style = getComputedStyle(el); return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'; })()`);
-        return result.result?.value ?? false;
+        const value = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return null; const style = getComputedStyle(el); return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'; })()`);
+        return value ?? false;
     }
     /** Check if an element is enabled (not disabled) */
     async isEnabled(selector) {
-        const result = await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; return el ? !el.disabled : null; })()`);
-        return result.result?.value ?? false;
+        const value = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; return el ? !el.disabled : null; })()`);
+        return value ?? false;
     }
     /** Check if a checkbox/radio element is checked */
     async isChecked(selector) {
-        const result = await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; return el ? !!(el.checked ?? el.getAttribute('aria-checked') === 'true') : null; })()`);
-        return result.result?.value ?? false;
+        const value = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; return el ? !!(el.checked ?? el.getAttribute('aria-checked') === 'true') : null; })()`);
+        return value ?? false;
     }
     /** Get the value property of an input element */
     async getElementValue(selector) {
-        const result = await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; return el ? (el.value ?? '') : null; })()`);
-        return result.result?.value ?? null;
+        const value = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; return el ? (el.value ?? '') : null; })()`);
+        return value ?? null;
     }
     /** Get an attribute of an element */
     async getElementAttribute(selector, attr) {
-        const result = await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; return el ? el.getAttribute(${JSON.stringify(attr)}) : null; })()`);
-        return result.result?.value ?? null;
+        const value = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; return el ? el.getAttribute(${JSON.stringify(attr)}) : null; })()`);
+        return value ?? null;
     }
     /** Check a checkbox/radio element by CSS selector */
     async check(selector) {
-        await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return; el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        const ok = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return false; el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+        if (ok !== true)
+            throw new Error(`Element not found: ${selector}`);
     }
     /** Uncheck a checkbox/radio element by CSS selector */
     async uncheck(selector) {
-        await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return; el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        const ok = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return false; el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+        if (ok !== true)
+            throw new Error(`Element not found: ${selector}`);
     }
     /** Scroll an element into view by backend node ID */
     async scrollIntoViewByBackendNode(backendNodeId) {
@@ -1112,8 +1191,8 @@ export class CDPClient {
         const propsExpr = props && props.length > 0
             ? JSON.stringify(props)
             : '[...cs]';
-        const result = await this.evaluate(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries(${propsExpr}.map(p => [p, cs.getPropertyValue(p)])); })()`);
-        return result.result?.value;
+        const value = await this.evalValue(`(() => { const el = ${buildElementExpression(selector)}; if (!el) return null; const cs = getComputedStyle(el); return Object.fromEntries(${propsExpr}.map(p => [p, cs.getPropertyValue(p)])); })()`);
+        return value ?? null;
     }
     // ── DOM Watch (MutationObserver) ──
     /** Install a MutationObserver that records mutations to window.__dvMutations */

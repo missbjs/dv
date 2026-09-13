@@ -102,27 +102,37 @@ describe('Utility Functions', () => {
 
     it('should build expression for single-level shadow piercing', () => {
       const expr = buildShadowExpression('my-comp >>> .btn', 'outerHTML');
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')?.outerHTML ?? ''");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')?.outerHTML ?? ''");
     });
 
     it('should build expression for nested shadow piercing', () => {
       const expr = buildShadowExpression('outer >>> middle >>> .inner', 'textContent');
-      expect(expr).toBe("document.querySelector('outer')?.shadowRoot.querySelector('middle')?.shadowRoot.querySelector('.inner')?.textContent ?? ''");
+      expect(expr).toBe("document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelector('.inner')?.textContent ?? ''");
     });
 
-    it('should handle trailing >>> gracefully', () => {
-      const expr = buildShadowExpression('my-comp >>>', 'outerHTML');
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('')?.outerHTML ?? ''");
+    it('should reject a trailing >>> rather than compile querySelector with an empty string', () => {
+      // querySelector('') throws "The provided selector is empty" inside the page, which
+      // reads as a page bug rather than as the typo in the selector that it actually is.
+      expect(() => buildShadowExpression('my-comp >>>', 'outerHTML')).toThrow('Invalid selector');
+      expect(() => buildShadowExpression('>>> .btn', 'outerHTML')).toThrow('Invalid selector');
+      expect(() => buildShadowExpression('a >>> >>> b', 'outerHTML')).toThrow('Invalid selector');
+    });
+
+    it('should return the bare element chain for an empty accessor', () => {
+      // With the accessor appended unconditionally this produced `expr?. ?? ''` — a syntax
+      // error that query --exists shipped on every >>> selector.
+      const expr = buildShadowExpression('my-comp >>> .btn', '');
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')");
     });
 
     it('should trim whitespace around parts', () => {
       const expr = buildShadowExpression('  my-comp   >>>   .btn  ', 'outerHTML');
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')?.outerHTML ?? ''");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')?.outerHTML ?? ''");
     });
 
     it('should escape special characters in selector parts', () => {
       const expr = buildShadowExpression("my-comp >>> it's", 'outerHTML');
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('it\\'s')?.outerHTML ?? ''");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('it\\'s')?.outerHTML ?? ''");
     });
   });
 
@@ -134,24 +144,41 @@ describe('Utility Functions', () => {
 
     it('should resolve a single-level >>> selector through shadowRoot', () => {
       const expr = buildElementExpression('my-comp >>> .btn');
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')");
     });
 
     it('should resolve a nested >>> selector through multiple shadow roots', () => {
       const expr = buildElementExpression('outer >>> middle >>> .inner');
       expect(expr).toBe(
-        "document.querySelector('outer')?.shadowRoot.querySelector('middle')?.shadowRoot.querySelector('.inner')"
+        "document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelector('.inner')"
       );
     });
 
     it('should trim whitespace around >>> parts', () => {
       const expr = buildElementExpression('  my-comp   >>>   .btn  ');
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')");
+    });
+
+    it('should optional-chain every shadowRoot hop, not just the host lookup', () => {
+      // `a?.shadowRoot.querySelector(...)` only short-circuits when `a` is nullish. A host
+      // that exists but has no shadowRoot — a closed root, an element that never attaches
+      // one, a plain div — made the chain throw "Cannot read properties of null" in the
+      // page, and callers read that as "element missing" or, worse, as a confident false.
+      const expr = buildElementExpression('outer >>> middle >>> .inner');
+      expect(expr).not.toContain('?.shadowRoot.querySelector');
+      expect(expr).toBe(
+        "document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelector('.inner')"
+      );
+    });
+
+    it('should reject empty >>> segments', () => {
+      expect(() => buildElementExpression('my-comp >>>')).toThrow('Invalid selector');
+      expect(() => buildElementExpression('>>> .btn')).toThrow('Invalid selector');
     });
 
     it('should escape quotes in selector parts', () => {
       const expr = buildElementExpression("my-comp >>> it's");
-      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot.querySelector('it\\'s')");
+      expect(expr).toBe("document.querySelector('my-comp')?.shadowRoot?.querySelector('it\\'s')");
     });
   });
 
@@ -168,13 +195,13 @@ describe('Utility Functions', () => {
 
     it('should build rect expression for single-level shadow piercing', () => {
       const expr = buildShadowRectExpression('my-comp >>> .btn');
-      expect(expr).toContain("document.querySelector('my-comp')?.shadowRoot.querySelector('.btn')");
+      expect(expr).toContain("document.querySelector('my-comp')?.shadowRoot?.querySelector('.btn')");
       expect(expr).toContain('getBoundingClientRect');
     });
 
     it('should build rect expression for nested shadow roots', () => {
       const expr = buildShadowRectExpression('outer >>> middle >>> .inner');
-      expect(expr).toContain("document.querySelector('outer')?.shadowRoot.querySelector('middle')?.shadowRoot.querySelector('.inner')");
+      expect(expr).toContain("document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelector('.inner')");
       expect(expr).toContain('getBoundingClientRect');
     });
 

@@ -968,6 +968,42 @@ describe('CDPClient', () => {
       expect(mockServer.getCalls('Runtime.releaseObject')).toHaveLength(1);
     });
 
+    it('should prime the DOM agent with DOM.getDocument before DOM.requestNode', async () => {
+      // Regression: without priming, DOM.requestNode answers `nodeId: 0` rather than
+      // failing, and every interaction command reported a bogus "Element not found".
+      await client.resolveNodeId('my-comp >>> .btn');
+      const methods = mockServer.getCalls().map((c) => c.method);
+      const primed = methods.indexOf('DOM.getDocument');
+      const requested = methods.indexOf('DOM.requestNode');
+      expect(primed).toBeGreaterThanOrEqual(0);
+      expect(primed).toBeLessThan(requested);
+      // depth 0 — the agent needs a tree, not a serialised one
+      expect(mockServer.getCallParams('DOM.getDocument')).toEqual({ depth: 0 });
+    });
+
+    it('should resolve a nested >>> chain through multiple shadow roots', async () => {
+      const nodeId = await client.resolveNodeId('outer >>> middle >>> .inner');
+      expect(nodeId).toBe(4);
+      const expr = mockServer.getCallParams('Runtime.evaluate').expression;
+      expect(expr).toBe(
+        "document.querySelector('outer')?.shadowRoot?.querySelector('middle')?.shadowRoot?.querySelector('.inner')"
+      );
+    });
+
+    it('should get the box model of an element inside shadow DOM via >>>', async () => {
+      const model = await client.getBoxModelBySelector('my-comp >>> .btn');
+      expect(model).toHaveProperty('content');
+      expect(mockServer.getCallParams('DOM.getBoxModel').nodeId).toBe(4);
+    });
+
+    it('should throw, not return null, when a >>> box model target is missing', async () => {
+      // Returning null here surfaced as "Cannot read properties of null (reading
+      // 'content')" in get-box/screenshot; both paths now throw the same error.
+      await expect(client.getBoxModelBySelector('my-comp >>> #nonexistent')).rejects.toThrow(
+        'Element not found'
+      );
+    });
+
     it('should resolve a plain CSS selector via DOM.querySelector (no shadow eval)', async () => {
       const nodeId = await client.resolveNodeId('#test-element');
       expect(nodeId).toBe(4);
@@ -1029,6 +1065,142 @@ describe('CDPClient', () => {
         .getCalls('Input.dispatchMouseEvent')
         .filter((c) => c.params.type === 'mouseMoved');
       expect(moves).toHaveLength(8);
+    });
+  });
+
+  describe('Shadow-pierce list resolution (resolveNodeIds)', () => {
+    beforeEach(async () => {
+      await client.connect('page-1');
+    });
+
+    afterEach(async () => {
+      await client.close();
+    });
+
+    it('should use DOM.querySelectorAll for a plain selector', async () => {
+      const nodeIds = await client.resolveNodeIds('.item');
+      expect(nodeIds).toEqual([4, 5, 6]);
+      expect(mockServer.getCalls('Runtime.evaluate')).toHaveLength(0);
+    });
+
+    it('should resolve a >>> selector through Runtime.evaluate instead of DOM.querySelectorAll', async () => {
+      // DOM.querySelectorAll cannot see into a shadow root — handed a >>> selector it
+      // rejects the whole command with a bare "DOM Error while querying", which is how
+      // query-all came to be simply broken on shadow DOM.
+      const nodeIds = await client.resolveNodeIds('my-list >>> .item');
+      expect(nodeIds).toEqual([4, 4]);
+      expect(mockServer.getCalls('DOM.querySelectorAll')).toHaveLength(0);
+      expect(mockServer.getCallParams('Runtime.evaluate').expression).toBe(
+        "Array.from((document.querySelector('my-list')?.shadowRoot?.querySelectorAll('.item') ?? []))"
+      );
+    });
+
+    it('should prime the DOM agent before converting element handles to nodeIds', async () => {
+      // Same trap as resolveNodeId: unprimed, DOM.requestNode answers nodeId 0 rather
+      // than failing, and every match silently disappears from the result.
+      await client.resolveNodeIds('my-list >>> .item');
+      const methods = mockServer.getCalls().map((c) => c.method);
+      const primed = methods.indexOf('DOM.getDocument');
+      expect(primed).toBeGreaterThanOrEqual(0);
+      expect(primed).toBeLessThan(methods.indexOf('DOM.requestNode'));
+    });
+
+    it('should release the array and every element handle it retained', async () => {
+      await client.resolveNodeIds('my-list >>> .item');
+      const released = mockServer.getCalls('Runtime.releaseObject').map((c) => c.params.objectId);
+      expect(released).toHaveLength(3); // the array itself plus one per element
+      expect(released).toContain('mock-shadow-object-2');
+    });
+
+    it('should return an empty list, not throw, when the shadow query matches nothing', async () => {
+      // `?? []` means the expression still evaluates to an array; zero matches is an
+      // answer, not a failure.
+      mockServer.setHandler('Runtime.getProperties', () => ({
+        result: [{ name: 'length', value: { type: 'number', value: 0 } }],
+      }));
+      await expect(client.resolveNodeIds('my-list >>> .item')).resolves.toEqual([]);
+      expect(mockServer.getCalls('DOM.requestNode')).toHaveLength(0);
+    });
+
+    it('should surface a page exception as Element not found', async () => {
+      mockServer.setHandler('Runtime.evaluate', () => ({
+        result: { type: 'undefined' },
+        exceptionDetails: {
+          text: 'Uncaught',
+          exception: { description: 'TypeError: Cannot read properties of null' },
+        },
+      }));
+      await expect(client.resolveNodeIds('my-list >>> .item')).rejects.toThrow('Element not found');
+    });
+
+    it('should reject a >>> selector with an empty segment', async () => {
+      await expect(client.resolveNodeIds('my-list >>>')).rejects.toThrow('Invalid selector');
+    });
+  });
+
+  describe('Honest failure on a missing element', () => {
+    beforeEach(async () => {
+      await client.connect('page-1');
+    });
+
+    afterEach(async () => {
+      await client.close();
+    });
+
+    it('should throw from check() rather than silently doing nothing', async () => {
+      // These helpers wrapped their mutation in `if (el) { ... }` and never looked at the
+      // result, so a missed selector produced a confident success.
+      await expect(client.check('#nonexistent')).rejects.toThrow('Element not found');
+    });
+
+    it('should throw from uncheck() rather than silently doing nothing', async () => {
+      await expect(client.uncheck('#nonexistent')).rejects.toThrow('Element not found');
+    });
+
+    it('should throw from scrollBy() rather than silently doing nothing', async () => {
+      await expect(client.scrollBy('#nonexistent', 0, 50)).rejects.toThrow('Element not found');
+    });
+
+    it('should throw from scrollIntoView() with options rather than silently doing nothing', async () => {
+      await expect(
+        client.scrollIntoView('#nonexistent', { block: 'center' })
+      ).rejects.toThrow('Element not found');
+    });
+
+    it('should still succeed when the element is there', async () => {
+      await expect(client.check('#test-element')).resolves.toBeUndefined();
+      await expect(client.uncheck('#test-element')).resolves.toBeUndefined();
+      await expect(client.scrollBy('#test-element', 0, 50)).resolves.toBeUndefined();
+    });
+
+    it('should surface a page exception from isVisible instead of reporting false', async () => {
+      // Runtime.evaluate puts a thrown expression in exceptionDetails and leaves
+      // result.value undefined, so `result.result?.value ?? false` reported a confident
+      // "not visible" for an expression that never ran — which is exactly how a TypeError
+      // inside a >>> chain disguised itself as a missing element.
+      mockServer.setHandler('Runtime.evaluate', () => ({
+        result: { type: 'undefined' },
+        exceptionDetails: {
+          text: 'Uncaught',
+          exception: {
+            description:
+              "TypeError: Cannot read properties of null (reading 'querySelector')\n    at <anonymous>:1:42",
+          },
+        },
+      }));
+      await expect(client.isVisible('x-closed >>> .btn')).rejects.toThrow(
+        "Cannot read properties of null (reading 'querySelector')"
+      );
+      // only the first line — the stack belongs in the page, not in the CLI output
+      await expect(client.isVisible('x-closed >>> .btn')).rejects.toThrow(/^[^\n]+$/);
+    });
+
+    it('should surface a page exception from getElementValue instead of reporting null', async () => {
+      mockServer.setHandler('Runtime.evaluate', () => ({
+        result: { type: 'undefined' },
+        exceptionDetails: { text: 'Uncaught SyntaxError: bad selector' },
+      }));
+      await expect(client.getElementValue('x-closed >>> .btn')).rejects.toThrow('bad selector');
     });
   });
 

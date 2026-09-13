@@ -2,6 +2,7 @@ import { CDPClient } from '../cdp.js';
 import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { applyToElement } from './apply-to-element.js';
 
 export interface SetHtmlOptions extends TabOptions {
   profile: string;
@@ -16,10 +17,7 @@ export async function setHtml(options: SetHtmlOptions) {
     await client.connect(targetTab(options));
 
     console.log(chalk.blue(`Setting HTML of ${options.selector}`));
-    const escapedHtml = options.value.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
-    await client.evaluate(
-      `const el = document.querySelector('${options.selector}'); if (el) el.innerHTML = \`${escapedHtml}\`;`
-    );
+    await applyToElement(client, options.selector, `el.innerHTML = ${JSON.stringify(options.value)};`);
 
     console.log(chalk.green('✓ HTML updated'));
   } catch (error) {

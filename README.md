@@ -269,7 +269,9 @@ dv3 scroll --selector "my-list >>> .footer" -y 200
 dv3 wait --selector "my-dialog >>> .ready"
 ```
 
-Commands that accept a selector and act on the element — `click`, `hover`, `focus`, `drag`, `upload`, `highlight`, `scroll`, `wait`, `dblclick`, `check`, `uncheck`, `scroll-into-view`, `get-html`, `get-text`, `value`, `attr`, `box`, and `style` — all resolve `>>>` through the same shadow-piercing path as `query`.
+Commands that accept a selector and act on the element — `click`, `hover`, `focus`, `drag`, `upload`, `highlight`, `scroll`, `wait`, `dblclick`, `check`, `uncheck`, `scroll-into-view`, `get-html`, `get-text`, `value`, `attr`, `box`, `style`, `set-text`, `set-html`, `set-attribute`, and `query-all` — all resolve `>>>` through the same shadow-piercing path as `query`.
+
+A `>>>` selector that names a host with no shadow root — a closed root, a custom element that never attaches one, a plain element — is a miss, not an error: `--exists` reports `false`, `--count` reports `0`, `query-all` returns an empty list, and the commands that act on an element report `Element not found`. Every `>>>` segment must name an element; `"host >>>"` is rejected as an invalid selector rather than querying an empty string.
 
 ### ✅ Extended Element Interaction
 

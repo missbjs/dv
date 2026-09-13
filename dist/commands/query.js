@@ -1,7 +1,7 @@
 import { CDPClient } from '../cdp.js';
 import { targetTab } from '../tab.js';
 import chalk from 'chalk';
-import { getPortFromProfile, buildShadowExpression, buildElementExpression, escapeJsString, parseProps } from '../utils.js';
+import { getPortFromProfile, buildShadowExpression, buildElementExpression, buildShadowListExpression, escapeJsString, parseProps } from '../utils.js';
 import { wantsStructured, renderStructured } from '../output.js';
 function getAccessor(options) {
     if (options.text)
@@ -38,16 +38,13 @@ export function buildExpression(selector, options) {
     }
     // Shadow-piercing: build shadow expression
     if (options.count) {
-        const parts = selector.split('>>>').map(s => s.trim());
-        const last = parts.pop();
-        let expr = 'document';
-        for (const part of parts) {
-            expr += `.querySelector('${escapeJsString(part)}')?.shadowRoot`;
-        }
-        return `(${expr}?.querySelectorAll('${escapeJsString(last)}')?.length ?? 0)`;
+        return `${buildShadowListExpression(selector)}.length`;
     }
     if (options.exists) {
-        return `!!(${buildShadowExpression(selector, '')})`;
+        // Not `buildShadowExpression(selector, '')` — an empty accessor used to compile to
+        // `expr?. ?? ''`, a syntax error that made `query --exists` fail on every `>>>`
+        // selector regardless of whether the element was there.
+        return `!!(${buildElementExpression(selector)})`;
     }
     return buildShadowExpression(selector, getAccessor(options));
 }

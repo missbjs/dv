@@ -28,6 +28,16 @@ export declare class CDPClient {
     enableEmulation(): Promise<void>;
     navigate(url: string): Promise<any>;
     evaluate(expression: string): Promise<any>;
+    /**
+     * Evaluate an expression and return its value, throwing whatever the page threw.
+     *
+     * `evaluate()` hands back the raw CDP reply, and a thrown expression puts the failure in
+     * `exceptionDetails` while leaving `result.value` undefined. Callers that read
+     * `result.result?.value ?? false` therefore reported a confident `false`/`null` for an
+     * expression that never ran — which is how a TypeError inside a `>>>` chain came out as
+     * "not visible" rather than as an error.
+     */
+    private evalValue;
     getConsoleMessages(): Promise<{
         type: string;
         text: string;
@@ -111,6 +121,15 @@ export declare class CDPClient {
         box: any;
     }>;
     querySelectorAll(selector: string): Promise<any>;
+    /**
+     * Resolve a selector to frontend nodeIds, piercing shadow roots for `>>>` selectors.
+     *
+     * `DOM.querySelectorAll` cannot see into a shadow root — handed a `>>>` selector it
+     * rejects the whole thing with a bare "DOM Error while querying". So for `>>>` we
+     * evaluate the match list in the page and convert each element handle with
+     * `DOM.requestNode`, which needs the same `DOM.getDocument` priming as `resolveNodeId`.
+     */
+    resolveNodeIds(selector: string): Promise<number[]>;
     getOuterHTML(nodeId: number): Promise<any>;
     setOuterHTML(nodeId: number, html: string): Promise<void>;
     setAttributeValue(nodeId: number, name: string, value: string): Promise<void>;
@@ -200,7 +219,13 @@ export declare class CDPClient {
     typeBackendNode(backendNodeId: number, text: string): Promise<void>;
     /** Resolve a DOM node to its object for inspection */
     resolveNode(nodeId: number): Promise<any>;
-    /** Get box model for a CSS selector (supports `>>>` shadow-piercing; returns null if not found) */
+    /**
+     * Get box model for a CSS selector (supports `>>>` shadow-piercing).
+     *
+     * Throws `Element not found: <selector>` when nothing matches — same as the plain-CSS
+     * path below. Callers dereference `.content` directly, so returning `null` here only
+     * turned a missing element into a "Cannot read properties of null" further downstream.
+     */
     getBoxModelBySelector(selector: string): Promise<any>;
     /** Capture screenshot clipped to a bounding box (viewport CSS coords) */
     captureScreenshotWithClip(clip: {

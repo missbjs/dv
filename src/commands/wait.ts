@@ -134,10 +134,15 @@ async function waitForSelector(client: CDPClient, selector: string, maxWait: num
   const pollInterval = 200;
   const deadline = Date.now() + maxWait;
 
+  // Compiled once, outside the loop: buildElementExpression rejects a malformed `>>>`
+  // selector, and a typo should fail now rather than warn every 200ms for the full
+  // timeout and then blame the page for the element never showing up.
+  // It handles both plain CSS and `>>>` shadow-pierce selectors.
+  const expression = `!!(${buildElementExpression(selector)})`;
+
   while (Date.now() < deadline) {
     try {
-      // buildElementExpression handles both plain CSS and `>>>` shadow-pierce selectors
-      const result = await client.evaluate(`!!(${buildElementExpression(selector)})`);
+      const result = await client.evaluate(expression);
       if (result.result?.value === true) return;
     } catch (err) {
       console.warn(chalk.yellow(`waitForSelector: poll error: ${err instanceof Error ? err.message : err}`));

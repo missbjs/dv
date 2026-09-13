@@ -2,6 +2,7 @@ import { CDPClient } from '../cdp.js';
 import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { applyToElement } from './apply-to-element.js';
 
 export interface SetAttributeOptions extends TabOptions {
   profile: string;
@@ -17,8 +18,10 @@ export async function setAttribute(options: SetAttributeOptions) {
     await client.connect(targetTab(options));
 
     console.log(chalk.blue(`Setting attribute ${options.attr} on ${options.selector}`));
-    await client.evaluate(
-      `const el = document.querySelector('${options.selector}'); if (el) el.setAttribute('${options.attr}', '${options.value.replace(/'/g, "\\'")}');`
+    await applyToElement(
+      client,
+      options.selector,
+      `el.setAttribute(${JSON.stringify(options.attr)}, ${JSON.stringify(options.value)});`
     );
 
     console.log(chalk.green(`✓ Attribute "${options.attr}" set to "${options.value}"`));

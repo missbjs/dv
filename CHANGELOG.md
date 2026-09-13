@@ -5,6 +5,61 @@
 ### Unreleased
 
 #### Fixed
+- **Every `>>>` shadow-piercing selector now works with the interaction commands.**
+  `click`, `dblclick`, `hover`, `focus`, `drag`, `scroll -s`, `highlight -s`, `upload -s` and
+  `get-box` all resolve a selector through `resolveNodeId`, and its `>>>` branch went straight
+  from `Runtime.evaluate` to `DOM.requestNode`. `DOM.requestNode` does not fail loudly when the
+  DOM agent holds no node tree — it answers `nodeId: 0` — and since every dv command is a fresh
+  connect, it never held one. The result was `Element not found` on elements `query` would
+  happily print one command later: for a page built out of custom elements, a total outage of
+  the interaction commands. The branch now primes the agent with `DOM.getDocument { depth: 0 }`
+  first (`DOM.enable` is not sufficient; the full-tree walk is not needed). Plain CSS selectors
+  were never affected — that branch already called `DOM.getDocument`.
+- **`get-box` / `screenshot -s` on a missing `>>>` element report the element, not a null deref.**
+  `getBoxModelBySelector` swallowed the failure and returned `null`, which both callers
+  dereferenced as `box.content[0]`, surfacing as `Cannot read properties of null (reading
+  'content')`. It now throws `Element not found: <selector>`, matching the plain-CSS path.
+- **Every `>>>` chain now survives a host that has no shadow root.** The compiled chain was
+  `document.querySelector('a')?.shadowRoot.querySelector('b')` — only the *host lookup* was
+  optional-chained. `a?.b.c` short-circuits only when `a` is nullish, so a host that exists but
+  has no `shadowRoot` — a closed root, a custom element that never attaches one, a plain `div` —
+  made the chain throw `TypeError: Cannot read properties of null (reading 'querySelector')`
+  inside the page. Every `shadowRoot` hop is now guarded. Three builders
+  (`buildShadowExpression`, `buildElementExpression`, `buildShadowRectExpression`) plus the
+  hand-rolled loops behind `query --count` and `query-all` each carried their own copy of the
+  bug; they now share one helper.
+- **`query --exists` with a `>>>` selector was a guaranteed syntax error.** It compiled to
+  `!!(<chain>?. ?? '')` — an optional chain with no accessor — so it failed on every shadow
+  selector whether or not the element was there. It now compiles to `!!(<chain>)`.
+- **`query-all` can see into shadow DOM at all.** `DOM.querySelectorAll` cannot pierce a shadow
+  root; handed a `>>>` selector Chrome rejected the whole command with a bare `DOM Error while
+  querying`. The default (node-id) path now goes through the new `CDPClient.resolveNodeIds`,
+  which evaluates the match list in the page and converts each element handle with
+  `DOM.requestNode` — with the same `DOM.getDocument` priming as `resolveNodeId` — releasing
+  every retained object afterwards. Zero matches returns an empty list rather than an error.
+- **`set-text`, `set-html` and `set-attribute` support `>>>`, escape their inputs, and stop
+  reporting success they did not achieve.** They interpolated the raw selector into
+  `document.querySelector('…')`, so a `>>>` selector threw `SyntaxError: … is not a valid
+  selector`; an apostrophe in the selector or in the value broke out of the string literal; and
+  because the mutation sat inside `if (el) { … }` and the reply's `exceptionDetails` was never
+  read, all three printed `✓ updated` regardless. They now share `applyToElement`, which pierces
+  shadow roots, embeds values with `JSON.stringify`, and throws `Element not found: <selector>`
+  when the selector misses.
+- **Element-state reads no longer answer confidently for an expression that threw.**
+  `Runtime.evaluate` reports a thrown expression in `exceptionDetails` while leaving
+  `result.value` undefined, and `isVisible`, `isEnabled`, `isChecked`, `getElementValue`,
+  `getElementAttribute` and `getElementStyles` all read `result.result?.value ?? false`. A
+  page-side `TypeError` therefore surfaced as "not visible" or "no value" — which is how the
+  unguarded `shadowRoot` chains above stayed invisible. They now surface the page's own error.
+- **`check`, `uncheck` and `scroll -s` (both `--by` and the options path) fail loudly on a
+  miss** instead of evaluating to nothing and printing success.
+- **A `>>>` selector with an empty segment is rejected up front.** `"host >>>"` compiled to
+  `querySelector('')`, whose `SyntaxError: The provided selector is empty` read as a page bug
+  rather than as the typo it was. Now: `Invalid selector: "host >>>" — every ">>>" segment must
+  name an element`.
+- **`wait --selector` rejects a malformed `>>>` selector immediately** rather than warning
+  once per 200ms poll for the whole timeout and then blaming the page. The expression is
+  compiled once, before the loop.
 - **`resize 0 0` now actually clears the viewport override.** It previously printed
   `Viewport resized` and did nothing: `Emulation.clearDeviceMetricsOverride` was never called
   anywhere in the codebase. A device-metrics override is per-tab and sticky — it survives

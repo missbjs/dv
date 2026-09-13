@@ -104,6 +104,15 @@ export class MockCDPServer {
         }
         return { result: { type: 'object', objectId: 'mock-shadow-object-1' } };
       }
+      // Element-guard expressions — `(() => { const el = <chain>; if (!el) return false;
+      // ...; return true; })()` — are how the mutation helpers (check, scrollBy, set-text)
+      // both act on an element and report whether they found one. A real page answers
+      // `true` on a hit and `false` on a miss, so the mock has to as well; answering with
+      // a string made every one of those calls look like a miss.
+      if (expr.includes('if (!el) return false;')) {
+        return { result: { type: 'boolean', value: !expr.includes('#nonexistent') } };
+      }
+
       return {
         result: {
           type: 'string',
@@ -112,8 +121,24 @@ export class MockCDPServer {
       };
     });
 
-    // DOM.requestNode — maps a Runtime objectId to a frontend nodeId (used by resolveNodeId)
-    this.messageHandlers.set('DOM.requestNode', () => ({ nodeId: 4 }));
+    // DOM.requestNode — maps a Runtime objectId to a frontend nodeId (used by resolveNodeId).
+    // Faithful to real Chrome: the DOM agent hands out nodeIds only once it holds a node
+    // tree, and it acquires one on DOM.getDocument (DOM.enable is NOT enough). Without
+    // that priming it answers `nodeId: 0` instead of failing, so callers that skip it see
+    // a silently unresolvable element.
+    this.messageHandlers.set('DOM.requestNode', () => ({
+      nodeId: this.getCalls('DOM.getDocument').length > 0 ? 4 : 0,
+    }));
+
+    // Runtime.getProperties — used by resolveNodeIds() to pull the element handles out
+    // of the array a shadow-piercing list expression evaluates to.
+    this.messageHandlers.set('Runtime.getProperties', () => ({
+      result: [
+        { name: '0', value: { type: 'object', objectId: 'mock-shadow-object-1' } },
+        { name: '1', value: { type: 'object', objectId: 'mock-shadow-object-2' } },
+        { name: 'length', value: { type: 'number', value: 2 } },
+      ],
+    }));
 
     // Runtime.releaseObject — release a retained Runtime object
     this.messageHandlers.set('Runtime.releaseObject', () => ({}));
