@@ -38,6 +38,9 @@ function legacyRoots(): string[] {
  * from the old location or from an empty folder in its place.
  */
 export function migrateProfile(name: string): void {
+  // Only the six fixed names ever map to a folder; anything else (e.g. a path-traversal
+  // string) is left for the caller's own validation to reject.
+  if (!FORCED_PROFILES.includes(name)) return;
   const target = path.join(profileRoot(), name);
   if (fs.existsSync(target)) return;
   for (const root of legacyRoots()) {
