@@ -1,7 +1,6 @@
 import { spawn } from 'child_process';
-import path from 'path';
 import { getProfile } from './profiles.js';
-import { profileRoot } from './runtime.js';
+import { profileDir } from './runtime.js';
 import { CDPClient } from './cdp.js';
 import chalk from 'chalk';
 
@@ -42,7 +41,7 @@ export async function ensureChromeRunning(profileName: string, headless?: boolea
     `--remote-debugging-port=${port}`,
     '--no-first-run',
     '--no-default-browser-check',
-    `--user-data-dir=${path.join(profileRoot(), profileName)}`,
+    `--user-data-dir=${profileDir(profileName)}`,
   ];
 
   if (headless) {

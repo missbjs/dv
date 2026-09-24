@@ -1,6 +1,6 @@
 // Builds release/dv.exe (standalone, Bun runtime embedded) plus dv1.cmd…dv6.cmd,
-// each of which runs dv.exe pinned to one profile. Chrome profiles are created
-// lazily, once, under release/profiles/dvN on first `dvN start`.
+// each of which runs dv.exe pinned to one profile. Chrome profiles live in the
+// shared %LOCALAPPDATA%dvprofilesdvN (same as the Node build), created on first `dvN start`.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
