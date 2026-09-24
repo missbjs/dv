@@ -31,7 +31,6 @@
     "device-emulation"
   ],
   "bin": {
-    "dv": "./dist/cli.js",
     "dv1": "./bin/dv1.cjs",
     "dv2": "./bin/dv2.cjs",
     "dv3": "./bin/dv3.cjs",
@@ -48,7 +47,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build:exe": "node scripts/build-exe.mjs"
   },
   "dependencies": {
     "axios": "^1.18.1",

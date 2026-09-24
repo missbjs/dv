@@ -1,11 +1,9 @@
 import { spawn } from 'child_process';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { getProfile } from './profiles.js';
+import { profileRoot } from './runtime.js';
 import { CDPClient } from './cdp.js';
 import chalk from 'chalk';
-// At runtime this resolves to dist/ (where ensureChrome.js lives)
-const DIST_DIR = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Ensure Chrome is running for the given profile.
  * If Chrome is already running, returns immediately.
@@ -39,7 +37,7 @@ export async function ensureChromeRunning(profileName, headless) {
         `--remote-debugging-port=${port}`,
         '--no-first-run',
         '--no-default-browser-check',
-        `--user-data-dir=${path.join(DIST_DIR, profileName)}`,
+        `--user-data-dir=${path.join(profileRoot(), profileName)}`,
     ];
     if (headless) {
         args.push('--headless=new');

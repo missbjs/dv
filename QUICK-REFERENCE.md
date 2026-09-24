@@ -215,7 +215,7 @@ dv1 batch "navigate https://x.com" "snapshot"   # run commands sequentially
 
 ### Profile Management
 ```bash
-dv profiles
+dv1 profiles
 ```
 
 ## Profiles (Port Assignments)

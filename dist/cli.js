@@ -80,8 +80,11 @@ import { getStyles } from './commands/get-styles.js';
 import { printStructured } from './output.js';
 import chalk from 'chalk';
 import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json');
+import { forceProfile } from './runtime.js';
+const version = typeof __DV_VERSION__ === 'string'
+    ? __DV_VERSION__
+    : createRequire(import.meta.url)('../package.json').version;
+forceProfile(process.argv);
 const program = new Command();
 /**
  * Parse a viewport dimension. Rejects junk instead of silently passing NaN

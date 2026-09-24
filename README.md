@@ -8,10 +8,13 @@
 npm install -g @missbjs/dv
 ```
 
-Or use directly:
+Or download the standalone Windows binary (no Node or Bun needed): put
+`dv.exe` and `dv1.cmd`…`dv6.cmd` from the release in one folder on `PATH`.
+Build it yourself with `pnpm build:exe` (requires Bun) — output lands in
+`release/`.
 
 ```bash
-npx @missbjs/dv --help
+dv1 --help
 ```
 
 ## Quick Start

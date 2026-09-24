@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import chalk from 'chalk';
+import { selfCommand } from '../runtime.js';
 
 export interface BatchOptions {
   profile: string;
@@ -66,8 +67,12 @@ function execCommand(bin: string, cmd: string): Promise<void> {
     const args = cmd.split(/\s+/).filter(Boolean);
     if (args.length === 0) { resolve(); return; }
 
-    const proc = spawn(bin, args, {
+    // Re-invoke this same CLI (dv.exe or node dist/cli.js) pinned to the
+    // profile, rather than looking dvN up on PATH.
+    const self = selfCommand();
+    const proc = spawn(self.file, [...self.args, ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, DV_BIN_NAME: bin },
     });
 
     let stdout = '';

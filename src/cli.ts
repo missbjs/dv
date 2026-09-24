@@ -81,9 +81,16 @@ import { getStyles } from './commands/get-styles.js';
 import { printStructured } from './output.js';
 import chalk from 'chalk';
 import { createRequire } from 'node:module';
+import { forceProfile } from './runtime.js';
 
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+// dv.exe has the version baked in at build time (bun --define); there is no
+// package.json beside the executable to read.
+declare const __DV_VERSION__: string | undefined;
+const version = typeof __DV_VERSION__ === 'string'
+  ? __DV_VERSION__
+  : (createRequire(import.meta.url)('../package.json') as { version: string }).version;
+
+forceProfile(process.argv);
 
 const program = new Command();
 
