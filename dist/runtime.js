@@ -21,63 +21,82 @@ export function profileRoot() {
     }
     return path.join(process.env.XDG_DATA_HOME ?? path.join(os.homedir(), '.local', 'share'), 'dv', 'profiles');
 }
-/** Where earlier builds kept profiles: dist/ under Node, profiles/ beside dv.exe. */
+/**
+ * Where earlier builds kept profiles: dist/ of this build (Node), profiles/
+ * beside dv.exe, and dist/ of the default Windows npm-global install (where
+ * profiles created by pre-shared-root releases live).
+ */
 function legacyRoots() {
-    return [MODULE_DIR, path.join(path.dirname(process.execPath), 'profiles')];
+    const roots = [MODULE_DIR, path.join(path.dirname(process.execPath), 'profiles')];
+    if (process.platform === 'win32' && process.env.APPDATA) {
+        roots.push(path.join(process.env.APPDATA, 'npm', 'node_modules', '@missbjs', 'dv', 'dist'));
+    }
+    return roots;
 }
 /**
- * Move a profile folder from an older layout (dist/dvN under Node, profiles/dvN
- * beside dv.exe) into the shared root, so existing logins carry over. A no-op
- * once the shared folder exists. Throws if the move cannot complete (typically
- * Chrome is still running on the old folder) - the profile is never started
- * from the old location or from an empty folder in its place.
+ * The old-layout folder that still has to be moved for this profile, or null
+ * when nothing is pending (already migrated, never existed, or not dv1-dv6 -
+ * only the six fixed names ever map to a folder, so a path-traversal string
+ * is left for the caller's own validation to reject).
  */
-export function migrateProfile(name) {
-    // Only the six fixed names ever map to a folder; anything else (e.g. a path-traversal
-    // string) is left for the caller's own validation to reject.
+export function pendingMigration(name) {
     if (!FORCED_PROFILES.includes(name))
-        return;
+        return null;
     const target = path.join(profileRoot(), name);
     if (fs.existsSync(target))
-        return;
+        return null;
     for (const root of legacyRoots()) {
         const legacy = path.join(root, name);
-        if (path.resolve(legacy) === path.resolve(target) || !fs.existsSync(legacy))
-            continue;
+        if (path.resolve(legacy) !== path.resolve(target) && fs.existsSync(legacy))
+            return legacy;
+    }
+    return null;
+}
+/**
+ * Move a pending old-layout profile folder into the shared root, so existing
+ * logins carry over. A no-op when nothing is pending. Throws if the move
+ * cannot complete - the profile is never started from the old location or
+ * from an empty folder in its place. The caller must make sure no Chrome is
+ * running on the profile first: Windows lets a folder be renamed while Chrome
+ * has files open in it, which would strand the running browser.
+ */
+export function migrateProfile(name) {
+    const legacy = pendingMigration(name);
+    if (!legacy)
+        return;
+    const target = path.join(profileRoot(), name);
+    try {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
         try {
-            fs.mkdirSync(path.dirname(target), { recursive: true });
-            try {
-                fs.renameSync(legacy, target);
-            }
-            catch (e) {
-                if (e.code !== 'EXDEV')
-                    throw e;
-                // Different drive: copy beside the target first so a partial copy is
-                // never mistaken for the real profile, then swap it in.
-                const partial = target + '.migrating';
-                fs.rmSync(partial, { recursive: true, force: true });
-                try {
-                    fs.cpSync(legacy, partial, { recursive: true });
-                    fs.renameSync(partial, target);
-                }
-                catch (copyErr) {
-                    fs.rmSync(partial, { recursive: true, force: true });
-                    throw copyErr;
-                }
-                try {
-                    fs.rmSync(legacy, { recursive: true, force: true });
-                }
-                catch {
-                    console.error(`dv: ${name} migrated, but could not delete the old copy at ${legacy}`);
-                }
-            }
-            console.error(`dv: moved ${name} profile to ${target}`);
-            return;
+            fs.renameSync(legacy, target);
         }
         catch (e) {
-            throw new Error(`cannot move ${name} profile from ${legacy} to ${target}: ${e.message}. ` +
-                `If Chrome is running on ${name}, run "${name} stop" (or close it) and try again.`);
+            if (e.code !== 'EXDEV')
+                throw e;
+            // Different drive: copy beside the target first so a partial copy is
+            // never mistaken for the real profile, then swap it in.
+            const partial = target + '.migrating';
+            fs.rmSync(partial, { recursive: true, force: true });
+            try {
+                fs.cpSync(legacy, partial, { recursive: true });
+                fs.renameSync(partial, target);
+            }
+            catch (copyErr) {
+                fs.rmSync(partial, { recursive: true, force: true });
+                throw copyErr;
+            }
+            try {
+                fs.rmSync(legacy, { recursive: true, force: true });
+            }
+            catch {
+                console.error(`dv: ${name} migrated, but could not delete the old copy at ${legacy}`);
+            }
         }
+        console.error(`dv: moved ${name} profile to ${target}`);
+    }
+    catch (e) {
+        throw new Error(`cannot move ${name} profile from ${legacy} to ${target}: ${e.message}. ` +
+            `If Chrome is running on ${name}, run "${name} stop" (or close it) and try again.`);
     }
 }
 /** User-data-dir for one profile, after migrating any older-layout folder. */

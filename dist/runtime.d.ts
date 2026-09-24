@@ -7,11 +7,19 @@ export declare const isCompiled: boolean;
  */
 export declare function profileRoot(): string;
 /**
- * Move a profile folder from an older layout (dist/dvN under Node, profiles/dvN
- * beside dv.exe) into the shared root, so existing logins carry over. A no-op
- * once the shared folder exists. Throws if the move cannot complete (typically
- * Chrome is still running on the old folder) - the profile is never started
- * from the old location or from an empty folder in its place.
+ * The old-layout folder that still has to be moved for this profile, or null
+ * when nothing is pending (already migrated, never existed, or not dv1-dv6 -
+ * only the six fixed names ever map to a folder, so a path-traversal string
+ * is left for the caller's own validation to reject).
+ */
+export declare function pendingMigration(name: string): string | null;
+/**
+ * Move a pending old-layout profile folder into the shared root, so existing
+ * logins carry over. A no-op when nothing is pending. Throws if the move
+ * cannot complete - the profile is never started from the old location or
+ * from an empty folder in its place. The caller must make sure no Chrome is
+ * running on the profile first: Windows lets a folder be renamed while Chrome
+ * has files open in it, which would strand the running browser.
  */
 export declare function migrateProfile(name: string): void;
 /** User-data-dir for one profile, after migrating any older-layout folder. */

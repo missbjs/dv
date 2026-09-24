@@ -1,17 +1,27 @@
 import { ensureChromeRunning } from '../ensureChrome.js';
 import { getPortFromProfile } from '../utils.js';
 import { CDPClient } from '../cdp.js';
-import { migrateProfile } from '../runtime.js';
+import { migrateProfile, pendingMigration } from '../runtime.js';
 import chalk from 'chalk';
 export async function start(options) {
     // Before anything else: an old-location profile is moved to the shared root, or
-    // start refuses. A Chrome still running on the old folder is caught here too.
-    try {
-        migrateProfile(options.profile);
-    }
-    catch (e) {
-        console.error(chalk.red(e.message));
-        process.exit(1);
+    // start refuses. A Chrome already running on the old folder must not be moved
+    // from under it, so that case is reported instead of migrated.
+    const pending = pendingMigration(options.profile);
+    if (pending) {
+        const running = await new CDPClient(getPortFromProfile(options.profile)).getTargets().then(() => true, () => false);
+        if (running) {
+            console.error(chalk.red(`Chrome on ${options.profile} is running from the old profile folder ${pending}. ` +
+                `Run "${options.profile} stop", then "${options.profile} start" to move it to the shared location.`));
+            process.exit(1);
+        }
+        try {
+            migrateProfile(options.profile);
+        }
+        catch (e) {
+            console.error(chalk.red(e.message));
+            process.exit(1);
+        }
     }
     // Check if already running first so we can show details
     const client = new CDPClient(getPortFromProfile(options.profile));
