@@ -7,11 +7,14 @@ export declare const isCompiled: boolean;
  */
 export declare function profileRoot(): string;
 /**
- * User-data-dir for one profile. The first time a profile is needed, any
- * pre-existing folder from an older layout is moved into the shared root so
- * existing logins carry over. If the move fails (e.g. Chrome still has it
- * open) the old folder keeps being used rather than silently starting empty.
+ * Move a profile folder from an older layout (dist/dvN under Node, profiles/dvN
+ * beside dv.exe) into the shared root, so existing logins carry over. A no-op
+ * once the shared folder exists. Throws if the move cannot complete (typically
+ * Chrome is still running on the old folder) - the profile is never started
+ * from the old location or from an empty folder in its place.
  */
+export declare function migrateProfile(name: string): void;
+/** User-data-dir for one profile, after migrating any older-layout folder. */
 export declare function profileDir(name: string): string;
 /** Command that re-invokes this CLI: dv.exe itself, or node + dist/cli.js. */
 export declare function selfCommand(): {

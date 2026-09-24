@@ -31,14 +31,15 @@ function legacyRoots(): string[] {
 }
 
 /**
- * User-data-dir for one profile. The first time a profile is needed, any
- * pre-existing folder from an older layout is moved into the shared root so
- * existing logins carry over. If the move fails (e.g. Chrome still has it
- * open) the old folder keeps being used rather than silently starting empty.
+ * Move a profile folder from an older layout (dist/dvN under Node, profiles/dvN
+ * beside dv.exe) into the shared root, so existing logins carry over. A no-op
+ * once the shared folder exists. Throws if the move cannot complete (typically
+ * Chrome is still running on the old folder) - the profile is never started
+ * from the old location or from an empty folder in its place.
  */
-export function profileDir(name: string): string {
+export function migrateProfile(name: string): void {
   const target = path.join(profileRoot(), name);
-  if (fs.existsSync(target)) return target;
+  if (fs.existsSync(target)) return;
   for (const root of legacyRoots()) {
     const legacy = path.join(root, name);
     if (path.resolve(legacy) === path.resolve(target) || !fs.existsSync(legacy)) continue;
@@ -48,17 +49,38 @@ export function profileDir(name: string): string {
         fs.renameSync(legacy, target);
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== 'EXDEV') throw e;
-        fs.cpSync(legacy, target, { recursive: true });
-        fs.rmSync(legacy, { recursive: true, force: true });
+        // Different drive: copy beside the target first so a partial copy is
+        // never mistaken for the real profile, then swap it in.
+        const partial = target + '.migrating';
+        fs.rmSync(partial, { recursive: true, force: true });
+        try {
+          fs.cpSync(legacy, partial, { recursive: true });
+          fs.renameSync(partial, target);
+        } catch (copyErr) {
+          fs.rmSync(partial, { recursive: true, force: true });
+          throw copyErr;
+        }
+        try {
+          fs.rmSync(legacy, { recursive: true, force: true });
+        } catch {
+          console.error(`dv: ${name} migrated, but could not delete the old copy at ${legacy}`);
+        }
       }
       console.error(`dv: moved ${name} profile to ${target}`);
-      return target;
+      return;
     } catch (e) {
-      console.error(`dv: could not move ${legacy} to ${target} (${(e as Error).message}); using it in place`);
-      return legacy;
+      throw new Error(
+        `cannot move ${name} profile from ${legacy} to ${target}: ${(e as Error).message}. ` +
+        `If Chrome is running on ${name}, run "${name} stop" (or close it) and try again.`,
+      );
     }
   }
-  return target;
+}
+
+/** User-data-dir for one profile, after migrating any older-layout folder. */
+export function profileDir(name: string): string {
+  migrateProfile(name);
+  return path.join(profileRoot(), name);
 }
 
 /** Command that re-invokes this CLI: dv.exe itself, or node + dist/cli.js. */

@@ -1,6 +1,7 @@
 import { ensureChromeRunning } from '../ensureChrome.js';
 import { getPortFromProfile } from '../utils.js';
 import { CDPClient } from '../cdp.js';
+import { migrateProfile } from '../runtime.js';
 import chalk from 'chalk';
 
 export interface StartOptions {
@@ -9,6 +10,15 @@ export interface StartOptions {
 }
 
 export async function start(options: StartOptions) {
+  // Before anything else: an old-location profile is moved to the shared root, or
+  // start refuses. A Chrome still running on the old folder is caught here too.
+  try {
+    migrateProfile(options.profile);
+  } catch (e) {
+    console.error(chalk.red((e as Error).message));
+    process.exit(1);
+  }
+
   // Check if already running first so we can show details
   const client = new CDPClient(getPortFromProfile(options.profile));
   try {
