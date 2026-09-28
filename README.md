@@ -485,10 +485,152 @@ Focused on browser automation, testing, and debugging use cases.
 - No WebDriver overhead
 - Modern Chrome-specific features
 
-**vs Playwright:**
-- Lighter weight
-- CLI-first design
-- Chrome/Chromium only
+**vs Playwright:** see the full writeup below — the short version is dv is lighter
+weight, CLI-first, and Chrome/Chromium only.
+
+### Why dv, vs. every other browser-automation tool an agent could reach for
+
+Agents given generic browser-automation tools tend to improvise: they spin up a new
+remote-debugging port, create a throwaway or temp-copied profile, run several
+instances concurrently against the same profile, lose the MCP connection mid-task,
+or fall back to a clean/incognito context with no Google OAuth and no existing
+logins. Individually these are reasonable defaults for the tools in question — but
+for a workflow that depends on *the user's own logged-in browser*, each one means
+starting over.
+
+dv exists to close that gap: it is **session-able**, **pinned to six fixed Chrome
+profiles** (`dv1`…`dv6`), each with its own persistent `user-data-dir` and its own
+remote-debugging port (see the Profile System table above). An agent cannot create a
+seventh profile, cannot point dv at an arbitrary `--profile` path, and cannot
+silently spawn a second Chrome instance under it — the CLI simply doesn't expose
+those knobs. That constraint is what makes the following possible in practice:
+
+- **Real concurrency without session collisions.** Up to six independent tasks
+  can each own a profile (`dv1 goto …` next to `dv2 goto …` next to `dv3 goto …`)
+  without fighting over one browser's tabs or one profile's storage. Six is a
+  practical ceiling for a single machine's screen space and memory, not a hard
+  architectural limit.
+- **The user's actual logins survive.** Because a profile is fixed and never
+  reset unless asked, a human can log into Gmail (or anything gated behind
+  Google OAuth, 2FA, or a CAPTCHA) in `dv2`'s window once, then hand the tab to
+  an agent — "`dv2 goto gmail.com`" ... "I've logged in, continue from here" —
+  and the agent inherits that session instead of hitting a blank auth wall.
+- **No extra anti-bot surface.** dv drives the same real, persistent Chrome
+  profile a human already uses — not a fresh incognito context or a
+  differently-fingerprinted automation profile — so it doesn't introduce the
+  "new machine, no history, no cookies" signal that anti-automation heuristics
+  key on.
+- **Selector-first, not purely ref-first.** dv's `snapshot`/`query`/`click` etc.
+  support plain CSS selectors (including shadow-piercing `>>>` chains for
+  custom-element/shadow-root heavy UIs) as first-class citizens, not just
+  accessibility-tree element refs that go stale the moment the DOM mutates. An
+  agent can still take an accessibility snapshot when useful, but it isn't
+  required to re-snapshot after every DOM change just to keep its element
+  handles valid.
+
+#### Feature comparison
+
+Facts below are sourced from each project's own docs/README as of the tools'
+current public state; see citations under each subsection. Where a fact couldn't
+be verified from a primary source it's marked "unclear" rather than guessed.
+
+| | **dv** (this repo) | [browser-use](https://github.com/browser-use/browser-use) | [agent-browser](https://github.com/vercel-labs/agent-browser) (Vercel Labs) | [Browser MCP](https://github.com/browsermcp/mcp) (browsermcp.io) | [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) (Google) | [playwright-mcp](https://github.com/microsoft/playwright-mcp) (Microsoft) | Claude Code's [built-in browser](https://code.claude.com/docs/en/chrome) |
+|---|---|---|---|---|---|---|---|
+| **Profile model** | 6 fixed, pinned profiles (`dv1`–`dv6`), one `user-data-dir`/port each, cannot be reconfigured | Persistent profiles supported via config; also offers ephemeral cloud browsers | Default launches ephemeral browser; `--profile <path>` copies the user's Chrome profile into a **read-only temp snapshot** | Uses the browser's **existing** profile via a Chrome extension (no separate `user-data-dir`) | One shared `user-data-dir` per channel by default (not cleared between runs); `--isolated` for a temp dir | Persistent profile per workspace by default; `--isolated` or a distinct `--user-data-dir` for parallel clients | Explicitly a **clean profile with none of your logins** — separate from the Claude-in-Chrome extension |
+| **Concurrent sessions** | Up to 6, one profile per task, by design | Multi-session support for parallel isolated runs (per project docs) | Not documented in the skill reference checked | Single real browser instance being remote-controlled — not built for N parallel isolated sessions | Shared dir across instances by default; concurrency needs `--isolated`/distinct dirs to avoid conflicts | Explicitly documented conflict: a persistent profile "can only be used by one browser instance at a time" — needs `--isolated`/distinct `--user-data-dir` per client | Single browser session in the desktop app side panel |
+| **CDP port / concurrency mechanism** | Fixed pool of 6 ports baked into the CLI (`9230`–`9235`, one per `dv1`–`dv6` — see Profile System above); no port is ever invented at runtime | `--cdp <port\|ws-url>` connects to whatever you point it at; since only one process can bind a given debugging port, running N instances concurrently means manually tracking N distinct ports — no built-in pool | `--cdp` / `--auto-connect` connects to whatever's running or whatever port you give it; port/profile management for concurrency is left to the caller | Drives the browser through the extension's live connection, not a raw `--remote-debugging-port` the agent picks | Single shared `user-data-dir`/port by default; `--isolated` opens one more, ephemeral, on its own port — no fixed pool | Exposing a CDP port for its own self-launched browser is still an open feature request ([microsoft/playwright-mcp#1130](https://github.com/microsoft/playwright-mcp/issues/1130)); default mode is one profile, one instance at a time | Launches Chrome on port `9222`, one profile, one session — not designed for concurrency at all |
+| **Preserves the user's real logins (Google OAuth etc.)** | Yes — it's the same fixed profile the human already logs into | Only if a persistent profile/storage state is explicitly configured | Only via `--profile`, and even then it's a copy, not the live profile, so new logins made by the agent don't write back | Yes — by design, via the real browser + extension | Yes, via the shared default profile (or explicit storage-state injection under `--isolated`) | Yes, via the shared per-workspace default profile (or explicit storage-state injection under `--isolated`) | No — clean profile by design, no existing logins |
+| **Anti-bot / fingerprint risk** | Low — real, aged, persistent profile | Project also sells a paid cloud tier specifically adding "stealth" + residential proxies, implying the open-source default doesn't fully solve this | Unclear from docs reviewed | Low — real browser + extension, vendor claims it "avoids basic bot detection... by using your real browser fingerprint" | Depends on profile mode chosen | Depends on profile mode chosen | Low risk of bot-detection (it's a real Chrome context) but has no logins to trigger site-specific auth walls in the first place |
+| **Element targeting** | CSS selectors (incl. shadow-piercing `>>>`), plus accessibility snapshot when wanted | LLM-driven DOM indexing | Accessibility-tree snapshots with `@eN` element refs | Not fully documented in sources reviewed | Accessibility-tree snapshot with refs (`uid`), refs invalidate on re-snapshot | Accessibility-tree snapshot with refs; Microsoft's own docs note refs go stale on DOM mutation and must be re-fetched | Standard browser interaction inside the app, not exposed as a scriptable ref API |
+| **Primary interface** | CLI, scriptable and conversational | Python/TS SDK + hosted agent API | CLI, agent-first compact text output | MCP server + Chrome extension | MCP server | MCP server | Built into the Claude Code desktop app, not a standalone tool |
+| **Maintainer** | This repo | browser-use (open source + commercial cloud) | Vercel Labs | Multiple unaffiliated projects share the "Browser MCP" name — confirm which fork before using; the `browsermcp/mcp` main repo predates it | Google Chrome DevTools team | Microsoft Playwright team | Anthropic |
+
+#### Per-tool gap notes
+
+**browser-use.** [browser-use](https://github.com/browser-use/browser-use) is an
+open-source Python/TS agent framework with a companion paid cloud (stealth +
+CAPTCHA-solving + residential proxies) and a Web UI that can keep a browser window
+open between tasks. It's built around an LLM deciding actions over an indexed DOM,
+and multi-session support exists for parallel isolated runs. The gap for our use
+case: session persistence, stealth, and proxying are largely cloud/paid-tier or
+config-dependent features rather than a zero-config default, and it isn't oriented
+around a small fixed set of profiles an agent can address by name (`dv2`, `dv3`, …)
+the way this workflow needs.
+
+**agent-browser (Vercel Labs).** [agent-browser](https://github.com/vercel-labs/agent-browser)
+is the closest thing to a named "agent-browser" tool on npm/GitHub (there's also an
+unrelated `AIAnytime/agent-browser` embedded-browser project — different tool, same
+name). It's a CLI aimed squarely at coding agents, with accessibility-tree `@eN`
+refs and 50+ commands. Its own docs describe `--profile <path>` as copying the
+user's Chrome profile into a **read-only temp directory** specifically so the
+agent's session doesn't mutate the user's real profile. That's a deliberate safety
+choice, but it also means it isn't meant to be "log in once as the human, then hand
+the *same* live session to the agent" — which is exactly the workflow dv is built
+around.
+
+**Browser MCP (browsermcp.io).** [Browser MCP](https://github.com/browsermcp/mcp)
+pairs an MCP server with a Chrome extension that controls the browser you're already
+using, specifically to preserve logins and avoid the bot-detection signature of a
+fresh automation profile — the same core idea dv leans on. The naming collision
+matters here: there are several unaffiliated forks/projects called "Browser MCP" or
+"browser-mcp" (`browsermcp/mcp`, `browsermcp-com/mcp`, `Agent360dk/browser-mcp`,
+`DorianChn/browser-mcp`, `djyde/browser-mcp`, `ofershap/real-browser-mcp`) with
+different maintainers and feature sets, so "browser mcp" as a category is fragmented
+rather than one tool. It's also an MCP server, which inherits MCP's own failure
+modes (a stdio/HTTP connection that can drop mid-session) that a plain CLI process
+doesn't have.
+
+**chrome-devtools-mcp (Google).** [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp)
+is Google's official MCP wrapper around the DevTools Protocol. By default it
+launches Chrome from its own fixed cache directory (e.g.
+`%HOMEPATH%/.cache/chrome-devtools-mcp/chrome-profile-<channel>`) — a **different**
+`user-data-dir` than any Chrome the user already has open, including one started by
+dv. That's precisely the failure mode `CLAUDE.md` calls out: running it alongside dv
+splits Chrome across two independent profile stores, so the tabs and logins an agent
+was just using in dv are invisible to it, and vice versa. It has an `isolated`
+option for a fully temp profile, but no notion of a small fixed pool of named,
+addressable profiles.
+
+**playwright-mcp (Microsoft) / plain Playwright / Puppeteer, in more detail.**
+[playwright-mcp](https://github.com/microsoft/playwright-mcp) persists a profile per
+workspace by default, but its own README documents the exact concurrency trap this
+workflow needs to avoid: *"a persistent profile can only be used by one browser
+instance at a time, so concurrent MCP clients sharing the same workspace will
+conflict"* — the fix is `--isolated` or a distinct `--user-data-dir` per client, at
+which point each client's session is disposable again, and logins made in one
+context don't carry to another unless storage state is manually exported and
+re-imported. Plain Playwright and Puppeteer have the same shape: they're drivers
+that launch (or attach to) a browser under whatever `user-data-dir` you point them
+at, with no built-in concept of a small set of named, durable, six-profile pool —
+that policy has to be built and enforced by whoever calls them, which is exactly
+what dv does and what `CLAUDE.md` forbids agents from re-implementing ad hoc.
+
+**Stagehand / Browserbase.** [Stagehand](https://github.com/browserbase/stagehand)
+is a code-first automation SDK (`act`/`extract`/`observe`/`agent` primitives,
+natural-language actions instead of brittle CSS selectors) that runs by default on
+Browserbase's managed cloud browsers, which handle stealth, residential proxies, and
+session management as a hosted service. That's a good fit for scraping/data-extraction
+workloads; it's a poor fit for "continue in the browser tab I'm already logged into
+on my own machine," since the default execution target is a remote cloud browser,
+not the user's local Chrome.
+
+**Claude Code's built-in browser.** Claude Code's
+[desktop in-app browser](https://code.claude.com/docs/en/chrome) (shipped July
+2026) deliberately uses **a clean profile with none of the user's logins** — that's
+stated as the explicit difference from the separate Claude-in-Chrome extension. It's
+designed for safe, sandboxed browsing inside the IDE, not for "pick up my
+already-authenticated Gmail tab." It's also a single browser instance per app
+window, not a pool of independently addressable, concurrent sessions.
+
+#### Where this leaves dv
+
+None of the above tools are wrong for the problem they're solving — cloud-scale
+scraping, sandboxed in-IDE browsing, or general MCP-based automation all have
+legitimate reasons to prefer an ephemeral or cloud profile. dv is narrower on
+purpose: **six fixed, real, persistent Chrome profiles, one CDP wrapper, no ports
+or profile paths for an agent to invent.** That's the whole trick, and it's why
+`CLAUDE.md` insists every agent working in or through this repo route browser work
+through `dv1`…`dv6` and nothing else.
 
 ## Documentation
 

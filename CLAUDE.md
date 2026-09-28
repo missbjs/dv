@@ -15,6 +15,9 @@ For ANY browser automation, DOM inspection, or DevTools Protocol work:
     tasks on separate tabs of a single browser does not work.
   - Don't log out, clear cookies, or reset a profile's session unless the
     user asks — logins on these profiles are the user's.
+  - **If you're ever unsure what `dv1`…`dv6` (or a specific one, e.g.
+    "dv6") refers to, don't ask the user to clarify.** Just run
+    `dv6 --help` (any dvN works) and self-resolve from its output.
 - **Do NOT call the Chrome DevTools Protocol directly.** That means no
   `chrome-devtools-mcp`, no `chrome-mcp-server`, no raw CDP via WebSocket,
   no Playwright/Puppeteer/Chromium drivers — they spawn Chrome with a
