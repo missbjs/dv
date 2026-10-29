@@ -239,6 +239,34 @@ program
     }
   });
 
+// Front
+program
+  .command('front')
+  .description('Bring a tab to the foreground and report whether it is visible and focused')
+  .addOption(profileOption)
+  .addOption(tabOption)
+  .addOption(legacyTabOption)
+  .action(async (options: Record<string, any>) => {
+    const { CDPClient } = await import('./cdp.js');
+    const { getPortFromProfile } = await import('./utils.js');
+    const client = new CDPClient(getPortFromProfile(options.profile));
+    try {
+      await client.connect(options.tab ?? options.tabId);
+      await client.send('Page.bringToFront');
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const r = await client.send('Runtime.evaluate', {
+        expression: "JSON.stringify({visible:document.visibilityState==='visible',focused:document.hasFocus()})",
+        returnByValue: true,
+      });
+      console.log(r.result?.value ?? '{}');
+    } catch (error) {
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
+      process.exit(1);
+    } finally {
+      await client.close();
+    }
+  });
+
 // Click
 program
   .command('click')
@@ -454,6 +482,7 @@ program
   .option('--fill <selector>', 'CSS selector to fill before capturing')
   .option('--text <text>', 'Text to fill into --fill')
   .option('--key <key>', 'Key to press after filling (e.g. Enter)')
+  .option('--script <js>', 'Page expression to run as the action; must evaluate to true (e.g. click one verified card)')
   .option('--timeout <ms>', 'Max wait for the response', '20000')
   .option('--out <file>', 'Write full JSON (with body) to a new file; never overwrites')
   .option('--json', 'Output as JSON (default)')

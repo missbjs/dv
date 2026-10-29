@@ -5,6 +5,7 @@ export interface CaptureOptions extends TabOptions {
     fill?: string;
     text?: string;
     key?: string;
+    script?: string;
     timeout?: string;
     out?: string;
     json?: boolean;

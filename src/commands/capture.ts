@@ -11,6 +11,7 @@ export interface CaptureOptions extends TabOptions {
   fill?: string;
   text?: string;
   key?: string;
+  script?: string;
   timeout?: string;
   out?: string;
   json?: boolean;
@@ -48,7 +49,7 @@ export async function capture(options: CaptureOptions) {
     unsubscribe.push(client.on('Network.responseReceived', (p: any) => {
       const r = seen.get(p.requestId);
       if (r) Object.assign(r, { status: p.response?.status, mimeType: p.response?.mimeType,
-        responseUrl: p.response?.url, frameId: p.frameId ?? r.frameId });
+        responseUrl: p.response?.url, frameId: p.frameId ?? r.frameId, responseReceivedAtMs: now() });
     }));
     unsubscribe.push(client.on('Network.loadingFinished', (p: any) => {
       const r = seen.get(p.requestId);
@@ -69,6 +70,13 @@ export async function capture(options: CaptureOptions) {
       await key('keyDown', { key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46 });
       await key('keyUp', { key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46 });
       await client.send('Input.insertText', { text: options.text });
+    }
+    if (options.script !== undefined) {
+      // Page-side action (e.g. click one verified result card). It must report success with `true`.
+      const evaluated = await client.send('Runtime.evaluate', { expression: options.script, returnByValue: true });
+      if (evaluated.exceptionDetails || evaluated.result?.value !== true) {
+        throw new Error('Action script did not return true; no action confirmed');
+      }
     }
     if (options.key === 'Enter') {
       await key('keyDown', { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: String.fromCharCode(13) });
@@ -93,6 +101,7 @@ export async function capture(options: CaptureOptions) {
     const result = {
       profile: options.profile, requestId: chosen.requestId, url: chosen.url, method: chosen.method,
       status: chosen.status, mimeType: chosen.mimeType, frameId: chosen.frameId, type: chosen.type,
+      requestWallTime: chosen.wallTime, responseReceivedAtMs: chosen.responseReceivedAtMs,
       actionStartedAtMs: startedAt, capturedAtMs: now(), matchCount: finished.size,
       bodyBytes: Buffer.byteLength(text, 'utf8'),
       bodySha256: createHash('sha256').update(text, 'utf8').digest('hex'),
