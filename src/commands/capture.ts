@@ -77,8 +77,10 @@ export async function capture(options: CaptureOptions) {
       await client.pressKey(options.key);
     }
 
-    const timer = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), timeoutMs));
+    let timerHandle: NodeJS.Timeout | undefined;
+    const timer = new Promise<'timeout'>((resolve) => { timerHandle = setTimeout(() => resolve('timeout'), timeoutMs); });
     const outcome = await Promise.race([arrived.then(() => 'arrived' as const), timer]);
+    clearTimeout(timerHandle); // a live timer would keep the process up for the full timeout after success
     if (outcome === 'timeout') {
       const shapes = [...new Set([...seen.values()].map((r) => { try { const u = new URL(r.url); return u.host + u.pathname; } catch { return '?'; } }))].slice(0, 12);
       throw new Error(`No response matching /${options.match}/ within ${timeoutMs} ms; ${seen.size} requests seen, e.g. ${shapes.join(', ')}`);

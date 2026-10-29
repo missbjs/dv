@@ -25,6 +25,7 @@ import { listProfiles } from './profiles.js';
 import { network } from './commands/network.js';
 import { intercept } from './commands/intercept.js';
 import { request } from './commands/request.js';
+import { capture } from './commands/capture.js';
 import { clearCache } from './commands/clear-cache.js';
 // DOM commands
 import { inspect } from './commands/inspect.js';
@@ -410,6 +411,20 @@ program
     .addOption(tabOption)
     .addOption(legacyTabOption)
     .action(request);
+program
+    .command('capture')
+    .description('Run one action and return the correlated network response (single CDP session)')
+    .addOption(profileOption)
+    .requiredOption('-m, --match <regex>', 'Regex the request URL must match')
+    .option('--fill <selector>', 'CSS selector to fill before capturing')
+    .option('--text <text>', 'Text to fill into --fill')
+    .option('--key <key>', 'Key to press after filling (e.g. Enter)')
+    .option('--timeout <ms>', 'Max wait for the response', '20000')
+    .option('--out <file>', 'Write full JSON (with body) to a new file; never overwrites')
+    .option('--json', 'Output as JSON (default)')
+    .addOption(tabOption)
+    .addOption(legacyTabOption)
+    .action(capture);
 program
     .command('clear-cache')
     .description('Clear browser cache')
