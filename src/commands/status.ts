@@ -156,26 +156,16 @@ function vpReason(viewports: Array<ViewportReport | null>): string {
 const HIDDEN_TAB_CAVEAT =
   'A background tab can keep reporting the old size until it is next in front.';
 
-/**
- * The undo, aimed at the tabs that are actually emulated. A bare `resize 0 0`
- * only reaches the tab every other dv command talks to — the first content tab —
- * so anything else has to be named, or the report would point at a command that
- * cannot fix it.
- */
+/** Name affected tabs explicitly: target-list order does not identify live focus. */
 export function clearHints(
   profile: string,
   tabs: Array<{ id: string; url: string }>,
   viewports: Array<ViewportReport | null>
 ): string[] {
   const emulated = tabs.filter((_, i) => viewports[i]?.emulated);
-  const defaultTab = tabs.find(t => !t.url.startsWith('devtools://')) ?? tabs[0];
-
-  if (emulated.length === 1 && emulated[0].id === defaultTab?.id) {
-    return [`Clear it with: ${profile} resize 0 0   (or ${profile} reset --viewport)`];
-  }
   if (emulated.length === 1) {
     return [
-      `Not the tab dv talks to by default, so name it:`,
+      `Clear this tab explicitly:`,
       `  ${profile} resize 0 0 --tab ${emulated[0].id}`,
       HIDDEN_TAB_CAVEAT,
     ];

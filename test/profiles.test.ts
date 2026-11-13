@@ -4,25 +4,18 @@ import { TEST_PROFILES, getTestProfile, getTestPort } from './test-profiles.js';
 
 describe('Production Profiles', () => {
   describe('PROFILES configuration', () => {
-    it('should have 6 profiles defined', () => {
-      expect(Object.keys(PROFILES)).toHaveLength(6);
+    it('should have 128 profiles defined', () => {
+      expect(Object.keys(PROFILES)).toHaveLength(128);
     });
 
     it('should have correct profile names', () => {
-      const expectedProfiles = [
-        'dv1',
-        'dv2',
-        'dv3',
-        'dv4',
-        'dv5',
-        'dv6',
-      ];
+      const expectedProfiles = Array.from({ length: 128 }, (_, i) => `dv${i + 1}`);
       expect(Object.keys(PROFILES)).toEqual(expectedProfiles);
     });
 
-    it('should use correct port range (9230-9235)', () => {
+    it('should use correct port range (9230-9357)', () => {
       const ports = Object.values(PROFILES).map((p) => p.port);
-      expect(ports).toEqual([9230, 9231, 9232, 9233, 9234, 9235]);
+      expect(ports).toEqual(Array.from({ length: 128 }, (_, i) => 9230 + i));
     });
 
     it('should have port defined for each profile', () => {
@@ -30,12 +23,24 @@ describe('Production Profiles', () => {
         expect(profile).toHaveProperty('port');
         expect(typeof profile.port).toBe('number');
         expect(profile.port).toBeGreaterThanOrEqual(9230);
-        expect(profile.port).toBeLessThanOrEqual(9235);
+        expect(profile.port).toBeLessThanOrEqual(9357);
       });
     });
   });
 
   describe('getProfile', () => {
+    it.each(Array.from({ length: 128 }, (_, i) => [`dv${i + 1}`, 9230 + i] as const))(
+      'maps %s to port %i and back', (name, port) => {
+        expect(getProfile(name)).toEqual({ port });
+        expect(getProfileByPort(port)).toEqual([name, { port }]);
+      },
+    );
+
+    it.each(['dv0', 'dv129', 'dv01', 'dv024', 'dv0128', 'DV7', 'dv7 ', '../dv128', '__proto__', 'constructor', 'toString'])(
+      'rejects non-registry name %s', name => {
+        expect(getProfile(name)).toBeUndefined();
+      },
+    );
     it('should return profile config for valid profile name', () => {
       const profile = getProfile('dv1');
       expect(profile).toBeDefined();
@@ -67,7 +72,7 @@ describe('Production Profiles', () => {
     });
 
     it('should return undefined for test port', () => {
-      const result = getProfileByPort(9240);
+      const result = getProfileByPort(9430);
       expect(result).toBeUndefined();
     });
   });
@@ -75,7 +80,8 @@ describe('Production Profiles', () => {
   describe('listProfiles', () => {
     it('should return array of all profiles', () => {
       const profiles = listProfiles();
-      expect(profiles).toHaveLength(6);
+      expect(profiles).toHaveLength(128);
+      expect(profiles).toEqual(Array.from({ length: 128 }, (_, i) => ({ name: `dv${i + 1}`, port: 9230 + i })));
     });
 
     it('should return profiles with correct structure', () => {
@@ -100,9 +106,9 @@ describe('Test Profiles', () => {
       expect(Object.keys(TEST_PROFILES)).toHaveLength(6);
     });
 
-    it('should use correct test port range (9240-9245)', () => {
+    it('should use correct test port range (9430-9435)', () => {
       const ports = Object.values(TEST_PROFILES).map((p) => p.port);
-      expect(ports).toEqual([9240, 9241, 9242, 9243, 9244, 9245]);
+      expect(ports).toEqual([9430, 9431, 9432, 9433, 9434, 9435]);
     });
 
     it('should not overlap with production ports', () => {
@@ -111,6 +117,8 @@ describe('Test Profiles', () => {
 
       const overlap = testPorts.filter((port) => prodPorts.includes(port));
       expect(overlap).toHaveLength(0);
+      const recorderPorts = prodPorts.map(port => port + 10000);
+      expect(testPorts.filter(port => recorderPorts.includes(port))).toHaveLength(0);
     });
   });
 
@@ -118,7 +126,7 @@ describe('Test Profiles', () => {
     it('should return test profile config', () => {
       const profile = getTestProfile('test-dv1');
       expect(profile).toBeDefined();
-      expect(profile?.port).toBe(9240);
+      expect(profile?.port).toBe(9430);
     });
 
     it('should return undefined for invalid test profile name', () => {
@@ -134,8 +142,8 @@ describe('Test Profiles', () => {
 
   describe('getTestPort', () => {
     it('should return correct port for test profile', () => {
-      expect(getTestPort('test-dv1')).toBe(9240);
-      expect(getTestPort('test-dv6')).toBe(9245);
+      expect(getTestPort('test-dv1')).toBe(9430);
+      expect(getTestPort('test-dv6')).toBe(9435);
     });
 
     it('should throw error for invalid test profile', () => {

@@ -267,7 +267,9 @@ Tab closed
 
 ## Parallel Testing Example
 
-You can run multiple Chrome instances with different profiles for parallel testing:
+Use one of the 128 fixed profiles (`dv1`–`dv128`) per concurrent task, defaulting
+to `dv1`. Do not use bare `dv`, `dv.exe`, or `--profile`, or create other profiles.
+For example, run three tasks with separate Chrome profiles:
 
 ```bash
 # Terminal 1: Start dv1
@@ -284,6 +286,9 @@ Each profile runs on a different port:
 - dv1 → port 9230
 - dv2 → port 9231
 - dv3 → port 9232
+
+The full fixed pool runs from `dv1` (9230) through `dv128` (9357), with
+`port = 9229 + profile number`; see [all port assignments](QUICK-REFERENCE.md#profiles-port-assignments).
 
 ## Automated Testing Script
 
@@ -465,7 +470,7 @@ alias). The browser-level ones do not: `start`, `stop`, `status`, `tabs`, `new`,
 
 ## Tips
 
-1. **Use profile-specific commands**: `dv1`–`dv6` each manage a separate Chrome instance with its own user data
+1. **Use profile-specific commands**: `dv1`–`dv128` each manage a separate Chrome instance with its own user data
 2. **Check console errors first**: Always check for console errors before debugging other issues
 3. **Use --json for scripting**: When writing scripts, use --json to get machine-readable output
 4. **Monitor in real-time**: Use `dv1 monitor` to catch errors as they happen

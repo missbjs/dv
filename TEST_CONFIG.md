@@ -2,20 +2,24 @@
 
 ## Test Ports (Separate from Production)
 
-Production ports: 9230-9235
-Test ports: **9240-9245**
+| Endpoint | First | Last | Formula |
+|----------|-------|------|---------|
+| Production Chrome CDP (`dv1`–`dv128`) | 9230 | 9357 | `9229 + N`, `1 ≤ N ≤ 128` |
+| Production private recorder (loopback) | 19230 | 19357 | `19229 + N`, `1 ≤ N ≤ 128` |
+| Synthetic mock servers (`test-dv1`–`test-dv6`) | 9430 | 9435 | `9429 + N`, `1 ≤ N ≤ 6` |
 
 This separation prevents test runs from interfering with production Chrome instances.
 
 ## Test Profiles
 
-For testing, use these profile names:
-- `test-dv1` → port 9240
-- `test-dv2` → port 9241
-- `test-dv3` → port 9242
-- `test-dv4` → port 9243
-- `test-dv5` → port 9244
-- `test-dv6` → port 9245
+Mock servers use these synthetic labels and ports; these are not production
+profile names and must never be used to launch Chrome:
+- `test-dv1` → port 9430
+- `test-dv2` → port 9431
+- `test-dv3` → port 9432
+- `test-dv4` → port 9433
+- `test-dv5` → port 9434
+- `test-dv6` → port 9435
 
 ## Running Tests
 

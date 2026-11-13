@@ -1,6 +1,8 @@
 import { CDPClient } from '../cdp.js';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { ensureNetworkRecorder } from '../network-recorder.js';
+import { recorderCall } from '../network-service.js';
 
 export interface SelectOptions {
   profile: string;
@@ -33,11 +35,17 @@ export async function select(options: SelectOptions) {
       process.exit(1);
     }
 
+    await ensureNetworkRecorder(options.profile);
+    await recorderCall(options.profile, 'select', { tabId: selectedTab.id });
+    await client.connect(selectedTab.id);
+    await client.send('Page.bringToFront');
     console.log(chalk.green(`Selected tab: ${selectedTab.title}`));
     console.log(chalk.gray(`URL: ${selectedTab.url}`));
     console.log(chalk.gray(`ID: ${selectedTab.id}`));
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    await client.close();
   }
 }

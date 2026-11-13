@@ -3,7 +3,7 @@
 *.log
 .DS_Store
 dv*/
-# Chrome user-data-dirs created at runtime by the dv1-dv6 profiles
+# Chrome user-data-dirs created at runtime by the dv1-dv128 profiles
 profile-*/
 dist/profile-*/
 *.tgz

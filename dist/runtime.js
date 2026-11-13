@@ -2,14 +2,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getProfile } from './profiles.js';
 // This module's own directory: dist/ under Node, a virtual path inside a
 // `bun build --compile` executable.
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 /** True when running as a standalone executable (dv.exe) rather than dist/*.js. */
 export const isCompiled = /[\\/](~BUN|\$bunfs)[\\/]/.test(MODULE_DIR);
-const FORCED_PROFILES = ['dv1', 'dv2', 'dv3', 'dv4', 'dv5', 'dv6'];
 /**
- * Directory holding the six Chrome user-data-dirs, shared by the Node and
+ * Directory holding the fixed Chrome user-data-dirs, shared by the Node and
  * exe builds so both see the same logins and a reinstall never wipes them.
  * Override with DV_PROFILE_ROOT.
  */
@@ -35,12 +35,12 @@ function legacyRoots() {
 }
 /**
  * The old-layout folder that still has to be moved for this profile, or null
- * when nothing is pending (already migrated, never existed, or not dv1-dv6 -
- * only the six fixed names ever map to a folder, so a path-traversal string
+ * when nothing is pending (already migrated, never existed, or not dv1-dv128 -
+ * only the fixed registry names ever map to a folder, so a path-traversal string
  * is left for the caller's own validation to reject).
  */
 export function pendingMigration(name) {
-    if (!FORCED_PROFILES.includes(name))
+    if (!getProfile(name))
         return null;
     const target = path.join(profileRoot(), name);
     if (fs.existsSync(target))
@@ -108,16 +108,18 @@ export function profileDir(name) {
 export function selfCommand() {
     return isCompiled
         ? { file: process.execPath, args: [] }
-        : { file: process.execPath, args: [path.join(MODULE_DIR, 'cli.js')] };
+        : import.meta.url.endsWith('.ts')
+            ? { file: process.execPath, args: ['--import', fileURLToPath(import.meta.resolve('tsx')), path.join(MODULE_DIR, 'cli.ts')] }
+            : { file: process.execPath, args: [path.join(MODULE_DIR, 'cli.js')] };
 }
 /**
- * When invoked as dv1…dv6 (DV_BIN_NAME set by the dvN.cmd / dvN.cjs shims),
+ * When invoked as dv1…dv128 (DV_BIN_NAME set by the dvN.cmd / dvN.cjs shims),
  * pin the profile: drop any --profile the caller passed and inject the shim's
  * own, so dv3 can never act on dv1's Chrome. `profiles` takes no --profile.
  */
 export function forceProfile(argv) {
     const forced = process.env.DV_BIN_NAME;
-    if (!forced || !FORCED_PROFILES.includes(forced))
+    if (!forced || !getProfile(forced))
         return;
     for (let i = 2; i < argv.length;) {
         if (argv[i] === '--profile')

@@ -9,7 +9,7 @@ npm install -g @missbjs/dv
 ```
 
 Or download the standalone Windows binary (no Node or Bun needed): put
-`dv.exe` and `dv1.cmd`…`dv6.cmd` from the release in one folder on `PATH`.
+`dv.exe` and `dv1.cmd`…`dv128.cmd` from the release in one folder on `PATH`.
 Build it yourself with `pnpm build:exe` (requires Bun) — output lands in
 `release/`.
 
@@ -88,12 +88,60 @@ dv1 screenshot screenshot.png
 ## Key Features
 
 ### ✅ Network Monitoring & Interception
-Monitor API calls, view request details, block or mock requests:
+Capture the selected tab's API calls from `start`, inspect saved bodies from later CLI
+processes, export HAR, or separately block/mock requests:
 ```bash
-dv1 network --filter "api" --json
+dv1 start
+dv1 select --tab <tab-id>             # activate tab; wait for Network.enable
+dv1 goto https://example.com
+dv1 network --filter "api" --json     # non-destructive; repeat to read the same history
+dv1 request --id <id-from-network> --body --json
+dv1 har capture.har
+dv1 network --clear                  # clear current tab's entries AND saved bodies
 dv1 intercept --url "api.example.com" --action block
-dv1 request --id <request-id> --body
 ```
+
+**One recorder per fixed profile, one captured tab at a time.** `dv1 start` starts or
+reuses a detached network recorder; `dv1 stop` shuts it down. It holds one persistent
+tab-based `CDPClient`, not browser-wide Target auto-attach, worker sessions, or all-tab
+network capture. Ordinary commands remain short-lived direct CDP clients; this is
+not a daemon relaying all browser state. Console, dialogs and interception have not
+been moved into the network recorder.
+
+Default page commands resolve the live browser tab afresh, hand capture over, and wait
+for `Network.enable` before acting. Selecting a tab with `select` really activates it.
+`new` attaches to its blank tab before navigating. **After manually switching tabs,
+capture follows on the next default dv command, not immediately.** There is no
+background focus polling; traffic before attachment or in unselected tabs cannot be
+recovered. If the selected tab closes, the next default command resolves a live tab;
+ambiguous focus requires `--tab` or focusing the intended browser page.
+
+Previously captured tabs remain in the bounded store. Default `network` and `har` show
+the current tab; `network --tab <old-id>` and `har --tab <old-id>` query retained history,
+even after that tab closes, **without switching capture**. `request` with an opaque
+`id` from network output infers its owning tab; an explicit `--tab` restricts lookup.
+Raw CDP request IDs are accepted only when unambiguous. Explicit read-only page probes
+also do not switch capture; explicit action commands hand off before acting.
+
+`network --clear` clears only the current tab (or the named `--tab`), including saved
+bodies. Listing never consumes entries. **Chrome DevTools Network-panel Clear is
+independent**: clearing that panel does not clear dv history, and clearing dv history
+does not clear that panel. `clear-cache` clears the browser cache, not recorded history.
+
+Retention is in memory for the recorder/browser lifetime: at most **2,000 requests,
+32 MiB of saved decoded bodies, 2 MiB per body**. Oldest entries/bodies are evicted;
+there is no durable payload history after stop, browser restart, or recorder failure.
+Headers, URLs and POST data have size caps (up to 64 KiB each); HAR may therefore be
+truncated. Bodies are saved after completion and may be unavailable for redirects,
+failures, switching/detached tabs, eviction, large responses, or body-fetch saturation.
+Check `bodyState`; base64 bodies are explicitly labelled. HAR preserves real request
+methods/status/wall-clock timestamps but phase timings are approximate.
+
+The private recorder API binds only loopback, requires a random bearer token, rejects
+browser Origin requests and accepts only narrow history/selection operations. Its
+user-private runtime descriptor stores connection credentials, not captured payloads;
+on Windows it inherits the current user's profile-directory permissions. Recorded
+headers and bodies can contain secrets: exported JSON/HAR files are your responsibility.
 
 ### ✅ Enhanced DOM Manipulation
 Inspect elements, modify content, set attributes:
@@ -123,7 +171,7 @@ dv1 status                # flags any tab whose viewport does not match its wind
 ```
 
 Overrides are per-tab, and `resize` / `reset` talk to the same tab as every other dv
-command — the first content tab. For anything else, name it or sweep the profile:
+command — the live focused/uniquely visible browser tab. For anything else, name it or sweep the profile:
 
 ```bash
 dv1 resize 0 0 --tab <id>            # clear one specific tab (ids come from dv1 status)
@@ -166,8 +214,9 @@ not a flag Chrome exposes: an override close to the real window size in either
 dimension (within ~40px wide or ~200px tall) is not reported, which is the price of
 never crying wolf over docked DevTools.
 
-**What survives the command, and what does not.** Every dv command is one CDP
-connect/close, and a CDP override belongs to the connection that installed it. The
+**What survives the command, and what does not.** Ordinary page commands use their
+own short-lived CDP connection (the network recorder is separate), and a CDP override
+belongs to the connection that installed it. The
 viewport size is the exception: Chrome keeps the resized widget after the session goes
 away, which is why `resize 0 0` and `reset` exist at all. Everything else is gone
 before the next command runs, and each command now says so in its own output.
@@ -204,10 +253,13 @@ Neither `resize 0 0` nor `reset` touches the real window bounds.
 `ipad-pro`, `ipad-air` (`emulate` with an unknown name lists them).
 
 ### ✅ Per-Tab Targeting: `--tab <id>`
-Every command that talks to a page talks to exactly one tab. Without `--tab` that is
-whichever tab comes first in Chrome's target list — and that order is *activation*
-order, so it shifts as tabs are clicked. On a profile with more than one tab open, the
-default target is not something a script can rely on.
+Every ordinary page command targets exactly one tab. Without `--tab`, dv probes live
+`document.hasFocus()` and `document.visibilityState` through short-lived read-only page
+sessions; probes never activate a tab or enable Network. A uniquely focused page wins,
+then a uniquely visible page when the browser is unfocused. A sole content tab also
+works. Chrome target-list order and stale CLI selection are **not** used as an active-tab
+signal. Multiple visible windows, minimized browsers or unreachable pages can be
+ambiguous: focus the intended page or name `--tab` instead of guessing.
 
 `--tab <id>` pins it. All 64 page-facing commands accept it (`--tab-id` is kept as a
 deprecated alias); the 10 that do not are the ones where it would be a lie — `start`,
@@ -382,7 +434,7 @@ dv1 get-html --selector "my-comp >>> .inner"
 dv1 get-text --selector "my-comp >>> .title" --json
 ```
 
-Each profile has its own command (`dv1`–`dv6`) to prevent AI agent collisions:
+Each profile has its own command (`dv1`–`dv128`) to prevent AI agent collisions:
 ```bash
 # Each agent uses a different command
 dv1 start
@@ -393,16 +445,18 @@ dv2 start --headless
 
 Pre-configured profiles for parallel testing:
 
-| Profile | Port |
-|---------|------|
-| dv1 | 9230 |
-| dv2 | 9231 |
-| dv3 | 9232 |
-| dv4 | 9233 |
-| dv5 | 9234 |
-| dv6 | 9235 |
+| Fixed pool | First endpoint (`dv1`) | Last endpoint (`dv128`) | Formula for `dvN` (`1 ≤ N ≤ 128`) |
+|------------|------------------------|-------------------------|----------------------------------|
+| Chrome CDP | 9230 | 9357 | `9229 + N` |
+| Private network recorder (loopback) | 19230 | 19357 | `19229 + N` |
 
-All profiles support persistent OAuth sessions and can maintain authentication state.
+Profile names are exactly `dv1`–`dv128` (no leading zeroes). Mock tests use
+separate ports `9430`–`9435`, never these production endpoints.
+
+All 128 profiles support persistent OAuth sessions and can maintain authentication state.
+Use one profile per concurrent task and default to `dv1`. Never use bare `dv`,
+`dv.exe`, or `--profile`, and never create profiles outside `dv1`–`dv128`.
+Existing `dv1`–`dv24` names, ports, and profile directories remain unchanged.
 
 ```bash
 dv1 start
@@ -498,18 +552,18 @@ logins. Individually these are reasonable defaults for the tools in question —
 for a workflow that depends on *the user's own logged-in browser*, each one means
 starting over.
 
-dv exists to close that gap: it is **session-able**, **pinned to six fixed Chrome
-profiles** (`dv1`…`dv6`), each with its own persistent `user-data-dir` and its own
+dv exists to close that gap: it is **session-able**, **pinned to 128 fixed Chrome
+profiles** (`dv1`…`dv128`), each with its own persistent `user-data-dir` and its own
 remote-debugging port (see the Profile System table above). An agent cannot create a
-seventh profile, cannot point dv at an arbitrary `--profile` path, and cannot
+129th profile, cannot point dv at an arbitrary `--profile` path, and cannot
 silently spawn a second Chrome instance under it — the CLI simply doesn't expose
 those knobs. That constraint is what makes the following possible in practice:
 
-- **Real concurrency without session collisions.** Up to six independent tasks
+- **Real concurrency without session collisions.** Up to 128 independent tasks
   can each own a profile (`dv1 goto …` next to `dv2 goto …` next to `dv3 goto …`)
-  without fighting over one browser's tabs or one profile's storage. Six is a
-  practical ceiling for a single machine's screen space and memory, not a hard
-  architectural limit.
+  without fighting over one browser's tabs or one profile's storage. The fixed
+  pool is a policy ceiling; actual concurrency depends on the machine's memory
+  and screen space.
 - **The user's actual logins survive.** Because a profile is fixed and never
   reset unless asked, a human can log into Gmail (or anything gated behind
   Google OAuth, 2FA, or a CAPTCHA) in `dv2`'s window once, then hand the tab to
@@ -536,9 +590,9 @@ be verified from a primary source it's marked "unclear" rather than guessed.
 
 | | **dv** (this repo) | [browser-use](https://github.com/browser-use/browser-use) | [agent-browser](https://github.com/vercel-labs/agent-browser) (Vercel Labs) | [Browser MCP](https://github.com/browsermcp/mcp) (browsermcp.io) | [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) (Google) | [playwright-mcp](https://github.com/microsoft/playwright-mcp) (Microsoft) | Claude Code's [built-in browser](https://code.claude.com/docs/en/chrome) |
 |---|---|---|---|---|---|---|---|
-| **Profile model** | 6 fixed, pinned profiles (`dv1`–`dv6`), one `user-data-dir`/port each, cannot be reconfigured | Persistent profiles supported via config; also offers ephemeral cloud browsers | Default launches ephemeral browser; `--profile <path>` copies the user's Chrome profile into a **read-only temp snapshot** | Uses the browser's **existing** profile via a Chrome extension (no separate `user-data-dir`) | One shared `user-data-dir` per channel by default (not cleared between runs); `--isolated` for a temp dir | Persistent profile per workspace by default; `--isolated` or a distinct `--user-data-dir` for parallel clients | Explicitly a **clean profile with none of your logins** — separate from the Claude-in-Chrome extension |
-| **Concurrent sessions** | Up to 6, one profile per task, by design | Multi-session support for parallel isolated runs (per project docs) | Not documented in the skill reference checked | Single real browser instance being remote-controlled — not built for N parallel isolated sessions | Shared dir across instances by default; concurrency needs `--isolated`/distinct dirs to avoid conflicts | Explicitly documented conflict: a persistent profile "can only be used by one browser instance at a time" — needs `--isolated`/distinct `--user-data-dir` per client | Single browser session in the desktop app side panel |
-| **CDP port / concurrency mechanism** | Fixed pool of 6 ports baked into the CLI (`9230`–`9235`, one per `dv1`–`dv6` — see Profile System above); no port is ever invented at runtime | `--cdp <port\|ws-url>` connects to whatever you point it at; since only one process can bind a given debugging port, running N instances concurrently means manually tracking N distinct ports — no built-in pool | `--cdp` / `--auto-connect` connects to whatever's running or whatever port you give it; port/profile management for concurrency is left to the caller | Drives the browser through the extension's live connection, not a raw `--remote-debugging-port` the agent picks | Single shared `user-data-dir`/port by default; `--isolated` opens one more, ephemeral, on its own port — no fixed pool | Exposing a CDP port for its own self-launched browser is still an open feature request ([microsoft/playwright-mcp#1130](https://github.com/microsoft/playwright-mcp/issues/1130)); default mode is one profile, one instance at a time | Launches Chrome on port `9222`, one profile, one session — not designed for concurrency at all |
+| **Profile model** | 128 fixed, pinned profiles (`dv1`–`dv128`), one `user-data-dir`/port each, cannot be reconfigured | Persistent profiles supported via config; also offers ephemeral cloud browsers | Default launches ephemeral browser; `--profile <path>` copies the user's Chrome profile into a **read-only temp snapshot** | Uses the browser's **existing** profile via a Chrome extension (no separate `user-data-dir`) | One shared `user-data-dir` per channel by default (not cleared between runs); `--isolated` for a temp dir | Persistent profile per workspace by default; `--isolated` or a distinct `--user-data-dir` for parallel clients | Explicitly a **clean profile with none of your logins** — separate from the Claude-in-Chrome extension |
+| **Concurrent sessions** | Up to 128, one profile per task, by design | Multi-session support for parallel isolated runs (per project docs) | Not documented in the skill reference checked | Single real browser instance being remote-controlled — not built for N parallel isolated sessions | Shared dir across instances by default; concurrency needs `--isolated`/distinct dirs to avoid conflicts | Explicitly documented conflict: a persistent profile "can only be used by one browser instance at a time" — needs `--isolated`/distinct `--user-data-dir` per client | Single browser session in the desktop app side panel |
+| **CDP port / concurrency mechanism** | Fixed pool of 128 ports baked into the CLI (`9230`–`9357`, one per `dv1`–`dv128` — see Profile System above); no port is ever invented at runtime | `--cdp <port\|ws-url>` connects to whatever you point it at; since only one process can bind a given debugging port, running N instances concurrently means manually tracking N distinct ports — no built-in pool | `--cdp` / `--auto-connect` connects to whatever's running or whatever port you give it; port/profile management for concurrency is left to the caller | Drives the browser through the extension's live connection, not a raw `--remote-debugging-port` the agent picks | Single shared `user-data-dir`/port by default; `--isolated` opens one more, ephemeral, on its own port — no fixed pool | Exposing a CDP port for its own self-launched browser is still an open feature request ([microsoft/playwright-mcp#1130](https://github.com/microsoft/playwright-mcp/issues/1130)); default mode is one profile, one instance at a time | Launches Chrome on port `9222`, one profile, one session — not designed for concurrency at all |
 | **Preserves the user's real logins (Google OAuth etc.)** | Yes — it's the same fixed profile the human already logs into | Only if a persistent profile/storage state is explicitly configured | Only via `--profile`, and even then it's a copy, not the live profile, so new logins made by the agent don't write back | Yes — by design, via the real browser + extension | Yes, via the shared default profile (or explicit storage-state injection under `--isolated`) | Yes, via the shared per-workspace default profile (or explicit storage-state injection under `--isolated`) | No — clean profile by design, no existing logins |
 | **Anti-bot / fingerprint risk** | Low — real, aged, persistent profile | Project also sells a paid cloud tier specifically adding "stealth" + residential proxies, implying the open-source default doesn't fully solve this | Unclear from docs reviewed | Low — real browser + extension, vendor claims it "avoids basic bot detection... by using your real browser fingerprint" | Depends on profile mode chosen | Depends on profile mode chosen | Low risk of bot-detection (it's a real Chrome context) but has no logins to trigger site-specific auth walls in the first place |
 | **Element targeting** | CSS selectors (incl. shadow-piercing `>>>`), plus accessibility snapshot when wanted | LLM-driven DOM indexing | Accessibility-tree snapshots with `@eN` element refs | Not fully documented in sources reviewed | Accessibility-tree snapshot with refs (`uid`), refs invalidate on re-snapshot | Accessibility-tree snapshot with refs; Microsoft's own docs note refs go stale on DOM mutation and must be re-fetched | Standard browser interaction inside the app, not exposed as a scriptable ref API |
@@ -601,7 +655,7 @@ which point each client's session is disposable again, and logins made in one
 context don't carry to another unless storage state is manually exported and
 re-imported. Plain Playwright and Puppeteer have the same shape: they're drivers
 that launch (or attach to) a browser under whatever `user-data-dir` you point them
-at, with no built-in concept of a small set of named, durable, six-profile pool —
+at, with no built-in concept of a fixed, named, durable 128-profile pool —
 that policy has to be built and enforced by whoever calls them, which is exactly
 what dv does and what `CLAUDE.md` forbids agents from re-implementing ad hoc.
 
@@ -627,10 +681,10 @@ window, not a pool of independently addressable, concurrent sessions.
 None of the above tools are wrong for the problem they're solving — cloud-scale
 scraping, sandboxed in-IDE browsing, or general MCP-based automation all have
 legitimate reasons to prefer an ephemeral or cloud profile. dv is narrower on
-purpose: **six fixed, real, persistent Chrome profiles, one CDP wrapper, no ports
+purpose: **128 fixed, real, persistent Chrome profiles, one CDP wrapper, no ports
 or profile paths for an agent to invent.** That's the whole trick, and it's why
 `CLAUDE.md` insists every agent working in or through this repo route browser work
-through `dv1`…`dv6` and nothing else.
+through `dv1`…`dv128` and nothing else.
 
 ## Documentation
 

@@ -1,8 +1,9 @@
 import { spawn } from 'child_process';
 import chalk from 'chalk';
 import { selfCommand } from '../runtime.js';
+import { getProfile, listProfiles } from '../profiles.js';
 export async function batch(options) {
-    const bin = options.bin ?? dvProfileBin(options.profile);
+    const bin = dvProfileBin(options.bin ?? options.profile);
     const delay = options.delay ?? 0;
     if (options.commands.length === 0) {
         console.log(chalk.yellow('No commands to execute.'));
@@ -47,7 +48,7 @@ export async function batch(options) {
 function execCommand(bin, cmd) {
     return new Promise((resolve, reject) => {
         // Split cmd into bin args — we need to pass the command and its args
-        // The bin is "dv1" through "dv6", and we pass additional args
+        // The bin is a fixed dv profile name, and we pass additional args
         const args = cmd.split(/\s+/).filter(Boolean);
         if (args.length === 0) {
             resolve();
@@ -88,13 +89,11 @@ function execCommand(bin, cmd) {
         });
     });
 }
-/** Whitelist of known dv profile binaries */
-const DV_BINS = ['dv1', 'dv2', 'dv3', 'dv4', 'dv5', 'dv6'];
 /** Map profile name to dv binary (validated against the known profile whitelist) */
 function dvProfileBin(profile) {
     const bin = profile.startsWith('dv') ? profile : `dv${profile}`;
-    if (!DV_BINS.includes(bin)) {
-        throw new Error(`Unknown dv profile binary "${bin}". Expected one of: ${DV_BINS.join(', ')}`);
+    if (!getProfile(bin)) {
+        throw new Error(`Unknown dv profile binary "${bin}". Expected one of: ${listProfiles().map(p => p.name).join(', ')}`);
     }
     return bin;
 }

@@ -2,16 +2,16 @@ import { Profile } from '../src/types.js';
 
 /**
  * Test profile configuration - separate from production ports
- * Test ports: 9240-9245
- * Production ports: 9230-9235
+ * Test ports: 9430-9435
+ * Production ports: 9230-9357
  */
 export const TEST_PROFILES: Record<string, Profile> = {
-  'test-dv1': { port: 9240 },
-  'test-dv2': { port: 9241 },
-  'test-dv3': { port: 9242 },
-  'test-dv4': { port: 9243 },
-  'test-dv5': { port: 9244 },
-  'test-dv6': { port: 9245 },
+  'test-dv1': { port: 9430 },
+  'test-dv2': { port: 9431 },
+  'test-dv3': { port: 9432 },
+  'test-dv4': { port: 9433 },
+  'test-dv5': { port: 9434 },
+  'test-dv6': { port: 9435 },
 };
 
 export function getTestProfile(name: string): Profile | undefined {
@@ -26,5 +26,5 @@ export function getTestPort(profileName: string): number {
   return profile.port;
 }
 
-export const TEST_PORT = 9240; // Default test port
+export const TEST_PORT = 9430; // Default test port
 export const TEST_PROFILE_NAME = 'test-dv1';

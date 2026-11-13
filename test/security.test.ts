@@ -41,12 +41,14 @@ describe('Security Tests', () => {
     });
 
     it('should only accept whitelisted profile names', async () => {
-      const validProfiles = ['dv1', 'dv2', 'dv3', 'dv4', 'dv5', 'dv6'];
-
-      validProfiles.forEach(async (profile) => {
-        const { stdout } = await runCLI(['start', '--profile', profile, '--help']);
-        expect(stdout).not.toContain('Profile not found');
-      });
+      // Registry tests cover all 128 names; sample boundaries sequentially here
+      // rather than starting 128 Node processes at once.
+      const validProfiles = ['dv1', 'dv6', 'dv24', 'dv25', 'dv99', 'dv100', 'dv128'];
+      for (const profile of validProfiles) {
+        const { stdout, stderr } = await runCLI(['start', '--profile', profile, '--help']);
+        expect(stdout).toContain('Start Chrome');
+        expect(stdout + stderr).not.toContain('Profile not found');
+      }
     });
 
     it('should reject test profile names in production context', async () => {
@@ -83,14 +85,11 @@ describe('Security Tests', () => {
     it('should validate numeric parameters', async () => {
       const { stdout, stderr } = await runCLI([
         'resize',
+        'abc', '100',
         '--profile', 'dv1',
-        '--width',
-        'abc',
-        '--height',
-        '100',
       ]);
-      // Should either reject or parse as 0/NaN safely
-      expect(stdout + stderr).toBeDefined();
+      expect(stderr).toContain('non-negative integer');
+      expect(stdout + stderr).not.toContain('Chrome is not running');
     });
 
     it('should handle empty string inputs', async () => {
@@ -149,13 +148,12 @@ describe('Security Tests', () => {
       }
     });
 
-    it('should reject dv0 and dv7', async () => {
-      const { stdout: stdout0, stderr: stderr0 } = await runCLI(['start', '--profile', 'dv0']);
-      expect(stdout0 + stderr0).toContain('Profile not found');
-
-      const { stdout: stdout7, stderr: stderr7 } = await runCLI(['start', '--profile', 'dv7']);
-      expect(stdout7 + stderr7).toContain('Profile not found');
-    });
+    it.each(['dv0', 'dv129', 'dv01', 'dv024', 'dv0128', 'constructor', 'toString', '__proto__'])(
+      'should reject non-registry profile %s', async profile => {
+        const { stdout, stderr } = await runCLI(['start', '--profile', profile]);
+        expect(stdout + stderr).toContain('Profile not found');
+      },
+    );
   });
 
   describe('Error Message Safety', () => {

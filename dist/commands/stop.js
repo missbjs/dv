@@ -2,6 +2,7 @@ import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { stopNetworkRecorder } from '../network-recorder.js';
 const execFileAsync = promisify(execFile);
 /** Find PIDs holding a TCP listener on the given port (Windows: netstat; POSIX: lsof). */
 async function findPidsByPort(port) {
@@ -28,6 +29,7 @@ async function findPidsByPort(port) {
 }
 export async function stop(options) {
     const port = getPortFromProfile(options.profile);
+    await stopNetworkRecorder(options.profile);
     try {
         const pids = await findPidsByPort(port);
         if (pids.length === 0) {

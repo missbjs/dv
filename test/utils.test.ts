@@ -5,16 +5,17 @@ import { PROFILES } from '../src/profiles.js';
 describe('Utility Functions', () => {
   describe('getPortFromProfile', () => {
     it('should return correct port for valid profile', () => {
-      expect(getPortFromProfile('dv1')).toBe(9230);
-      expect(getPortFromProfile('dv2')).toBe(9231);
-      expect(getPortFromProfile('dv3')).toBe(9232);
-      expect(getPortFromProfile('dv4')).toBe(9233);
-      expect(getPortFromProfile('dv5')).toBe(9234);
-      expect(getPortFromProfile('dv6')).toBe(9235);
+      for (let i = 1; i <= 128; i++) {
+        expect(getPortFromProfile(`dv${i}`)).toBe(9229 + i);
+      }
     });
 
     it('should throw error for invalid profile', () => {
       expect(() => getPortFromProfile('invalid-profile')).toThrow();
+    });
+
+    it.each(['dv0', 'dv129', 'dv01', 'dv0128', '__proto__', 'constructor'])('rejects non-registry profile %s', profile => {
+      expect(() => getPortFromProfile(profile)).toThrow();
     });
 
     it('should throw error for empty string', () => {
@@ -46,7 +47,7 @@ describe('Utility Functions', () => {
     it('should return port in valid range', () => {
       const port = getPortFromProfile('dv1');
       expect(port).toBeGreaterThanOrEqual(9230);
-      expect(port).toBeLessThanOrEqual(9235);
+      expect(port).toBeLessThanOrEqual(9357);
     });
   });
 
@@ -225,7 +226,7 @@ describe('Profile Port Uniqueness', () => {
       .map((p) => p.port)
       .sort((a, b) => a - b);
 
-    const expectedPorts = [9230, 9231, 9232, 9233, 9234, 9235];
+    const expectedPorts = Array.from({ length: 128 }, (_, i) => 9230 + i);
     expect(ports).toEqual(expectedPorts);
   });
 

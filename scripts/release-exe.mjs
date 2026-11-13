@@ -5,6 +5,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'release');
@@ -21,10 +22,12 @@ if (publish) {
   if (existing) throw new Error(`tag ${tag} already exists; bump package.json version first`);
 }
 
-run('node', [path.join('scripts', 'build-exe.mjs')]);
+run(process.execPath, [path.join('scripts', 'build-exe.mjs')]);
+// Import only after the build has compiled the current profile registry.
+const { listProfiles } = await import(pathToFileURL(path.join(root, 'dist', 'profiles.js')).href);
 
 rmSync(zip, { force: true });
-const files = ['dv.exe', ...[1, 2, 3, 4, 5, 6].map(n => `dv${n}.cmd`)];
+const files = ['dv.exe', ...listProfiles().map(({ name }) => `${name}.cmd`)];
 run('powershell', ['-NoProfile', '-Command',
   `Compress-Archive -LiteralPath ${files.map(f => `'${path.join(out, f)}'`).join(',')} -DestinationPath '${zip}'`]);
 console.log(`packaged ${zip}`);
@@ -35,5 +38,5 @@ if (!publish) {
   run('git', ['tag', tag]);
   run('git', ['push', 'origin', tag]);
   run('gh', ['release', 'create', tag, zip, '--title', `dv ${version}`,
-    '--notes', `Standalone Windows build. Unzip anywhere, put the folder on PATH, use dv1…dv6.\n\nInstall the Node version instead: pnpm i -g github:missbjs/dv#${tag}`]);
+    '--notes', `Standalone Windows build. Unzip anywhere, put the folder on PATH, use dv1…dv128.\n\nInstall the Node version instead: pnpm i -g github:missbjs/dv#${tag}`]);
 }

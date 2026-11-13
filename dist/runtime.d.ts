@@ -1,15 +1,15 @@
 /** True when running as a standalone executable (dv.exe) rather than dist/*.js. */
 export declare const isCompiled: boolean;
 /**
- * Directory holding the six Chrome user-data-dirs, shared by the Node and
+ * Directory holding the fixed Chrome user-data-dirs, shared by the Node and
  * exe builds so both see the same logins and a reinstall never wipes them.
  * Override with DV_PROFILE_ROOT.
  */
 export declare function profileRoot(): string;
 /**
  * The old-layout folder that still has to be moved for this profile, or null
- * when nothing is pending (already migrated, never existed, or not dv1-dv6 -
- * only the six fixed names ever map to a folder, so a path-traversal string
+ * when nothing is pending (already migrated, never existed, or not dv1-dv128 -
+ * only the fixed registry names ever map to a folder, so a path-traversal string
  * is left for the caller's own validation to reject).
  */
 export declare function pendingMigration(name: string): string | null;
@@ -30,7 +30,7 @@ export declare function selfCommand(): {
     args: string[];
 };
 /**
- * When invoked as dv1…dv6 (DV_BIN_NAME set by the dvN.cmd / dvN.cjs shims),
+ * When invoked as dv1…dv128 (DV_BIN_NAME set by the dvN.cmd / dvN.cjs shims),
  * pin the profile: drop any --profile the caller passed and inject the shim's
  * own, so dv3 can never act on dv1's Chrome. `profiles` takes no --profile.
  */

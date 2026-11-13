@@ -3,11 +3,12 @@ import axios from 'axios';
 import chalk from 'chalk';
 import { buildElementExpression, buildShadowListExpression } from './utils.js';
 import { getProfileByPort } from './profiles.js';
+import { CDPTransport } from './cdp-transport.js';
 export class CDPClient {
+    options;
     ws = null;
     port;
-    messageId = 0;
-    pendingMessages = new Map();
+    transport;
     consoleMessages = [];
     networkRequests = [];
     requestInterceptedCallback;
@@ -15,8 +16,16 @@ export class CDPClient {
     eventListeners = new Map();
     /** Track whether the Page domain is already enabled to avoid duplicate Page.enable. */
     pageEnabled = false;
-    constructor(port) {
+    constructor(port, options = {}) {
+        this.options = options;
         this.port = port;
+        this.transport = new CDPTransport(options);
+        this.transport.on('event', (message) => this.handleEvent(message));
+        this.transport.on('close', () => {
+            this.ws = null;
+            for (const listener of this.eventListeners.get('disconnected') ?? [])
+                listener(undefined);
+        });
     }
     /** Subscribe to a CDP event (e.g. 'Page.loadEventFired'). Returns an unsubscribe fn. */
     on(method, listener) {
@@ -60,6 +69,42 @@ export class CDPClient {
         const tabs = targets.filter(t => t.type === 'page' && !t.url.startsWith('devtools://'));
         return tabs.length > 0 ? tabs[0] : null;
     }
+    get isConnected() { return this.ws?.readyState === WebSocket.OPEN; }
+    /** Resolve live focus, never assume /json ordering is the active tab. Probes are read-only. */
+    async resolveCurrentTab(targets) {
+        const tabs = (targets ?? await this.getTargets()).filter(t => t.type === 'page' && !t.url.startsWith('devtools://'));
+        if (tabs.length === 1)
+            return tabs[0];
+        if (!tabs.length)
+            throw new Error('No tab found. Make sure Chrome is running and a tab is open.');
+        const states = [];
+        let next = 0;
+        // At most four short-lived page sessions at once, with bounded CDP timeouts.
+        await Promise.all(Array.from({ length: Math.min(4, tabs.length) }, async () => {
+            while (next < tabs.length) {
+                const tab = tabs[next++];
+                const probe = new CDPClient(this.port, { collectEvents: false, timeout: 1500 });
+                try {
+                    await probe.connect(tab.id);
+                    const result = await probe.evaluate('({ focused: document.hasFocus(), visible: document.visibilityState === "visible" })');
+                    const state = result.result?.value;
+                    if (state && typeof state.focused === 'boolean' && typeof state.visible === 'boolean')
+                        states.push({ tab, ...state });
+                }
+                catch { /* Closed/unreachable targets cannot establish active focus. */ }
+                finally {
+                    await probe.close();
+                }
+            }
+        }));
+        const focused = states.filter(s => s.focused);
+        if (focused.length === 1)
+            return focused[0].tab;
+        const visible = states.filter(s => s.visible);
+        if (!focused.length && visible.length === 1)
+            return visible[0].tab;
+        throw new Error('Cannot determine the active browser tab (multiple windows, minimized browser, or unavailable pages). Focus the intended page or pass --tab <id>; list IDs with tabs.');
+    }
     async connect(tabId) {
         const targets = await this.getTargets();
         const tabs = targets.filter(t => t.type === 'page');
@@ -74,120 +119,40 @@ export class CDPClient {
             }
         }
         else {
-            // Default to first non-DevTools tab
-            const contentTab = tabs.find(t => !t.url.startsWith('devtools://'));
-            if (contentTab) {
-                targetTab = contentTab;
-            }
-            else {
-                targetTab = tabs[0];
-            }
+            targetTab = await this.resolveCurrentTab(targets);
         }
         if (!targetTab) {
             throw new Error('No tab found. Make sure Chrome is running and a tab is open.');
         }
-        return new Promise((resolve, reject) => {
-            this.ws = new WebSocket(targetTab.webSocketDebuggerUrl);
-            this.ws.on('open', () => {
-                resolve();
-            });
-            this.ws.on('message', (data) => {
-                const message = JSON.parse(data.toString());
-                if (message.id !== undefined) {
-                    const pending = this.pendingMessages.get(message.id);
-                    if (pending) {
-                        this.pendingMessages.delete(message.id);
-                        // Clear timeout when response arrives
-                        if (pending.timeoutId) {
-                            clearTimeout(pending.timeoutId);
-                        }
-                        if (message.error) {
-                            pending.reject(new Error(message.error.message || JSON.stringify(message.error)));
-                        }
-                        else {
-                            pending.resolve(message.result);
-                        }
-                    }
-                }
-                else if (message.method === 'Console.messageAdded') {
-                    const raw = message.params?.message;
-                    this.consoleMessages.push({
-                        type: raw.level, // CDP uses 'level' field (error, warning, log, debug)
-                        text: raw.text,
-                        url: raw.url,
-                        line: raw.line,
-                        column: raw.column,
-                    });
-                }
-                else if (message.method === 'Network.requestWillBeSent') {
-                    this.networkRequests.push({
-                        requestId: message.params?.requestId,
-                        url: message.params?.request.url,
-                        method: message.params?.request.method,
-                        type: message.params?.type,
-                    });
-                }
-                else if (message.method === 'Network.responseReceived') {
-                    const req = this.networkRequests.find(r => r.requestId === message.params?.requestId);
-                    if (req) {
-                        req.status = message.params?.response.status;
-                        req.responseHeaders = message.params?.response.headers;
-                    }
-                }
-                else if (message.method === 'Network.requestIntercepted') {
-                    // Handle intercepted requests
-                    if (this.requestInterceptedCallback) {
-                        this.requestInterceptedCallback(message.params);
-                    }
-                }
-                // Dispatch to event subscribers for any CDP method
-                if (message.method) {
-                    const listeners = this.eventListeners.get(message.method);
-                    if (listeners) {
-                        for (const listener of listeners) {
-                            listener(message.params);
-                        }
-                    }
-                }
-            });
-            this.ws.on('error', (error) => {
-                reject(new Error(`WebSocket error: ${error.message}`));
-            });
-            // Persistent error handler for post-connection errors — rejects all pending sends
-            this.ws.on('error', (error) => {
-                for (const [id, pending] of this.pendingMessages) {
-                    pending.reject(new Error(`WebSocket error: ${error.message}`));
-                    if (pending.timeoutId)
-                        clearTimeout(pending.timeoutId);
-                }
-                this.pendingMessages.clear();
-            });
-        });
+        await this.transport.open(targetTab.webSocketDebuggerUrl);
+        // Retain the socket for legacy command helpers which install raw event listeners.
+        this.ws = this.transport.socket;
+    }
+    handleEvent(message) {
+        if (this.options.collectEvents !== false && message.method === 'Console.messageAdded') {
+            const raw = message.params?.message;
+            this.consoleMessages.push({ type: raw.level, text: raw.text, url: raw.url, line: raw.line, column: raw.column });
+        }
+        else if (this.options.collectEvents !== false && message.method === 'Network.requestWillBeSent') {
+            this.networkRequests.push({ requestId: message.params?.requestId, url: message.params?.request.url, method: message.params?.request.method, type: message.params?.type });
+        }
+        else if (message.method === 'Network.responseReceived') {
+            const req = this.networkRequests.find(r => r.requestId === message.params?.requestId);
+            if (req) {
+                req.status = message.params?.response.status;
+                req.responseHeaders = message.params?.response.headers;
+            }
+        }
+        else if (message.method === 'Network.requestIntercepted') {
+            this.requestInterceptedCallback?.(message.params);
+        }
+        if (message.method) {
+            for (const listener of this.eventListeners.get(message.method) ?? [])
+                listener(message.params);
+        }
     }
     async send(method, params) {
-        if (!this.ws) {
-            throw new Error('Not connected. Call connect() first.');
-        }
-        const id = ++this.messageId;
-        const message = { id, method, params };
-        return new Promise((resolve, reject) => {
-            // Timeout after 30 seconds
-            const timeoutId = setTimeout(() => {
-                if (this.pendingMessages.has(id)) {
-                    this.pendingMessages.delete(id);
-                    reject(new Error('Timeout waiting for CDP response'));
-                }
-            }, 30000);
-            this.pendingMessages.set(id, { resolve, reject, timeoutId });
-            try {
-                this.ws.send(JSON.stringify(message));
-            }
-            catch (err) {
-                this.pendingMessages.delete(id);
-                clearTimeout(timeoutId);
-                reject(new Error(`WebSocket send failed: ${err instanceof Error ? err.message : err}`));
-            }
-        });
+        return this.transport.send(method, params);
     }
     async enableRuntime() {
         await this.send('Runtime.enable');
@@ -450,10 +415,9 @@ export class CDPClient {
         await new Promise(resolve => setTimeout(resolve, waitMs));
     }
     async close() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
+        await this.transport.close();
+        this.ws = null;
+        this.pageEnabled = false;
     }
     async newTab(url) {
         const encodedUrl = encodeURIComponent(url);

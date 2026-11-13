@@ -1,60 +1,37 @@
-import { CDPClient } from '../cdp.js';
 import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
-import { getPortFromProfile } from '../utils.js';
+import { ensureNetworkRecorder, historyTab } from '../network-recorder.js';
+import { recorderCall } from '../network-service.js';
+import { NetworkEntry } from '../network-store.js';
 
 export interface RequestOptions extends TabOptions {
-  profile: string;
-  id: string;
-  body?: boolean;
-  json?: boolean;
-  yaml?: boolean;
+  profile: string; id: string; body?: boolean; json?: boolean; yaml?: boolean;
 }
-
 export async function request(options: RequestOptions) {
-  const client = new CDPClient(getPortFromProfile(options.profile));
-
   try {
-    await client.connect(targetTab(options));
-
-    const requests = await client.getNetworkRequests();
-    const req = requests.find(r => r.requestId === options.id);
-
-    if (!req) {
-      console.error(chalk.red(`Request not found: ${options.id}`));
-      process.exit(1);
+    await ensureNetworkRecorder(options.profile);
+    const explicit = targetTab(options);
+    const opaque = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}:\d+$/i.test(options.id);
+    const tabId = explicit ?? (opaque ? undefined : await historyTab(options.profile));
+    const req: NetworkEntry = await recorderCall(options.profile, 'get', { id: options.id, tabId, body: options.body });
+    if (wantsStructured(options)) { console.log(renderStructured(req, options)); return; }
+    console.log(chalk.bold(`\n${req.method} ${req.url}`));
+    console.log(chalk.gray(`ID: ${req.id}\nTab: ${req.tabId}\nType: ${req.type}\nState: ${req.state}`));
+    if (req.status !== undefined) console.log(chalk.gray(`Status: ${req.status}`));
+    if (req.errorText) console.log(chalk.red(req.errorText));
+    if (req.responseHeaders) {
+      console.log(chalk.gray('\nHeaders:'));
+      for (const [key, value] of Object.entries(req.responseHeaders)) console.log(chalk.gray(`  ${key}: ${value}`));
     }
-
-    if (wantsStructured(options)) {
-      console.log(renderStructured(req, options));
-    } else {
-      console.log(chalk.bold(`\n${req.method} ${req.url}`));
-      console.log(chalk.gray(`Type: ${req.type}`));
-      if (req.status) {
-        console.log(chalk.gray(`Status: ${req.status}`));
-      }
-      if (req.responseHeaders) {
-        console.log(chalk.gray('\nHeaders:'));
-        Object.entries(req.responseHeaders).forEach(([key, value]) => {
-          console.log(chalk.gray(`  ${key}: ${value}`));
-        });
-      }
-    }
-
     if (options.body) {
-      try {
-        const response = await client.getResponseBody(options.id);
-        console.log(chalk.blue('\nResponse Body:'));
-        console.log(response.body);
-      } catch (error) {
-        console.log(chalk.yellow('Response body not available'));
-      }
+      if (req.body) {
+        console.log(chalk.blue(req.body.base64Encoded ? '\nResponse Body (base64):' : '\nResponse Body:'));
+        console.log(req.body.body);
+      } else console.log(chalk.yellow(`Response body not available (${req.bodyState})`));
     }
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
-    process.exit(1);
-  } finally {
-    await client.close();
+    process.exitCode = 1;
   }
 }
