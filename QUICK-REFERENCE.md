@@ -219,14 +219,15 @@ dv1 profiles
 ```
 
 ## Profiles (Port Assignments)
-```
-dv1 → port 9230
-dv2 → port 9231
-dv3 → port 9232
-dv4 → port 9233
-dv5 → port 9234
-dv6 → port 9235
-```
+| Fixed pool | `dv1` | `dv128` | Formula for `dvN` (`1 ≤ N ≤ 128`) |
+|------------|-------|---------|----------------------------------|
+| Chrome CDP port | 9230 | 9357 | `9229 + N` |
+| Private recorder port (loopback) | 19230 | 19357 | `19229 + N` |
+
+The 128 literal-pinned commands are `dv1`–`dv128`; leading-zero names are invalid.
+Mock tests use separate ports `9430`–`9435`.
+Use one fixed profile per concurrent task (up to 128), defaulting to `dv1`.
+Do not use bare `dv`, `dv.exe`, or `--profile`; do not create additional profiles.
 
 ## Supported Devices for Emulation
 ```

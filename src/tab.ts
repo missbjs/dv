@@ -1,11 +1,6 @@
-/**
- * Every dv command talks to one tab. Without a way to name it, a command always
- * hits the first content tab in `/json/list` — and that order shifts as tabs are
- * activated, so on a profile with more than one tab open the target is not
- * something the caller can rely on. These options make the target explicit.
- */
+/** Per-page commands resolve live browser focus unless an explicit tab is named. */
 export interface TabOptions {
-  /** Tab ID to talk to. Defaults to the first content tab. */
+  /** Tab ID to talk to. Defaults to the live focused/uniquely visible page. */
   tab?: string;
   /** Deprecated spelling of `--tab`, kept for callers that already use it. */
   tabId?: string;

@@ -83,6 +83,8 @@ import { printStructured } from './output.js';
 import chalk from 'chalk';
 import { createRequire } from 'node:module';
 import { forceProfile } from './runtime.js';
+import { runNetworkRecorder, prepareTabCommand } from './network-recorder.js';
+import { ensureChromeRunning } from './ensureChrome.js';
 
 // dv.exe has the version baked in at build time (bun --define); there is no
 // package.json beside the executable to read.
@@ -114,18 +116,20 @@ program
   .description('Chrome DevTools Protocol CLI wrapper')
   .version(version);
 
-// Create --profile option (hidden when invoked via dv1-dv6 wrappers)
-const profileOption = new Option('--profile <profile>', 'Profile name (dv1 through dv6)').makeOptionMandatory();
+// Create --profile option (hidden when invoked via dv1-dv128 wrappers)
+const profileOption = new Option('--profile <profile>', `Profile name (${listProfiles().map(p => p.name).join(', ')})`).makeOptionMandatory();
 if (process.env.DV_BIN_NAME) {
   profileOption.hidden = true;
 }
 
-// Every command that talks to a page talks to exactly one tab. Without --tab it
-// is whichever tab comes first in /json/list, and that order shifts as tabs are
-// activated — so on a profile with more than one tab open, the target is not
-// something the caller can rely on. Tab IDs come from `tabs` and `status`.
-const tabOption = new Option('--tab <id>', 'Tab ID to act on (default: the first content tab)');
+// Browser focus is resolved afresh; target list order is not an active-tab signal.
+const tabOption = new Option('--tab <id>', 'Tab ID (default: live focused/uniquely visible browser tab)');
 const legacyTabOption = new Option('--tab-id <id>', 'Deprecated: use --tab instead');
+
+// Private same-binary worker. Profile pinning applies exactly as for public commands.
+program.command('__network-recorder', { hidden: true })
+  .addOption(profileOption)
+  .action((options: { profile: string }) => runNetworkRecorder(options.profile));
 
 // Start Chrome
 program
@@ -442,9 +446,10 @@ program
 // Network commands
 program
   .command('network')
-  .description('List network requests')
+  .description('List persistent network history (non-destructive)')
   .addOption(profileOption)
   .option('-f, --filter <pattern>', 'Filter by URL pattern')
+  .option('--clear', 'Clear this tab’s shared history and saved bodies (current tab unless --tab is supplied)')
   .option('--json', 'Output as JSON')
   .option('--yaml', 'Output as YAML')
   .addOption(tabOption)
@@ -1120,4 +1125,18 @@ program
     getStyles({ ...options, selector, profile: options.profile || process.env.DV_PROFILE! });
   });
 
-program.parse();
+program.hook('preAction', async (_program, command) => {
+  const name = command.name();
+  // Historical reads resolve their own scope. Status/tabs and internal worker never hand off.
+  if (['network', 'request', 'har', 'select'].includes(name)) return;
+  if (!command.options.some(option => option.long === '--tab')) return;
+  const options = command.opts();
+  if (options.allTabs) return;
+  if (name === 'navigate') await ensureChromeRunning(options.profile);
+  await prepareTabCommand(name, options as { profile: string; tab?: string; tabId?: string });
+});
+
+program.parseAsync().catch(error => {
+  console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
+  process.exitCode = 1;
+});

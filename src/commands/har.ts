@@ -1,103 +1,40 @@
-import { CDPClient } from '../cdp.js';
 import { TabOptions, targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
-import { getPortFromProfile } from '../utils.js';
+import { ensureNetworkRecorder, historyTab } from '../network-recorder.js';
+import { recorderCall } from '../network-service.js';
+import { NetworkEntry } from '../network-store.js';
 
-export interface HarOptions extends TabOptions {
-  profile: string;
-  output: string;
-}
-
+export interface HarOptions extends TabOptions { profile: string; output: string }
+const headers = (input: Record<string, string> = {}) => Object.entries(input).map(([name, value]) => ({ name, value }));
 export async function har(options: HarOptions) {
-  const client = new CDPClient(getPortFromProfile(options.profile));
-
   try {
-    await client.connect(targetTab(options));
-    await client.enableNetwork();
-
-    console.log(chalk.blue('Collecting network activity for HAR export...'));
-
-    // Get all network entries from the client's collected events
-    const entries = await client.getNetworkEvents() || [];
-    const promises = entries.map(async (entry: any) => {
-      try {
-        if (entry.requestId) {
-          const body = await client.send('Network.getResponseBody', {
-            requestId: entry.requestId,
-          }).catch(() => null);
-          return { ...entry, body };
-        }
-      } catch (err) {
-        console.warn(chalk.yellow(`Failed to fetch response body for ${entry.requestId}: ${err instanceof Error ? err.message : err}`));
-      }
-      return entry;
-    });
-
-    const resolved = await Promise.all(promises);
-
-    // Build HAR structure
-    const harLog = {
-      log: {
-        version: '1.2',
-        creator: { name: 'dv CLI', version: '1.0.0' },
-        entries: resolved.map((entry: any) => ({
-          startedDateTime: entry.timestamp
-            ? new Date(entry.timestamp * 1000).toISOString()
-            : new Date().toISOString(),
-          request: {
-            method: entry.request?.method || 'GET',
-            url: entry.request?.url || entry.url || '',
-            httpVersion: 'HTTP/1.1',
-            headers: entry.request?.headers || [],
-            queryString: [],
-            cookies: [],
-            headersSize: -1,
-            bodySize: entry.request?.postData?.length || -1,
-          },
-          response: {
-            status: entry.response?.status || 0,
-            statusText: entry.response?.statusText || '',
-            httpVersion: 'HTTP/1.1',
-            headers: entry.response?.headers || [],
-            cookies: [],
-            content: {
-              size: entry.response?.headersText?.length || 0,
-              mimeType: entry.response?.mimeType || 'text/plain',
-              text: entry.body?.body || undefined,
-            },
-            redirectURL: '',
-            headersSize: -1,
-            bodySize: -1,
-          },
-          cache: {},
-          timings: {
-            send: 0,
-            wait: 0,
-            receive: entry.duration || 0,
-          },
-          time: entry.duration || 0,
-        })),
-        pages: [
-          {
-            startedDateTime: new Date().toISOString(),
-            id: 'page_1',
-            title: '',
-            pageTimings: { onContentLoad: -1, onLoad: -1 },
-          },
-        ],
-      },
-    };
-
-    const json = JSON.stringify(harLog, null, 2);
-    await fs.writeFile(options.output, json, 'utf-8');
-
+    await ensureNetworkRecorder(options.profile);
+    const tabId = await historyTab(options.profile, targetTab(options));
+    const { entries }: { entries: NetworkEntry[] } = await recorderCall(options.profile, 'export', { tabId });
+    const harLog = { log: { version: '1.2', creator: { name: 'dv CLI', version: '1' }, entries: entries.map(entry => {
+      const duration = entry.endTimestamp === undefined ? 0 : Math.max(0, (entry.endTimestamp - entry.timestamp) * 1000);
+      let queryString: Array<{ name: string; value: string }> = [];
+      try { queryString = [...new URL(entry.url).searchParams].map(([name, value]) => ({ name, value })); } catch {}
+      const body = entry.body;
+      return {
+        startedDateTime: new Date(entry.wallTime * 1000).toISOString(), time: duration,
+        request: { method: entry.method, url: entry.url, httpVersion: entry.protocol ?? '', headers: headers(entry.requestHeaders), queryString, cookies: [], headersSize: -1,
+          bodySize: entry.postData === undefined ? -1 : Buffer.byteLength(entry.postData),
+          ...(entry.postData === undefined ? {} : { postData: { mimeType: entry.requestHeaders['Content-Type'] ?? 'application/octet-stream', text: entry.postData } }) },
+        response: { status: entry.status ?? 0, statusText: entry.statusText ?? '', httpVersion: entry.protocol ?? '', headers: headers(entry.responseHeaders), cookies: [],
+          content: { size: body ? Buffer.byteLength(body.body, body.base64Encoded ? 'base64' : 'utf8') : -1, mimeType: entry.mimeType ?? '',
+            ...(body ? { text: body.body, ...(body.base64Encoded ? { encoding: 'base64' } : {}) } : {}) },
+          redirectURL: entry.responseHeaders?.['Location'] ?? entry.responseHeaders?.['location'] ?? '', headersSize: -1, bodySize: entry.encodedDataLength ?? -1 },
+        cache: {}, timings: { send: 0, wait: duration, receive: 0 },
+        _dv: { id: entry.id, tabId: entry.tabId, targetId: entry.targetId, loaderId: entry.loaderId, state: entry.state, errorText: entry.errorText, bodyState: entry.bodyState, timing: entry.timing },
+      };
+    }) } };
+    await fs.writeFile(options.output, JSON.stringify(harLog, null, 2), 'utf-8');
     console.log(chalk.green(`HAR file saved to ${options.output}`));
-    console.log(chalk.gray(`Entries: ${harLog.log.entries.length}`));
+    console.log(chalk.gray(`Entries: ${entries.length}`));
   } catch (error) {
     console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
-    process.exit(1);
-  } finally {
-    await client.close();
+    process.exitCode = 1;
   }
 }

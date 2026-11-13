@@ -1,9 +1,9 @@
 import { CDPTarget } from './types.js';
 export declare class CDPClient {
+    private options;
     private ws;
     private port;
-    private messageId;
-    private pendingMessages;
+    private transport;
     private consoleMessages;
     private networkRequests;
     private requestInterceptedCallback?;
@@ -11,7 +11,11 @@ export declare class CDPClient {
     private eventListeners;
     /** Track whether the Page domain is already enabled to avoid duplicate Page.enable. */
     private pageEnabled;
-    constructor(port: number);
+    constructor(port: number, options?: {
+        collectEvents?: boolean;
+        timeout?: number;
+        maxPayload?: number;
+    });
     /** Subscribe to a CDP event (e.g. 'Page.loadEventFired'). Returns an unsubscribe fn. */
     on(method: string, listener: (params: any) => void): () => void;
     /** Remove a specific CDP event listener. */
@@ -19,7 +23,11 @@ export declare class CDPClient {
     getTargets(): Promise<CDPTarget[]>;
     /** Find the first non-DevTools tab from live targets */
     getCurrentTab(targets: CDPTarget[]): CDPTarget | null;
+    get isConnected(): boolean;
+    /** Resolve live focus, never assume /json ordering is the active tab. Probes are read-only. */
+    resolveCurrentTab(targets?: CDPTarget[]): Promise<CDPTarget>;
     connect(tabId?: string): Promise<void>;
+    private handleEvent;
     send(method: string, params?: any): Promise<any>;
     enableRuntime(): Promise<void>;
     enableConsole(): Promise<void>;

@@ -269,7 +269,7 @@ The CLI focuses on **browser automation and testing** with these capabilities:
 
 **Architecture Strengths:**
 - Simple, focused API
-- Profile system for parallel agents (6 profiles: dv1-dv6, ports 9230-9235)
+- Profile system for parallel agents (128 profiles: dv1-dv128, ports 9230-9357; CDP port = 9229 + profile number)
 - Mandatory profile argument (command prefix, e.g. `dv1 start`) prevents agent collisions
 - JSON output for programmatic use
 

@@ -102,14 +102,15 @@ describe('Integration Tests', () => {
     });
 
     describe('DOM Commands', () => {
-      it('should require selector for DOM commands', async () => {
-        const commands = ['inspect', 'click', 'get-text', 'get-html', 'set-text', 'set-html'];
-
+      it('should reject missing required positional selectors before DOM command actions', async () => {
+        // Other DOM commands support optional selectors; invoking them here could
+        // connect to the user's Chrome. These commands require a positional selector.
+        const commands = ['click', 'fill', 'type', 'hover', 'focus'];
         for (const cmd of commands) {
-          const { stdout, stderr } = await runCLIAsync([cmd, '--profile', 'dv1']);
-          const output = stdout + stderr;
-          // Should fail because Chrome isn't running, but we're testing the interface
-          expect(output).toBeDefined();
+          const { stdout, stderr, exitCode } = await runCLIAsync([cmd, '--profile', 'dv1']);
+          expect(exitCode).toBe(1);
+          expect(stderr, cmd).toContain("error: missing required argument 'selector'");
+          expect(stdout).toBe('');
         }
       });
     });

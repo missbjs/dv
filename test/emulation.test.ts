@@ -131,7 +131,7 @@ describe('parseViewportMetrics', () => {
 });
 
 describe('probeViewport', () => {
-  // Its own port: vitest runs test files in parallel and 9240 belongs to cdp.test.ts.
+  // Its own port: vitest runs test files in parallel and 9430 belongs to cdp.test.ts.
   const testPort = getTestPort('test-dv3');
   let mockServer: MockCDPServer;
 
@@ -238,11 +238,10 @@ describe('clearHints', () => {
     reason: emulated ? 'viewport is larger than the window' : undefined,
   });
 
-  it('suggests the plain undo when the emulated tab is the one dv talks to', () => {
+  it('names the first tab explicitly because target order does not identify live focus', () => {
     const tabs = [{ id: 'a', url: 'https://example.com/' }, { id: 'b', url: 'about:blank' }];
     const hints = clearHints('dv2', tabs, [report(true), report(false)]);
-    expect(hints.join('\n')).toContain('dv2 resize 0 0');
-    expect(hints.join('\n')).not.toContain('--tab');
+    expect(hints.join('\n')).toContain('dv2 resize 0 0 --tab a');
   });
 
   it('names the tab when the emulated one is not the default target', () => {
@@ -251,13 +250,13 @@ describe('clearHints', () => {
     expect(hints.join('\n')).toContain('dv2 resize 0 0 --tab b');
   });
 
-  it('skips DevTools targets when working out the default tab', () => {
+  it('names the content target explicitly even when DevTools is listed first', () => {
     const tabs = [
       { id: 'dt', url: 'devtools://devtools/bundled/inspector.html' },
       { id: 'a', url: 'https://example.com/' },
     ];
     const hints = clearHints('dv2', tabs, [null, report(true)]);
-    expect(hints.join('\n')).not.toContain('--tab');
+    expect(hints.join('\n')).toContain('dv2 resize 0 0 --tab a');
   });
 
   it('offers --all-tabs and every tab id when more than one is emulated', () => {

@@ -1,46 +1,36 @@
-import { CDPClient } from '../cdp.js';
 import { targetTab } from '../tab.js';
 import chalk from 'chalk';
 import { wantsStructured, renderStructured } from '../output.js';
-import { getPortFromProfile } from '../utils.js';
+import { ensureNetworkRecorder, historyTab } from '../network-recorder.js';
+import { recorderCall } from '../network-service.js';
 export async function network(options) {
-    const client = new CDPClient(getPortFromProfile(options.profile));
     try {
-        await client.connect(targetTab(options));
-        await client.enableNetwork();
-        console.log(chalk.blue('Collecting network requests...'));
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const requests = await client.getNetworkRequests();
-        let filtered = requests;
-        if (options.filter) {
-            const regex = new RegExp(options.filter, 'i');
-            filtered = requests.filter(r => regex.test(r.url));
+        const regex = options.filter ? new RegExp(options.filter, 'i') : undefined;
+        await ensureNetworkRecorder(options.profile);
+        const tabId = await historyTab(options.profile, targetTab(options));
+        if (options.clear) {
+            const result = await recorderCall(options.profile, 'clear', { tabId });
+            console.log(wantsStructured(options) ? renderStructured(result, options) : chalk.green('Network history and saved bodies cleared'));
+            return;
         }
-        if (wantsStructured(options)) {
+        const { entries } = await recorderCall(options.profile, 'list', { tabId });
+        const filtered = regex ? entries.filter((r) => regex.test(r.url)) : entries;
+        if (wantsStructured(options))
             console.log(renderStructured(filtered, options));
-        }
+        else if (!filtered.length)
+            console.log(chalk.gray('No network requests found'));
         else {
-            if (filtered.length === 0) {
-                console.log(chalk.gray('No network requests found'));
-                return;
-            }
             console.log(chalk.blue(`\n${filtered.length} request(s):\n`));
-            filtered.forEach((req, index) => {
-                const status = req.status ? chalk.green(`[${req.status}]`) : chalk.gray('[pending]');
-                console.log(`${index + 1}. ${status} ${chalk.bold(req.method)} ${req.url}`);
-                if (req.responseHeaders) {
-                    console.log(chalk.gray(`   Type: ${req.type}`));
-                }
-            });
+            for (const req of filtered) {
+                const status = req.status !== undefined ? `[${req.status}]` : `[${req.state}]`;
+                console.log(`${status} ${chalk.bold(req.method)} ${req.url}`);
+                console.log(chalk.gray(`   ID: ${req.id}  Tab: ${req.tabId}  Type: ${req.type}  Body: ${req.bodyState}`));
+            }
         }
-        await client.clearNetworkRequests();
     }
     catch (error) {
         console.error(chalk.red(`Error: ${error instanceof Error ? error.message : error}`));
-        process.exit(1);
-    }
-    finally {
-        await client.close();
+        process.exitCode = 1;
     }
 }
 //# sourceMappingURL=network.js.map

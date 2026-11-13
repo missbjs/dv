@@ -2,6 +2,7 @@ import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
 import chalk from 'chalk';
 import { getPortFromProfile } from '../utils.js';
+import { stopNetworkRecorder } from '../network-recorder.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -30,6 +31,7 @@ async function findPidsByPort(port: number): Promise<number[]> {
 
 export async function stop(options: { profile: string }) {
   const port = getPortFromProfile(options.profile);
+  await stopNetworkRecorder(options.profile);
 
   try {
     const pids = await findPidsByPort(port);

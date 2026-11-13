@@ -14,9 +14,11 @@ function runCLI(args: string[]): Promise<{ stdout: string; stderr: string }> {
 
 describe('CLI Commands', () => {
   beforeAll(async () => {
-    // Build the CLI before running tests
-    execFile('npm', ['run', 'build']);
-  });
+    // Tests must await compilation and must never invoke the version-bumping release build.
+    await new Promise<void>((resolve, reject) => {
+      execFile(process.execPath, [join(process.cwd(), 'node_modules', 'typescript', 'bin', 'tsc')], error => error ? reject(error) : resolve());
+    });
+  }, 30000);
 
   describe('Help and Version', () => {
     it('should show help with --help flag', async () => {
@@ -41,9 +43,11 @@ describe('CLI Commands', () => {
     it('should list all profiles', async () => {
       const { stdout } = await runCLI(['profiles']);
       expect(stdout).toContain('dv1');
-      expect(stdout).toContain('dv6');
-      expect(stdout).toContain('9230');
-      expect(stdout).toContain('9235');
+      for (let i = 1; i <= 128; i++) {
+        expect(stdout).toMatch(new RegExp(`\\bdv${i}\\b`));
+        expect(stdout).toContain(String(9229 + i));
+      }
+      expect(stdout).not.toMatch(/\bdv129\b/);
     });
   });
 
@@ -121,11 +125,10 @@ describe('CLI Commands', () => {
       expect(stderr).toContain("error: missing required argument 'selector'");
     });
 
-    it('should require --script for eval command', async () => {
-      const { stderr, stdout } = await runCLI(['eval', '--profile', 'dv1', '--script', '1+1']);
-      // The command will fail because Chrome isn't running, but that's OK
-      const output = stdout + stderr;
-      expect(output).toBeDefined();
+    it('should reject a positional expression instead of --script for eval', async () => {
+      const { stderr } = await runCLI(['eval', '1+1', '--profile', 'dv1']);
+      // Commander rejects extra positionals before invoking the command action.
+      expect(stderr).toContain("too many arguments for 'eval'");
     });
 
     it('should require output file for screenshot command', async () => {
@@ -178,13 +181,13 @@ describe('Emulation Reset Commands', () => {
       expect(stdout).toMatch(/clear/i);
     });
 
-    it('should accept 0 0 as arguments', async () => {
-      // Chrome is not running on dv1 in CI, so this fails at connect —
-      // what matters is that `0` is not rejected by argument parsing.
-      const { stdout, stderr } = await runCLI(['resize', '0', '0', '--profile', 'dv1']);
-      const output = stdout + stderr;
-      expect(output).not.toMatch(/argument/i);
-      expect(output).not.toMatch(/non-negative integer/);
+    it('should document zero dimensions without touching a live viewport', async () => {
+      const { stdout, stderr } = await runCLI(['resize', '0', '0', '--profile', 'dv1', '--help']);
+      expect(stderr).toBe('');
+      expect(stdout).toContain('0 0');
+      expect(stdout).toContain('Viewport width, or 0 to clear the override');
+      expect(stdout).toContain('Viewport height, or 0 to clear the override');
+      // cdp.test.ts verifies resize(0, 0) clears metrics using only its mock server.
     });
 
     it('should reject a non-numeric dimension', async () => {
@@ -241,7 +244,7 @@ describe('Emulation Reset Commands', () => {
 
 /**
  * Every command that drives a page drives exactly one tab, and which tab that is
- * depends on /json/list ordering — which shifts as tabs are activated. These pin
+ * follows live browser focus unless explicitly named. These pin
  * the flag onto the commands that need it, and keep it off the ones where it
  * would be a lie (browser-wide or all-tabs commands). One test per list: each
  * check is a process spawn, and 60+ of them would outlast any sane timeout.
@@ -279,11 +282,11 @@ describe('Per-tab targeting', () => {
     expect(stdout).toContain('--reload');
   });
 
-  it('reports the tab it could not find by ID, not "no tab found"', async () => {
-    // dv1 is not running in CI, so this may fail at connect instead — either
-    // way it must never silently act on the default tab.
-    const { stdout, stderr } = await runCLI(['eval', '--script', '1', '--profile', 'dv1', '--tab', 'NOPE']);
-    const output = stdout + stderr;
-    expect(output).toMatch(/No tab with ID NOPE|Chrome is not running/);
+  it('accepts an explicit tab ID in eval help without connecting to Chrome', async () => {
+    const { stdout, stderr } = await runCLI(['eval', '--script', '1', '--profile', 'dv1', '--tab', 'NOPE', '--help']);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('--tab <id>');
+    expect(stdout).toContain('Evaluate JavaScript');
+    // Missing-ID errors are exercised against the mock server in cdp.test.ts.
   });
 });

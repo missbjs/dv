@@ -11,9 +11,8 @@ export interface StorageClearOptions extends TabOptions {
 export async function storageClear(options: StorageClearOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
-  const requested = targetTab(options);
-
   try {
+    const requested = targetTab(options) ?? (await client.resolveCurrentTab()).id;
     await client.connect(requested);
 
     console.log(chalk.blue('Clearing storage...'));
@@ -21,9 +20,7 @@ export async function storageClear(options: StorageClearOptions) {
     const targets = await client.getTargets();
     // The origin has to come from the tab we actually connected to — deriving it
     // from the default tab would clear storage for the wrong site under --tab.
-    const tab = requested
-      ? targets.find((t) => t.id === requested) ?? null
-      : client.getCurrentTab(targets);
+    const tab = targets.find(t => t.id === requested);
     if (!tab) {
       console.error(chalk.red('No tab found'));
       process.exit(1);
