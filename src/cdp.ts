@@ -112,7 +112,16 @@ export class CDPClient {
     if (focused.length === 1) return focused[0].tab;
     const visible = states.filter(s => s.visible);
     if (!focused.length && visible.length === 1) return visible[0].tab;
-    throw new Error('Cannot determine the active browser tab (multiple windows, minimized browser, or unavailable pages). Focus the intended page or pass --tab <id>; list IDs with tabs.');
+    // Enumerate the candidates so concurrent callers on separate tabs can pick a
+    // --tab ID immediately instead of running tabs as a second step.
+    const candidates = tabs
+      .map(t => `  - ID=${t.id}${t.title ? ` "${t.title}"` : ''} ${t.url}`)
+      .join('\n');
+    throw new Error(
+      `Cannot determine the active browser tab (multiple windows, minimized browser, or unavailable pages). ` +
+      `Concurrent tasks on one profile must pass --tab <id> to target their own tab.\nOpen tabs:\n${candidates}\n` +
+      `Focus the intended page or pass --tab <id>; list IDs with tabs.`,
+    );
   }
 
   async connect(tabId?: string): Promise<void> {

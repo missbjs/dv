@@ -11,8 +11,11 @@ For ANY browser automation, DOM inspection, or DevTools Protocol work:
   `dv.exe`, or pass `--profile` — each dvN is pinned to one fixed Chrome
   profile and no other profile may ever be created.
   - **Default to `dv1`** unless the user names another profile.
-  - **One profile per concurrent task** (up to 128: dv1…dv128). Running several
-    tasks on separate tabs of a single browser does not work.
+  - **One profile per concurrent task** (up to 128: dv1…dv128). Several tasks
+    CAN run concurrently on one profile — each must name its tab explicitly:
+    get IDs from `dv1 tabs`, then pass `--tab <id>` on every per-tab command
+    (navigate, eval, click, …). Without `--tab`, commands resolve to the focused
+    tab and concurrent calls collapse onto the same page.
   - Don't log out, clear cookies, or reset a profile's session unless the
     user asks — logins on these profiles are the user's.
   - **If you're ever unsure what `dv1`…`dv128` (or a specific one, e.g.

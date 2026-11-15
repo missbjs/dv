@@ -262,9 +262,11 @@ signal. Multiple visible windows, minimized browsers or unreachable pages can be
 ambiguous: focus the intended page or name `--tab` instead of guessing.
 
 `--tab <id>` pins it. All 64 page-facing commands accept it (`--tab-id` is kept as a
-deprecated alias); the 10 that do not are the ones where it would be a lie — `start`,
-`stop`, `status`, `tabs`, `new`, `close`, `profiles`, `clear-cache`,
-`cookies-clear` and `batch`.
+deprecated alias), and it is the concurrency mechanism: several tasks can share one
+profile simultaneously as long as each names its own tab, because commands without
+`--tab` all resolve to the same focused page. The 10 that do not are the ones where
+it would be a lie — `start`, `stop`, `status`, `tabs`, `new`, `close`, `profiles`,
+`clear-cache`, `cookies-clear` and `batch`.
 
 ```bash
 dv1 tabs                                  # tab ids
