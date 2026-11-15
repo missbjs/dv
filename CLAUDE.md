@@ -11,11 +11,14 @@ For ANY browser automation, DOM inspection, or DevTools Protocol work:
   `dv.exe`, or pass `--profile` — each dvN is pinned to one fixed Chrome
   profile and no other profile may ever be created.
   - **Default to `dv1`** unless the user names another profile.
-  - **One profile per concurrent task** (up to 128: dv1…dv128). Several tasks
-    CAN run concurrently on one profile — each must name its tab explicitly:
-    get IDs from `dv1 tabs`, then pass `--tab <id>` on every per-tab command
-    (navigate, eval, click, …). Without `--tab`, commands resolve to the focused
-    tab and concurrent calls collapse onto the same page.
+  - **Concurrency is per-tab, not per-profile.** Many tasks can run at once,
+    even on the same profile (dv1): get tab IDs from `dv1 tabs`, then pass
+    `--tab <id>` on every per-tab command (navigate, eval, click, …).
+    Without `--tab`, commands resolve to the focused tab and concurrent
+    calls collapse onto the same page. `dv1 windows` shows which OS window
+    holds which tab, and `dv1 new <url> --window` detaches a tab into its
+    own window — the tab ID still works like any other. Tab IDs work
+    across any window of the profile.
   - Don't log out, clear cookies, or reset a profile's session unless the
     user asks — logins on these profiles are the user's.
   - **If you're ever unsure what `dv1`…`dv128` (or a specific one, e.g.
@@ -55,9 +58,10 @@ dv1 tabs                  # list all open tabs across all dv profiles
 dv1 reset                 # clear any viewport/UA/emulation overrides
 ```
 
-Profiles `dv2`–`dv128` exist so concurrent tasks don't fight over one
-Chrome. Each has its own fixed user-data-dir and remote debugging port —
-keep them separate.
+Profiles `dv2`–`dv128` exist so heavy tasks can get their own Chrome (own
+user-data-dir and remote debugging port). But you do NOT need a separate
+profile to run tasks in parallel — same-profile tabs with `--tab` already
+give full isolation per task.
 
 ### When reviewing dv itself
 

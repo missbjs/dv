@@ -231,7 +231,9 @@ dv1 profiles
 
 The 128 literal-pinned commands are `dv1`–`dv128`; leading-zero names are invalid.
 Mock tests use separate ports `9430`–`9435`.
-Use one fixed profile per concurrent task (up to 128), defaulting to `dv1`.
+Concurrency is per-tab, not per-profile: tasks can share one profile
+(default `dv1`) using `--tab <id>` on every per-tab command.
+Profiles `dv2`–`dv128` exist for tasks needing their own Chrome.
 Do not use bare `dv`, `dv.exe`, or `--profile`; do not create additional profiles.
 
 ## Supported Devices for Emulation

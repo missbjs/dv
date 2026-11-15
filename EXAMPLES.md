@@ -273,9 +273,12 @@ Tab closed
 
 ## Parallel Testing Example
 
-Use one of the 128 fixed profiles (`dv1`–`dv128`) per concurrent task, defaulting
-to `dv1`. Do not use bare `dv`, `dv.exe`, or `--profile`, or create other profiles.
-For example, run three tasks with separate Chrome profiles:
+Concurrency is per-tab, not per-profile: many tasks can share one profile
+(default `dv1`) by passing `--tab <id>` from `dv1 tabs` on every per-tab
+command. For heavier isolation, give a task its own fixed profile. Do not use
+bare `dv`, `dv.exe`, or `--profile`, or create other profiles. For example,
+three parallel tasks can either share `dv1` with three tabs, or use separate
+profiles:
 
 ```bash
 # Terminal 1: Start dv1
