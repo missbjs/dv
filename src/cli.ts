@@ -14,6 +14,7 @@ import { fill } from './commands/fill.js';
 import { type } from './commands/type.js';
 import { key } from './commands/key.js';
 import { tabs } from './commands/tabs.js';
+import { windows } from './commands/windows.js';
 import { select } from './commands/select.js';
 import { newPage } from './commands/new.js';
 import { close } from './commands/close.js';
@@ -328,6 +329,15 @@ program
   .option('--yaml', 'Output as YAML')
   .action(tabs);
 
+// Windows
+program
+  .command('windows')
+  .description('List all OS windows with their tabs (use tab IDs with --tab)')
+  .addOption(profileOption)
+  .option('--json', 'Output as JSON')
+  .option('--yaml', 'Output as YAML')
+  .action(windows);
+
 // Select
 program
   .command('select')
@@ -344,6 +354,7 @@ program
   .description('Open a new tab with URL')
   .addOption(profileOption)
   .argument('<url>', 'URL to open')
+  .option('--window', 'Open the tab in its own OS window (detached, for parallel work)')
   .option('--json', 'Output as JSON')
   .option('--yaml', 'Output as YAML')
   .action((url: string, options: Record<string, any>) => {

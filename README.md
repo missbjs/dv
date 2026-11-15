@@ -44,8 +44,8 @@ dv1 screenshot screenshot.png
 
 ### 🚀 74 Commands Across 13 CDP Domains
 
-**Browser Management (7)**
-- `start`, `stop`, `status`, `tabs`, `select`, `new`, `close`
+**Browser Management (8)**
+- `start`, `stop`, `status`, `tabs`, `windows`, `select`, `new`, `close`
 
 **Navigation & Execution (7)**
 - `navigate`, `reload`, `history`, `eval`, `snapshot`, `screenshot`, `read`
@@ -280,6 +280,23 @@ A tab id that matches nothing fails loudly rather than quietly running somewhere
 ```
 Error: No tab with ID NOPE123 on port 9231. List open tabs with: dv2 tabs
 ```
+
+### ✅ Multi-Window: `new --window` and `windows`
+Tab IDs work across every OS window of a profile — a tab's id is what matters, not
+which window holds it. Both additions are pure CDP at the browser level
+(`Target.createTarget {newWindow}` / `Browser.getWindowForTarget`); no in-page JS, so
+page security like CORS never limits them.
+
+```bash
+dv1 new https://example.com --window      # new tab in its own OS window (detached)
+dv1 windows                               # list OS windows: windowId, bounds, tab ids per window
+dv1 windows --json
+dv1 eval --tab <id> --script "document.title"   # works on a tab in any window
+```
+
+Detach a tab into its own window and you have a genuinely parallel target: it keeps
+focus even while another tab in the main window is being driven, sidestepping the
+focus ambiguity that `--tab` otherwise exists to resolve.
 
 ### ✅ Storage Management
 View and manage cookies, localStorage, sessionStorage:

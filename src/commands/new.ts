@@ -8,6 +8,8 @@ import { recorderCall } from '../network-service.js';
 export interface NewOptions {
   profile: string;
   url: string;
+  /** Open the tab in its own OS window (CDP Target.createTarget newWindow). */
+  window?: boolean;
   json?: boolean;
   yaml?: boolean;
 }
@@ -16,8 +18,14 @@ export async function newPage(options: NewOptions) {
   const client = new CDPClient(getPortFromProfile(options.profile));
 
   try {
-    if (!wantsStructured(options)) console.log(chalk.blue(`Creating new tab: ${options.url}...`));
-    const tab = await client.newTab('about:blank');
+    if (!wantsStructured(options)) {
+      console.log(chalk.blue(`Creating new tab${options.window ? ' (new window)' : ''}: ${options.url}...`));
+    }
+    // --window goes through Target.createTarget at the browser level; the HTTP
+    // /json/new endpoint has no way to express newWindow.
+    const tab = options.window
+      ? await client.createTab('about:blank', true)
+      : await client.newTab('about:blank');
     await ensureNetworkRecorder(options.profile);
     await recorderCall(options.profile, 'select', { tabId: tab.id });
     await client.connect(tab.id);

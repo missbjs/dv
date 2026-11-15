@@ -1,6 +1,8 @@
 export interface NewOptions {
     profile: string;
     url: string;
+    /** Open the tab in its own OS window (CDP Target.createTarget newWindow). */
+    window?: boolean;
     json?: boolean;
     yaml?: boolean;
 }

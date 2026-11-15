@@ -7,6 +7,7 @@
 dv1 start
 dv1 status
 dv1 tabs
+dv1 windows                        # OS windows: windowId, bounds, tabs per window
 dv1 select --tab <id>
 dv1 select --url "example"
 dv1 close <tab>
@@ -17,6 +18,7 @@ dv1 stop
 ```bash
 dv1 goto https://example.com
 dv1 new https://example.com
+dv1 new https://example.com --window   # tab in its own OS window
 dv1 reload
 dv1 history --back
 dv1 history --forward
@@ -134,6 +136,9 @@ dv1 read --tab <id>                  # any of the 64 page-facing commands
 dv1 eval --tab <id> --script "..."
 dv1 storage-clear --tab <id> --type local
 ```
+Tab IDs work in any OS window of the profile; `dv1 windows` shows which window holds
+which tab, and `dv1 new <url> --window` detaches a fresh tab into its own window for
+genuinely parallel work.
 Without `--tab`, commands hit the first tab in Chrome's *activation*-ordered target
 list, so the target shifts as tabs are clicked. `--tab-id` is a deprecated alias. An id
 that matches nothing errors out (`No tab with ID … List open tabs with: dv1 tabs`)

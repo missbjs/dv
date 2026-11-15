@@ -264,7 +264,7 @@ describe('Per-tab targeting', () => {
   it('leaves --tab off the commands that are not per-tab', async () => {
     // start/stop are browser-level, status covers every tab, tabs/profiles list,
     // clear-cache and cookies-clear are browser-wide.
-    for (const cmd of ['start', 'status', 'stop', 'tabs', 'profiles', 'clear-cache', 'cookies-clear']) {
+    for (const cmd of ['start', 'status', 'stop', 'tabs', 'windows', 'profiles', 'clear-cache', 'cookies-clear']) {
       const { stdout } = await runCLI([cmd, '--profile', 'dv1', '--help']);
       expect(stdout, `${cmd} should not offer --tab`).not.toContain('--tab <id>');
     }
@@ -288,5 +288,14 @@ describe('Per-tab targeting', () => {
     expect(stdout).toContain('--tab <id>');
     expect(stdout).toContain('Evaluate JavaScript');
     // Missing-ID errors are exercised against the mock server in cdp.test.ts.
+  });
+
+  it('documents window support in new and windows help', async () => {
+    const { stdout } = await runCLI(['new', '--profile', 'dv1', '--help']);
+    expect(stdout).toContain('--window');
+    const win = await runCLI(['windows', '--profile', 'dv1', '--help']);
+    expect(win.stdout).toContain('windows');
+    const top = await runCLI(['--help']);
+    expect(top.stdout).toContain('windows');
   });
 });

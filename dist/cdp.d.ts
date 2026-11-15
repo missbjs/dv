@@ -97,6 +97,25 @@ export declare class CDPClient {
     close(): Promise<void>;
     newTab(url: string): Promise<CDPTarget>;
     closeTab(tabId: string): Promise<void>;
+    /**
+     * Open a short-lived browser-level CDP session (the WebSocket from
+     * /json/version). Browser-level methods — Target.*, Browser.* — are only
+     * served there; the per-tab endpoints cannot express `newWindow`.
+     */
+    private withBrowserSession;
+    /** Create a tab, optionally in its own OS window (CDP-level, no in-page JS). */
+    createTab(url: string, newWindow?: boolean): Promise<CDPTarget>;
+    /** The OS window hosting a tab, plus its on-screen bounds (from the browser-level session). */
+    getWindowForTab(tabId: string): Promise<{
+        windowId: number;
+        bounds: any;
+    }>;
+    /** Group all page tabs by OS window. Tab IDs remain valid across windows for --tab targeting. */
+    getWindows(): Promise<Array<{
+        windowId: number;
+        bounds: any;
+        tabs: CDPTarget[];
+    }>>;
     enableNetwork(): Promise<void>;
     getNetworkRequests(): Promise<{
         requestId: string;

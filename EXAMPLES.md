@@ -238,6 +238,12 @@ dv1 select --index 2
 
 # Close a tab
 dv1 close <tab>
+
+# Open a tab in its own OS window (detached, e.g. for parallel work)
+dv1 new http://localhost:5178/another-page.html --window
+
+# List OS windows with their tabs (tab IDs work across any window)
+dv1 windows
 ```
 
 Expected output:

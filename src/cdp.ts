@@ -483,6 +483,70 @@ export class CDPClient {
     await axios.get(`http://localhost:${this.port}/json/close/${tabId}`);
   }
 
+  /**
+   * Open a short-lived browser-level CDP session (the WebSocket from
+   * /json/version). Browser-level methods — Target.*, Browser.* — are only
+   * served there; the per-tab endpoints cannot express `newWindow`.
+   */
+  private async withBrowserSession<T>(fn: (transport: CDPTransport) => Promise<T>): Promise<T> {
+    const versionInfo = (await axios.get(`http://localhost:${this.port}/json/version`, { timeout: 5000 })).data;
+    if (!versionInfo?.webSocketDebuggerUrl) {
+      throw new Error(`Chrome did not report webSocketDebuggerUrl on port ${this.port}`);
+    }
+    const transport = new CDPTransport(this.options);
+    await transport.open(versionInfo.webSocketDebuggerUrl);
+    try {
+      return await fn(transport);
+    } finally {
+      await transport.close();
+    }
+  }
+
+  /** Create a tab, optionally in its own OS window (CDP-level, no in-page JS). */
+  async createTab(url: string, newWindow = false): Promise<CDPTarget> {
+    return this.withBrowserSession(async (transport) => {
+      const result = await transport.send('Target.createTarget', { url, newWindow });
+      const targets = await this.getTargets();
+      const target = targets.find(t => t.id === result.targetId);
+      if (target) return target;
+      // Not yet listed by /json — synthesize a minimal target; the caller
+      // connects by ID and refreshes fields itself.
+      return {
+        description: '',
+        devtoolsFrontendUrl: '',
+        id: result.targetId,
+        title: '',
+        type: 'page',
+        url,
+        webSocketDebuggerUrl: `ws://localhost:${this.port}/devtools/page/${result.targetId}`,
+      };
+    });
+  }
+
+  /** The OS window hosting a tab, plus its on-screen bounds (from the browser-level session). */
+  async getWindowForTab(tabId: string): Promise<{ windowId: number; bounds: any }> {
+    return this.withBrowserSession(async (transport) => {
+      const { windowId, bounds } = await transport.send('Browser.getWindowForTarget', { targetId: tabId });
+      return { windowId, bounds };
+    });
+  }
+
+  /** Group all page tabs by OS window. Tab IDs remain valid across windows for --tab targeting. */
+  async getWindows(): Promise<Array<{ windowId: number; bounds: any; tabs: CDPTarget[] }>> {
+    const tabs = (await this.getTargets()).filter(t => t.type === 'page');
+    const windows = new Map<number, { windowId: number; bounds: any; tabs: CDPTarget[] }>();
+    for (const tab of tabs) {
+      const { windowId, bounds } = await this.getWindowForTab(tab.id);
+      let entry = windows.get(windowId);
+      if (!entry) {
+        entry = { windowId, bounds, tabs: [] };
+        windows.set(windowId, entry);
+      }
+      entry.tabs.push(tab);
+    }
+    return [...windows.values()];
+  }
+
   // Network Domain
   async enableNetwork() {
     await this.send('Network.enable');
